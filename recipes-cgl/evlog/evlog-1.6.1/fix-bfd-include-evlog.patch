@@ -1,0 +1,10 @@
+--- evlog-1.6.1/user/cmd/evlgentmpls/evlgentmpls.c	2013-05-08 03:16:25.000000000 +0530
++++ evlog-1.6.1/user/cmd/evlgentmpls/evlgentmpls.c	2013-05-08 03:18:24.790391781 +0530
+@@ -28,6 +28,7 @@
+  * object file, and produces a formatting template in tmpldir for each
+  * event-logging call.
+  */
++#include <bfd/config.h>
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <string.h>

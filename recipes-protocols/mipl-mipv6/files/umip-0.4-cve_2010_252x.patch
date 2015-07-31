@@ -1,0 +1,69 @@
+diff -ruN git_org/src/ha.c git/src/ha.c
+--- git_org/src/ha.c	2010-09-14 12:39:21.000000000 -1000
++++ git/src/ha.c	2010-09-14 12:53:34.000000000 -1000
+@@ -106,6 +106,8 @@
+ 
+ 		if (opt[0] == ND_OPT_PREFIX_INFORMATION) {
+ 			struct nd_opt_prefix_info *p;
++			if (olen < sizeof(struct nd_opt_prefix_info))
++ 				return;
+ 			p = (struct nd_opt_prefix_info *)opt;
+ 
+ 			if (olen < sizeof(*p) || p->nd_opt_pi_prefix_len > 128)
+@@ -120,6 +122,8 @@
+ 		} else if (opt[0] == ND_OPT_HOME_AGENT_INFO &&
+ 			   ra->nd_ra_flags_reserved & ND_RA_FLAG_HOME_AGENT) {
+ 			struct nd_opt_homeagent_info *hainfo;
++			if (olen < sizeof(struct nd_opt_homeagent_info))
++				return;
+ 			hainfo = (struct nd_opt_homeagent_info *)opt;
+ 
+ 			if (olen < sizeof(*hainfo))
+diff -ruN git_org/src/movement.c git/src/movement.c
+--- git_org/src/movement.c	2010-08-13 05:26:39.000000000 -1000
++++ git/src/movement.c	2010-09-14 12:57:46.000000000 -1000
+@@ -842,6 +842,11 @@
+ 			 __attribute__ ((unused)) void *arg)
+ {
+ 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
++
++	/* only accept messages from kernel */
++	if (who->nl_pid)
++		goto out;
++
+ 	switch (n->nlmsg_type) {
+ 	case RTM_NEWLINK:
+ 	case RTM_DELLINK:
+@@ -861,6 +866,8 @@
+ 		/* To do: listen to changes in default and prefix routes(?) */
+ 		break;
+ 	}
++
++out:
+ 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+ 	return 0;
+ }
+diff -ruN git_org/src/xfrm.c git/src/xfrm.c
+--- git_org/src/xfrm.c	2010-08-13 05:26:39.000000000 -1000
++++ git/src/xfrm.c	2010-09-14 12:58:43.000000000 -1000
+@@ -2062,6 +2062,11 @@
+ 		    struct nlmsghdr *n, __attribute__ ((unused)) void *arg)
+ {
+ 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
++
++    /* only accept messages from kernel */
++    if (who->nl_pid)
++        goto out;
++
+ 	switch (n->nlmsg_type) {
+ 	case XFRM_MSG_ACQUIRE:
+ 		/* Start RO or send BRR */
+@@ -2072,6 +2077,8 @@
+ 		parse_report(n);
+ 		break;
+ 	}
++
++out:
+ 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+ 	return 0;
+ }

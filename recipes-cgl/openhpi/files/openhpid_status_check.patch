@@ -1,0 +1,23 @@
+diff -Naurp openhpi-3.2.0_org/openhpid/openhpid.sh.in openhpi-3.2.0/openhpid/openhpid.sh.in
+--- openhpi-3.2.0_org/openhpid/openhpid.sh.in	2013-06-26 14:48:29.232397294 +0530
++++ openhpi-3.2.0/openhpid/openhpid.sh.in	2013-06-26 14:50:37.576396627 +0530
+@@ -61,11 +61,16 @@ stop() {
+ 	rm -f /var/lock/openhpid /var/run/openhpid.pid
+     fi
+ }
+-
+ dstatus() {
+     echo "Checking for $prog daemon: "
+-    printstatus @prefix@/sbin/openhpid
+- }	
++    pid="`pidofproc /usr/sbin/openhpid`"
++    if test "${pid}" != ""
++    then
++        echo "$prog is running"
++    else
++        echo "$prog is not running"
++    fi
++}
+ 
+ restart() {
+   	stop

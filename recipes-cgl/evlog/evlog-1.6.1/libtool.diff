@@ -1,0 +1,44 @@
+diff -Naur evlog-1.6.1-orig/ltmain.sh evlog-1.6.1/ltmain.sh
+--- evlog-1.6.1-orig/ltmain.sh	2004-04-11 19:01:57.000000000 -0700
++++ evlog-1.6.1/ltmain.sh	2006-08-22 18:05:37.000000000 -0700
+@@ -1872,20 +1872,7 @@
+ 	    continue
+ 	  fi
+ 	  name=`$echo "X$deplib" | $Xsed -e 's/^-l//'`
+-	  for searchdir in $newlib_search_path $lib_search_path $sys_lib_search_path $shlib_search_path; do
+-	    for search_ext in .la $std_shrext .so .a; do
+-	      # Search the libtool library
+-	      lib="$searchdir/lib${name}${search_ext}"
+-	      if test -f "$lib"; then
+-		if test "$search_ext" = ".la"; then
+-		  found=yes
+-		else
+-		  found=no
+-		fi
+-		break 2
+-	      fi
+-	    done
+-	  done
++	  found=no
+ 	  if test "$found" != yes; then
+ 	    # deplib doesn't seem to be a libtool library
+ 	    if test "$linkmode,$pass" = "prog,link"; then
+@@ -2489,18 +2476,6 @@
+ 	      else
+ 	        add="$libdir/$linklib"
+ 	      fi
+-	    else
+-	      # We cannot seem to hardcode it, guess we'll fake it.
+-	      add_dir="-L$libdir"
+-	      # Try looking first in the location we're being installed to.
+-	      if test -n "$inst_prefix_dir"; then
+-		case "$libdir" in
+-		  [\\/]*)
+-		    add_dir="$add_dir -L$inst_prefix_dir$libdir"
+-		    ;;
+-		esac
+-	      fi
+-	      add="-l$name"
+ 	    fi
+ 
+ 	    if test "$linkmode" = prog; then

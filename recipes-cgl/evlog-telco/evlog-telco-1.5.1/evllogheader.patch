@@ -1,0 +1,48 @@
+diff -ur evlog-telco-1.5.1/evlforward/evlforward.c evlog-telco-1.5.1/evlforward/evlforward.c
+--- evlog-telco-1.5.1/evlforward/evlforward.c	2011-02-25 15:24:45.105982999 +0300
++++ evlog-telco-1.5.1/evlforward/evlforward.c	2011-02-25 15:29:12.657982998 +0300
+@@ -64,7 +64,7 @@
+ #include <sys/file.h>
+ #include <sys/signal.h>
+ #include <unistd.h>
+-#include <sys/evl_log.h>
++#include <linux/evl_log.h>
+ #include <posix_evlog.h>
+ #include <sys/uio.h>
+ #include <sys/wait.h>
+diff -ur evlog-telco-1.5.1/evlforward/posix-to-syslog.c evlog-telco-1.5.1/evlforward/posix-to-syslog.c
+--- evlog-telco-1.5.1/evlforward/posix-to-syslog.c	2011-02-25 15:24:44.798982999 +0300
++++ evlog-telco-1.5.1/evlforward/posix-to-syslog.c	2011-02-25 15:29:12.657982998 +0300
+@@ -57,7 +57,7 @@
+ #include	<sys/signal.h>
+ #include	<sys/stat.h>
+ #include	<unistd.h>
+-#include	<sys/evl_log.h>
++#include	<linux/evl_log.h>
+ #include	<posix_evlog.h>
+ #include	<sys/uio.h>
+ #include	<sys/wait.h>
+diff -ur evlog-telco-1.5.1/evlforward/syslog-to-posix.c evlog-telco-1.5.1/evlforward/syslog-to-posix.c
+--- evlog-telco-1.5.1/evlforward/syslog-to-posix.c	2011-02-25 15:24:44.798982999 +0300
++++ evlog-telco-1.5.1/evlforward/syslog-to-posix.c	2011-02-25 15:29:12.658982997 +0300
+@@ -56,7 +56,7 @@
+ #include <sys/file.h>
+ #include <sys/signal.h>
+ #include <unistd.h>
+-#include <sys/evl_log.h>
++#include <linux/evl_log.h>
+ #include <posix_evlog.h>
+ #include <sys/uio.h>
+ #include <sys/wait.h>
+diff -ur evlog-telco-1.5.1/evlsyslog/evlsyslog.c evlog-telco-1.5.1/evlsyslog/evlsyslog.c
+--- evlog-telco-1.5.1/evlsyslog/evlsyslog.c	2011-02-25 15:24:44.799982998 +0300
++++ evlog-telco-1.5.1/evlsyslog/evlsyslog.c	2011-02-25 15:29:12.657982998 +0300
+@@ -36,7 +36,7 @@
+ #include <sys/file.h>
+ #include <sys/signal.h>
+ #include <unistd.h>
+-#include <sys/evl_log.h>
++#include <linux/evl_log.h>
+ #include <posix_evlog.h>
+ #include <sys/uio.h>
+ #include <sys/wait.h>

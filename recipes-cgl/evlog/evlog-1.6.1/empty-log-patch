@@ -1,0 +1,30 @@
+Index: evlog-1.6.1/user/lib/posix2.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/posix2.c
++++ evlog-1.6.1/user/lib/posix2.c
+@@ -214,8 +214,9 @@ _evlOpen(posix_logd_t *logdes, const cha
+ 	log_desc_t *logd;
+ 	log_header_t *logHdr;
+ 	void *mappedLog;
++	struct stat64 st;
+ 
+-	if (path == 0) {
++	if (path == (char *) NULL) {
+ 		path = LOG_CURLOG_PATH;
+ 	}
+ 
+@@ -224,6 +225,14 @@ _evlOpen(posix_logd_t *logdes, const cha
+ 		return errno;
+ 	}
+ 
++	if (fstat64(fd, &st) == -1) {
++		return errno;
++	}
++
++	if (st.st_size == 0) {
++		return EINVAL;
++	}
++
+ 	logd = makeLogDescription();
+ 	logd->ld_fd = fd;
+ 

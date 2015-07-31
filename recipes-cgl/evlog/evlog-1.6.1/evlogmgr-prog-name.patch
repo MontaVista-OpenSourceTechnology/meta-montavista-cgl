@@ -1,0 +1,31 @@
+MR: 25356
+Type: Defect fix
+Description:
+    Added the missing progname string argument for fprintf %s output format
+
+Root Cause:
+    fprintf %s misses the actual progname string argument.
+
+Index: evlog-1.6.1/user/cmd/evlogmgr/evlogmgr.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlogmgr/evlogmgr.c	2007-10-05 16:36:21.000000000 -0700
++++ evlog-1.6.1/user/cmd/evlogmgr/evlogmgr.c	2007-10-05 16:41:49.000000000 -0700
+@@ -310,7 +310,7 @@
+ 	checkSemantics();
+ 
+ 	if (logFilePath == (char *) NULL) {
+-		(void) fprintf(stderr, "%s: log file path is required\n");
++		(void) fprintf(stderr, "%s: log file path is required\n", progName);
+ 
+ 		exit(1);
+ 	}
+@@ -318,7 +318,8 @@
+ 	if ((strcmp(logFilePath, LOG_PRIVATE_PATH) == 0) ||
+ 	    (strcmp(logFilePath, LOG_CURLOG_PATH) == 0)) {
+ 		(void) fprintf(stderr,
+-			"%s: cannot perform management on active log files.\n");
++			"%s: cannot perform management on active log files.\n",
++			progName);
+ 		exit(1);
+ 	}
+ 

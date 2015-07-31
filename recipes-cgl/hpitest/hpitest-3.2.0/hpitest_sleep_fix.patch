@@ -1,0 +1,10 @@
+--- ./src/tests/resource/saHpiResourceFailedRemove/FailedRemove.cc.org	2012-09-21 11:59:22.863897048 +0530
++++ ./src/tests/resource/saHpiResourceFailedRemove/FailedRemove.cc	2012-09-21 11:59:55.615897579 +0530
+@@ -24,6 +24,7 @@
+  *           Complete re-design of test case 
+  */
+ 
++#include <unistd.h>
+ #include "FailedRemove.h"
+ #include "EventHelper.h"
+ #include "EventMatcher.h"

@@ -1,0 +1,58 @@
+MR: 24938 
+Deposition: Document change
+Description:
+    Add BUG section in man page to warn about colon characters in string
+    filter for persistent registrations.
+
+Root Cause:
+    evlog/evlactiond uses ":" deliminator to parse action_register file to 
+    load persistent evlnotify registration after reboot. Since it uses 
+    strtok(":") to extract fields, the embedded ":" in filter field causes
+    wrong field delimination.  Therefore, evlactiond treats them as invalid
+    lines and won't load this evlnotify registration.
+
+Index: evlog-1.6.1/user/man/evlnotify.1
+===================================================================
+--- evlog-1.6.1.orig/user/man/evlnotify.1
++++ evlog-1.6.1/user/man/evlnotify.1
+@@ -292,5 +292,17 @@ register
+ Users not allowed to
+ register
+ 
++.SH "BUGS"
++.PP
++A persistent registration will not be restored after the
++system reboots if its \fIfilter\fR is a string comparison and the
++string contains a colon ":" character. e.g. the following persistent
++registration will not be persistent because of the colon ":" in
++the -f \fIfilter\fR string \fI"mail:"\fR
++.TP
++.nf
++evlnotify -a '/etc/sysadm %recid%' -f 'data contains "mail:"' -p
++.fi
++
+ .SH "SEE ALSO"
+ \fIevlquery man page\fR    Filter expression syntax rules
+
+Index: evlog-1.6.1/user/man/evlnotify.1.in
+===================================================================
+--- evlog-1.6.1.orig/user/man/evlnotify.1.in
++++ evlog-1.6.1/user/man/evlnotify.1.in
+@@ -292,5 +292,17 @@ register
+ Users not allowed to
+ register
+ 
++.SH "BUGS"
++.PP
++A persistent registration will not be restored after the
++system reboots if its \fIfilter\fR is a string comparison and the
++string contains a colon ":" character. e.g. the following persistent
++registration will not be persistent because of the colon ":" in
++the -f \fIfilter\fR string \fI"mail:"\fR
++.TP
++.nf
++evlnotify -a '/etc/sysadm %recid%' -f 'data contains "mail:"' -p
++.fi
++
+ .SH "SEE ALSO"
+ \fIevlquery man page\fR    Filter expression syntax rules

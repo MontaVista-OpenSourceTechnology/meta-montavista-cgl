@@ -1,0 +1,166 @@
+diff -Naurp evlog-1.6.1_org/user/cmd/evlogd/evlogd.c evlog-1.6.1/user/cmd/evlogd/evlogd.c
+--- evlog-1.6.1_org/user/cmd/evlogd/evlogd.c	2013-05-17 13:21:16.544228264 +0530
++++ evlog-1.6.1/user/cmd/evlogd/evlogd.c	2013-05-17 13:12:49.700208528 +0530
+@@ -101,6 +101,12 @@ _syscall3(int,ksyslog,int, type, char *,
+ #elif defined(__arm__) && !defined(__ARMEB__)
+ #define LOG_MAGIC_ARCH  ((LOGREC_MAGIC & 0xffff0000) | LOGREC_ARCH_ARM_LE)
+ #define LOCAL_ARCH 	LOGREC_ARCH_ARM_LE
++#elif defined(__aarch64__) && defined(__AARCH64EB__)
++#define LOG_MAGIC_ARCH  ((LOGREC_MAGIC & 0xffff0000) | LOGREC_ARCH_ARM64_BE)
++#define LOCAL_ARCH		LOGREC_ARCH_ARM64_BE
++#elif defined(__aarch64__) && !defined(__AARCH64EB__)
++#define LOG_MAGIC_ARCH  ((LOGREC_MAGIC & 0xffff0000) | LOGREC_ARCH_ARM64_LE)
++#define LOCAL_ARCH		LOGREC_ARCH_ARM64_LE
+ #elif defined(__mips__)
+ # if _MIPS_SZLONG==64 && defined(MIPSEB)
+ #define LOG_MAGIC_ARCH  ((LOGREC_MAGIC & 0xffff0000) | LOGREC_ARCH_MIPS64_BE)
+diff -Naurp evlog-1.6.1_org/user/include/evlog.h evlog-1.6.1/user/include/evlog.h
+--- evlog-1.6.1_org/user/include/evlog.h	2013-05-17 13:21:16.552228264 +0530
++++ evlog-1.6.1/user/include/evlog.h	2013-05-17 13:12:49.708208529 +0530
+@@ -118,12 +118,14 @@ typedef int evlrecsize_t;
+ #define LOGREC_ARCH_X86_64			0x0007
+ #define LOGREC_ARCH_ARM_BE			0x0008
+ #define LOGREC_ARCH_ARM_LE			0x0009
+-#define LOGREC_ARCH_MIPS_BE			0x000a
+-#define LOGREC_ARCH_MIPS_LE			0x000b
+-#define LOGREC_ARCH_MIPS64_BE			0x000c
+-#define LOGREC_ARCH_MIPS64_LE			0x000d
++#define LOGREC_ARCH_ARM64_BE			0x000a
++#define LOGREC_ARCH_ARM64_LE			0x000b
++#define LOGREC_ARCH_MIPS_BE			0x000c
++#define LOGREC_ARCH_MIPS_LE			0x000d
++#define LOGREC_ARCH_MIPS64_BE			0x000e
++#define LOGREC_ARCH_MIPS64_LE			0x000f
+ 
+-#define LOGREC_NUM_ARCHES			14
++#define LOGREC_NUM_ARCHES			16
+ 
+ /*
+  * Logfile Header structure.
+diff -Naurp evlog-1.6.1_org/user/include/evlog.h.in evlog-1.6.1/user/include/evlog.h.in
+--- evlog-1.6.1_org/user/include/evlog.h.in	2013-05-17 13:21:16.552228264 +0530
++++ evlog-1.6.1/user/include/evlog.h.in	2013-05-17 13:12:49.708208529 +0530
+@@ -118,12 +118,14 @@ typedef int evlrecsize_t;
+ #define LOGREC_ARCH_X86_64			0x0007
+ #define LOGREC_ARCH_ARM_BE			0x0008
+ #define LOGREC_ARCH_ARM_LE			0x0009
+-#define LOGREC_ARCH_MIPS_BE			0x000a
+-#define LOGREC_ARCH_MIPS_LE			0x000b
+-#define LOGREC_ARCH_MIPS64_BE			0x000c
+-#define LOGREC_ARCH_MIPS64_LE			0x000d
++#define LOGREC_ARCH_ARM64_BE			0x000a
++#define LOGREC_ARCH_ARM64_LE			0x000b
++#define LOGREC_ARCH_MIPS_BE			0x000c
++#define LOGREC_ARCH_MIPS_LE			0x000d
++#define LOGREC_ARCH_MIPS64_BE			0x000e
++#define LOGREC_ARCH_MIPS64_LE			0x000f
+ 
+-#define LOGREC_NUM_ARCHES			14
++#define LOGREC_NUM_ARCHES			16
+ 
+ /*
+  * Logfile Header structure.
+diff -Naurp evlog-1.6.1_org/user/lib/posix1.c evlog-1.6.1/user/lib/posix1.c
+--- evlog-1.6.1_org/user/lib/posix1.c	2013-05-17 13:21:16.548228264 +0530
++++ evlog-1.6.1/user/lib/posix1.c	2013-05-17 13:12:49.704208528 +0530
+@@ -256,6 +256,10 @@ _EvlLogWrite(	posix_log_facility_t	facil
+ 	entry.log_magic = LOGREC_ARCH_ARM_BE;
+ #elif defined(__arm__) && !defined(__ARMEB__)
+ 	entry.log_magic = LOGREC_ARCH_ARM_LE;
++#elif defined(__aarch64__) && defined(__AARCH64EB__)
++	entry.log_magic = LOGREC_ARCH_ARM64_BE;
++#elif defined(__aarch64__) && !defined(__AARCH64EB__)
++	entry.log_magic = LOGREC_ARCH_ARM64_LE;
+ #elif defined(__mips__)
+ # if _MIPS_SZLONG==64 && defined(MIPSEB)
+ 	entry.log_magic = LOGREC_ARCH_MIPS64_BE;
+diff -Naurp evlog-1.6.1_org/user/lib/posix2.c evlog-1.6.1/user/lib/posix2.c
+--- evlog-1.6.1_org/user/lib/posix2.c	2013-05-17 13:21:16.544228264 +0530
++++ evlog-1.6.1/user/lib/posix2.c	2013-05-17 13:12:49.700208528 +0530
+@@ -81,6 +81,8 @@ unsigned short evl_arch_to_size[LOGREC_N
+ 	ARCH_SIZE_64, /* LOGREC_ARCH_X86_64 */
+ 	ARCH_SIZE_32, /* LOGREC_ARCH_ARM_BE */
+ 	ARCH_SIZE_32, /* LOGREC_ARCH_ARM_LE */
++	ARCH_SIZE_64, /* LOGREC_ARCH_ARM64_BE */
++	ARCH_SIZE_64, /* LOGREC_ARCH_ARM64_LE */
+ 	ARCH_SIZE_32, /* LOGREC_ARCH_MIPS_BE */
+ 	ARCH_SIZE_32, /* LOGREC_ARCH_MIPS_LE */
+ 	ARCH_SIZE_64, /* LOGREC_ARCH_MIPS64_BE */
+diff -Naurp evlog-1.6.1_org/user/lib/template/convert.c evlog-1.6.1/user/lib/template/convert.c
+--- evlog-1.6.1_org/user/lib/template/convert.c	2013-05-17 13:21:16.548228264 +0530
++++ evlog-1.6.1/user/lib/template/convert.c	2013-05-17 13:12:49.704208528 +0530
+@@ -93,6 +93,10 @@ typedef enum conv_{
+ 	#define LOCAL_ARCH		LOGREC_ARCH_ARM_BE
+ #elif defined(__arm__) && !defined(__ARMEB__)
+ 	#define LOCAL_ARCH		LOGREC_ARCH_ARM_LE
++#elif defined(__aarch64__) && defined(__AARCH64EB__)
++	#define LOCAL_ARCH		LOGREC_ARCH_ARM64_BE
++#elif defined(__aarch64__) && !defined(__AARCH64EB__)
++	#define LOCAL_ARCH		LOGREC_ARCH_ARM64_LE
+ #elif defined(__mips__)
+ # if _MIPS_SZLONG==64 && defined(MIPSEB)
+ 	#define LOCAL_ARCH		LOGREC_ARCH_MIPS64_BE
+diff -Naurp evlog-1.6.1_org/user/lib/template/template.c evlog-1.6.1/user/lib/template/template.c
+--- evlog-1.6.1_org/user/lib/template/template.c	2013-05-17 13:21:16.548228264 +0530
++++ evlog-1.6.1/user/lib/template/template.c	2013-05-17 13:12:49.704208528 +0530
+@@ -381,6 +381,60 @@ tmpl_arch_type_info_t _evlTmplArchTypeIn
+ 	{0, 0},	/*TY_TYPEDEF*/
+ 	{0, 0}	/* the end */
+ 	},
++/* LOGREC_ARCH_ARM64_BE */
++        {
++        {0, 0},
++        {1,     1},
++        {1, 1},
++        {2, 2},
++        {2, 2},
++        {4, 4},
++        {4, 4},
++        {8, 8},
++        {8, 8},
++        {8,     8},
++        {8, 8},
++        {4, 4},
++        {8,     8},
++        {16, 16},
++        {8, 0},
++        {4, 4},
++        {8, 0},
++        {8, 8},
++        {0, 0},
++        {0, 0},
++        {0, 0},
++        {0, 0},/*TY_STRUCTNAME*/
++        {0, 0}, /*TY_TYPEDEF*/
++        {0, 0}  /* the end */
++        },
++/* LOGREC_ARCH_ARM64_LE */
++        {
++        {0, 0},
++        {1,     1},
++        {1, 1},
++        {2, 2},
++        {2, 2},
++        {4, 4},
++        {4, 4},
++        {8, 8},
++        {8, 8},
++        {8,     8},
++        {8, 8},
++        {4, 4},
++        {8,     8},
++        {16, 16},
++        {8, 0},
++        {4, 4},
++        {8, 0},
++        {8, 8},
++        {0, 0},
++        {0, 0},
++        {0, 0},
++        {0, 0},/*TY_STRUCTNAME*/
++        {0, 0}, /*TY_TYPEDEF*/
++        {0, 0}  /* the end */
++        },
+ /* LOGREC_ARCH_MIPS_BE */
+ 	{
+ 	{0, 0},

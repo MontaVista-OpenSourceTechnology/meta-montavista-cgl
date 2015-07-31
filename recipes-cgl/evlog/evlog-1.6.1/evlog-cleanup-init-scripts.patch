@@ -1,0 +1,321 @@
+Index: evlog-1.6.1/user/sysfiles/etc/init.d/evlaction.in
+===================================================================
+--- evlog-1.6.1.orig/user/sysfiles/etc/init.d/evlaction.in
++++ evlog-1.6.1/user/sysfiles/etc/init.d/evlaction.in
+@@ -7,13 +7,7 @@
+ 
+ # Source function library.
+ 
+-REDHAT=`cat /proc/version | grep "Red Hat"`
+-# Source function library.
+-if [ ! -z "$REDHAT" ]
+-then
+-	. /etc/init.d/functions
+-fi
+-
++. /etc/init.d/functions
+ 
+ [ -f @sbindir@/evlactiond ] || exit 0
+ 
+@@ -25,12 +19,7 @@ umask 077
+ start() {
+  	echo -n $"Starting notification action daemon: "
+  	
+- 	if [ ! -z "$REDHAT" ]
+- 	then
+-		daemon @sbindir@/evlactiond
+-    else
+-   		@sbindir@/evlactiond
+-   	fi
++	@sbindir@/evlactiond
+    	
+ 	RETVAL=$?
+ 	echo
+@@ -39,16 +28,7 @@ start() {
+ }	
+ stop() {
+ 	echo -n $"Shutting down notification action daemon: "
+-	if [ ! -z "$REDHAT" ]
+- 	then
+-		killproc evlactiond
+-    else
+-		PID=`ps -ef | grep evlactiond | grep -v grep | awk '{print $2}'`
+-		if [ ! -z "$PID" ]
+-		then
+-			kill -s SIGTERM $PID
+-		fi
+-	fi
++	killproc evlactiond
+ 	
+ 	RETVAL=$?
+ 	echo
+@@ -61,9 +41,6 @@ stop() {
+ 	
+ 	return $RETVAL
+ }
+-rhstatus() {
+-	status evlactiond
+-}
+ restart() {
+ 	stop
+ 	start
+@@ -76,9 +53,6 @@ case "$1" in
+   stop)
+   	stop
+ 	;;
+-  status)
+-  	rhstatus
+-	;;
+   restart|reload)
+   	restart
+ 	;;
+@@ -86,7 +60,7 @@ case "$1" in
+     restart	
+ 	;;
+   *)
+-	echo $"Usage: $0 {start|stop|status|restart|condrestart}"
++	echo $"Usage: $0 {start|stop|restart|condrestart}"
+ 	exit 1
+ esac
+ 
+Index: evlog-1.6.1/user/sysfiles/etc/init.d/evlnotify.in
+===================================================================
+--- evlog-1.6.1.orig/user/sysfiles/etc/init.d/evlnotify.in
++++ evlog-1.6.1/user/sysfiles/etc/init.d/evlnotify.in
+@@ -7,13 +7,7 @@
+ 
+ # Source function library.
+ 
+-REDHAT=`cat /proc/version | grep "Red Hat"`
+-# Source function library.
+-if [ ! -z "$REDHAT" ]
+-then
+-	. /etc/init.d/functions
+-fi
+-
++. /etc/init.d/functions
+ 
+ [ -f @sbindir@/evlnotifyd ] || exit 0
+ 
+@@ -25,12 +19,7 @@ umask 077
+ start() {
+  	echo -n $"Starting enterprise event log notification: "
+  	
+- 	if [ ! -z "$REDHAT" ]
+- 	then
+-		daemon @sbindir@/evlnotifyd
+-	else
+-		@sbindir@/evlnotifyd
+-	fi
++	@sbindir@/evlnotifyd
+ 	sleep 1	
+ 	RETVAL=$?
+ 	echo
+@@ -40,17 +29,7 @@ start() {
+ stop() {
+ 	echo -n $"Shutting down enterprise event log notification: "
+ 	
+-	if [ ! -z "$REDHAT" ]
+- 	then
+- 		killproc evlnotifyd
+-	else
+-		PID=`ps -ef | grep evlnotifyd | grep -v grep | awk '{print $2}'`
+-		if [ ! -z "$PID" ]
+-		then
+-			kill -s SIGTERM $PID
+-		fi
+-	fi
+-	
++	killproc evlnotifyd
+ 	RETVAL=$?
+ 	echo
+ 	rm -f /var/lock/subsys/evlnotify
+@@ -62,9 +41,6 @@ stop() {
+ 	
+ 	return $RETVAL
+ }
+-rhstatus() {
+-	status evlnotifyd
+-}
+ restart() {
+ 	stop
+ 	start
+@@ -77,9 +53,6 @@ case "$1" in
+   stop)
+   	stop
+ 	;;
+-  status)
+-  	rhstatus
+-	;;
+   restart|reload)
+   	restart
+ 	;;
+@@ -87,7 +60,7 @@ case "$1" in
+     restart	
+ 	;;
+   *)
+-	echo $"Usage: $0 {start|stop|status|restart|condrestart}"
++	echo $"Usage: $0 {start|stop|restart|condrestart}"
+ 	exit 1
+ esac
+ 
+Index: evlog-1.6.1/user/sysfiles/etc/init.d/evlog.in
+===================================================================
+--- evlog-1.6.1.orig/user/sysfiles/etc/init.d/evlog.in
++++ evlog-1.6.1/user/sysfiles/etc/init.d/evlog.in
+@@ -7,12 +7,7 @@
+ 
+ # Source function library.
+ 
+-REDHAT=`cat /proc/version | grep "Red Hat"`
+-# Source function library.
+-if [ ! -z "$REDHAT" ]
+-then
+-	. /etc/init.d/functions
+-fi
++. /etc/init.d/functions
+ 
+ 
+ [ -f @sbindir@/evlogd ] || exit 0
+@@ -39,12 +34,7 @@ start() {
+ 	record_last_recid @localstatedir@/eventlog @localstatedir@/bootrecid
+ 	record_last_recid @localstatedir@/privatelog @localstatedir@/pbootrecid
+  	
+- 	if [ ! -z "$REDHAT" ]
+-	then 	
+-		daemon @sbindir@/evlogd $EVLOGD_OPTIONS
+-	else
+-		@sbindir@/evlogd $EVLOGD_OPTIONS
+-	fi
++	@sbindir@/evlogd $EVLOGD_OPTIONS
+ 	sleep 1
+ 	RETVAL=$?
+ 	echo
+@@ -54,16 +44,7 @@ start() {
+ stop() {
+ 	echo -n $"Shutting down enterprise event logger: "
+ 	
+-	if [ ! -z "$REDHAT" ]
+-	then
+-		killproc evlogd
+-	else
+-		PID=`ps -ef | grep evlogd | grep -v grep | awk '$3==1 {print $2}'`
+-		if [ ! -z "$PID" ]
+-		then
+-			kill -s SIGTERM $PID
+-		fi
+-	fi
++	killproc evlogd
+ 
+ 	RETVAL=$?
+ 	echo
+@@ -74,9 +55,6 @@ stop() {
+ 	fi
+ 	return $RETVAL
+ }
+-rhstatus() {
+-	status evlogd
+-}
+ restart() {
+ 	stop
+ 	start
+@@ -89,9 +67,6 @@ case "$1" in
+   stop)
+   	stop
+ 	;;
+-  status)
+-  	rhstatus
+-	;;
+   restart|reload)
+   	restart
+ 	;;
+@@ -99,7 +74,7 @@ case "$1" in
+     restart	
+ 	;;
+   *)
+-	echo $"Usage: $0 {start|stop|status|restart|condrestart}"
++	echo $"Usage: $0 {start|stop|restart|condrestart}"
+ 	exit 1
+ esac
+ 
+Index: evlog-1.6.1/user/sysfiles/etc/init.d/evlogrmt.in
+===================================================================
+--- evlog-1.6.1.orig/user/sysfiles/etc/init.d/evlogrmt.in
++++ evlog-1.6.1/user/sysfiles/etc/init.d/evlogrmt.in
+@@ -7,13 +7,7 @@
+ 
+ # Source function library.
+ 
+-REDHAT=`cat /proc/version | grep "Red Hat"`
+-# Source function library.
+-if [ ! -z "$REDHAT" ]
+-then
+-	. /etc/init.d/functions
+-fi
+-
++. /etc/init.d/functions
+ 
+ [ -f @sbindir@/evlogrmtd ] || exit 0
+ 
+@@ -25,12 +19,7 @@ umask 077
+ start() {
+  	echo -n $"Starting remote event logger: "
+ 
+- 	if [ ! -z "$REDHAT" ]
+-	then 	
+-		daemon @sbindir@/evlogrmtd
+-	else
+-		@sbindir@/evlogrmtd
+-	fi
++	@sbindir@/evlogrmtd
+ 	sleep 1
+ 	RETVAL=$?
+ 	echo
+@@ -40,17 +29,7 @@ start() {
+ stop() {
+ 	echo -n $"Shutting down remote event logger: "
+ 	
+-	if [ ! -z "$REDHAT" ]
+-	then
+-		killproc evlogrmtd
+-	else
+-		PID=`ps -ef | grep evlogrmtd | grep -v grep | awk '{print $2}'`
+-		if [ ! -z "$PID" ]
+-		then
+-			kill -s SIGTERM $PID
+-		fi
+-	fi
+-
++	killproc evlogrmtd
+ 	RETVAL=$?
+ 	echo
+ 	rm -f /var/lock/subsys/evlogrmt
+@@ -60,9 +39,6 @@ stop() {
+ 	fi
+ 	return $RETVAL
+ }
+-rhstatus() {
+-	status evlogrmtd
+-}
+ restart() {
+ 	stop
+ 	start
+@@ -75,9 +51,6 @@ case "$1" in
+   stop)
+   	stop
+ 	;;
+-  status)
+-  	rhstatus
+-	;;
+   restart|reload)
+   	restart
+ 	;;
+@@ -85,7 +58,7 @@ case "$1" in
+     restart	
+ 	;;
+   *)
+-	echo $"Usage: $0 {start|stop|status|restart|condrestart}"
++	echo $"Usage: $0 {start|stop|restart|condrestart}"
+ 	exit 1
+ esac
+ 

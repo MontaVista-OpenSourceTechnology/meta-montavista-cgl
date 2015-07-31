@@ -1,0 +1,265 @@
+Index: evlog-telco-1.5.1/evlog-examples/testmod.c
+===================================================================
+--- /dev/null
++++ evlog-telco-1.5.1/evlog-examples/testmod.c
+@@ -0,0 +1,104 @@
++/*
++ * Copyright © 2002, Intel Corporation
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are met:
++ *
++ * Redistributions of source code must retain the above copyright notice,
++ * this list of conditions and the following disclaimer.
++ * Redistributions in binary form must reproduce the above copyright notice,
++ * this list of conditions and the following disclaimer in the documentation
++ * and/or other materials provided with the distribution.
++ * Neither the name of the Intel Corporation nor the names of its contributors
++ * may be used to endorse or promote products derived from this software
++ * without specific prior written permission.
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ * POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/* POSIX 1003.25 Event Logging Test Application
++   David Brinkman
++
++   This program demonstrates how a kernel module can use the POSIX
++   Event Logging mechanism to write to the event log.
++*/
++
++/*
++ * Adapted for 2.6.x by Igor Goryachieff <igoryachev@ru.mvista.com>
++ */
++
++#include <linux/init.h>
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/moduleparam.h>
++#include <linux/evl_log.h>
++#include <linux/evlog.h>
++
++//static char *str1 = "bar foo";
++static char str1[1024] = "bar foo";
++static char *MYFUNCTION = "printf";
++static int MYSEVERITY = 0;
++static int MYEVENTTYPE = 0;
++
++//module_param(str1, charp, 0);
++module_param_string(str1, str1, sizeof(str1), 0);
++module_param(MYFUNCTION, charp, 0);
++module_param(MYSEVERITY, int, 0);
++module_param(MYEVENTTYPE, int, 0);
++
++static int __init testmod_init(void)
++{
++	int  eventtype = MYEVENTTYPE;
++	int  severity = MYSEVERITY;
++	char *function = MYFUNCTION;
++
++	if(MYEVENTTYPE == 0)
++		eventtype=3;
++	else
++		eventtype=MYEVENTTYPE;
++	if(MYSEVERITY < 0 || MYSEVERITY > 7)
++		severity=3;
++	else
++		severity=MYSEVERITY;
++	if(MYFUNCTION == NULL)
++		strcpy(function, "printf");
++	else
++		strcpy(function, MYFUNCTION);
++
++	if(!strcmp(function, "printf"))
++		posix_log_printf(LOG_KERN, eventtype, severity, 0, "posix_log_printf testing %s", str1);
++
++	if(!strcmp(function, "write"))
++		posix_log_write(LOG_KERN, eventtype, severity, str1, strlen(str1) + 1,
++				POSIX_LOG_STRING, 0);
++
++	if(!strcmp(function, "printk"))
++	        evl_printk(LOG_KERN, eventtype, severity, "printk testing %s\n", str1);
++
++//        printk("printk testing - MYSEVERITY:%d MYEVENTTYPE:%d MYFUNCTION:%s str1:%s\n",MYSEVERITY,MYEVENTTYPE,MYFUNCTION, str1);
++//        posix_log_printf(LOG_KERN, eventtype, severity, 0, "posix_log_printf testing %s", str1);
++
++	return 0;
++}
++
++static void __exit testmod_exit(void)
++{
++	return;
++}
++
++module_init(testmod_init);
++module_exit(testmod_exit);
++
++MODULE_AUTHOR("Brinkman, David N <david.n.brinkman@intel.com>");
++MODULE_DESCRIPTION("A test module for posix event log");
++MODULE_LICENSE("GPL");
+Index: evlog-telco-1.5.1/evlog-examples/tests-mvcgl.txt
+===================================================================
+--- evlog-telco-1.5.1.orig/evlog-examples/tests-mvcgl.txt
++++ evlog-telco-1.5.1/evlog-examples/tests-mvcgl.txt
+@@ -190,79 +190,79 @@
+ #LOG_NOTICE	5
+ #LOG_INFO	6
+ #LOG_DEBUG	7
+-147;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;match;0;0
+-148;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;match;0;0
+-149;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=NOTICE||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=2&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;match;0;0
+-150;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+-151;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+-152;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+-153;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=305&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+-154;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=305&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+-155;pxtestapp -n -t 6;(facility=CRON||facility=USER)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=2&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++147;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;match;0;0
++148;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;match;0;0
++# 149;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=NOTICE||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=2&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;match;0;0
++150;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++151;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++# 152;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++153;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=305&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++154;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=305&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++# 155;pxtestapp -n -t 6;(facility=CRON||facility=USER)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=2&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+ # Make every thing match except message
+-156;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is not a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+-157;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is not a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+-158;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=NOTICE||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=2&&(data contains "it is not a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++156;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is not a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++157;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is not a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++# 158;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=NOTICE||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=2&&(data contains "it is not a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+ # Change to uid and gid not root. SHould be nomatch
+-159;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+-160;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+-161;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=NOTICE||severity=CRIT)&&(uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=2&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+-162;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+-163;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+-164;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=NOTICE||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="bin"||gid="daemon"||gid="mail")&&event_type=2&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++159;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++160;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++# 161;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=NOTICE||severity=CRIT)&&(uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=2&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++162;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++163;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
++# 164;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=NOTICE||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="bin"||gid="daemon"||gid="mail")&&event_type=2&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;nomatch;0;0
+ # Do longer message testing: Note IBM can handle > 1024 message size but
+ # pxtestapp can't so don't exceed this size.
+-165;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;Make this message long............................................................................................................................................................................................................................................................................................................................................................................................XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX..........................................This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;match;0;0
+-166;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;Make this message long............................................................................................................................................................................................................................................................................................................................................................................................XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX..........................................This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;match;0;0
++165;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printf;Make this message long............................................................................................................................................................................................................................................................................................................................................................................................XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX..........................................This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;match;0;0
++166;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=ERR||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=303&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=write;Make this message long............................................................................................................................................................................................................................................................................................................................................................................................XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX..........................................This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;match;0;0
+ # printk can not handle > 1024 message. 
+-167;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=NOTICE||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=2&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;Make this message long........................................................................................................................................................................................................................................................................................................................................................................................XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX..............................................This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;match;0;0
++# 167;pxtestapp -n -t 6;(facility=KERN||facility=USER)&&(severity=NOTICE||severity=CRIT)&&(uid="root"||uid="bin"||uid="daemon"||uid="lp")&&(gid="root"||gid="bin"||gid="daemon"||gid="mail")&&event_type=2&&(data contains "it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=303 MYFUNCTION=printk;Make this message long........................................................................................................................................................................................................................................................................................................................................................................................XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX..............................................This is one big match:  it is a small world after all. it is a small world after all. it is a small world after all... its a small world after all...........  Whoo;match;0;0
+ # Test all other severity codes and reg expression stuff
+-168;pxtestapp -n -t 6;severity=EMERG&&event_type=3&&(data ~ "POSIX is Good");insmod -f ./testmod.o MYSEVERITY=0 MYEVENTTYPE=3 MYFUNCTION=printf;Just a POSIX is Good message;match;0;0
+-169;pxtestapp -n -t 6;severity=ALERT&&event_type<=4&&(data contains "POSIX is Good" && data !~ "POSIX in not good.....");insmod -f ./testmod.o MYSEVERITY=1 MYEVENTTYPE=3 MYFUNCTION=printf;Just a POSIX is Good message;match;0;0
+-170;pxtestapp -n -t 6;severity=CRIT&&event_type!=5&&(data contains "POSIX is Good");insmod -f ./testmod.o MYSEVERITY=2 MYEVENTTYPE=9 MYFUNCTION=printf;Just a POSIX is Good message;match;0;0
+-171;pxtestapp -n -t 6;severity=WARNING&&event_type=5&&(data ~ "SIX is Go");insmod -f ./testmod.o MYSEVERITY=4 MYEVENTTYPE=5 MYFUNCTION=printf;Just a POSIX is Good message;match;0;0
+-172;pxtestapp -n -t 6;severity=NOTICE&&event_type>=6&&(data ~ "POSIX is Good");insmod -f ./testmod.o MYSEVERITY=5 MYEVENTTYPE=6 MYFUNCTION=printf;Just a POSIX is Good message;match;0;0
+-173;pxtestapp -n -t 6;severity=INFO&&event_type<=7&&(data contains "POSIX is Good");insmod -f ./testmod.o MYSEVERITY=6 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is Good message;match;0;0
+-174;pxtestapp -n -t 6;severity=DEBUG && (data contains "POSIX is a Good");insmod -f ./testmod.o MYSEVERITY=7 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good message;match;0;0
+-175;pxtestapp -n -t 6;severity=EMERG&&event_type=3&&(data ~ "POSIX is Good");insmod -f ./testmod.o MYSEVERITY=0 MYEVENTTYPE=3 MYFUNCTION=write;Just a POSIX is Good message;match;0;0
+-176;pxtestapp -n -t 6;severity=ALERT&&event_type<4&&(data contains "POSIX is Gooder");insmod -f ./testmod.o MYSEVERITY=1 MYEVENTTYPE=3 MYFUNCTION=write;Just a POSIX is Gooder message;match;0;0
+-177;pxtestapp -n -t 6;severity=CRIT&&event_type!=5&&(data contains "POSIX is Good");insmod -f ./testmod.o MYSEVERITY=2 MYEVENTTYPE=9 MYFUNCTION=write;Just a POSIX is Good message;match;0;0
+-178;pxtestapp -n -t 6;severity=WARNING&&event_type=5&&(data ~ "SIX is Go");insmod -f ./testmod.o MYSEVERITY=4 MYEVENTTYPE=5 MYFUNCTION=write;Just a POSIX is Good message;match;0;0
+-179;pxtestapp -n -t 6;severity=NOTICE&&event_type>=6&&(data ~ "POSIX is Good");insmod -f ./testmod.o MYSEVERITY=5 MYEVENTTYPE=6 MYFUNCTION=write;Just a POSIX is Good message;match;0;0
+-180;pxtestapp -n -t 6;severity=INFO&&event_type<=7&&(data contains "POSIX is Good");insmod -f ./testmod.o MYSEVERITY=6 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is Good message;match;0;0
+-181;pxtestapp -n -t 6;severity=DEBUG && (data contains "POSIX is a Good");insmod -f ./testmod.o MYSEVERITY=7 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good message;match;0;0
+-182;pxtestapp -n -t 6;severity=DEBUG && (data contains "POSIX is a Good");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good message;nomatch;0;0
+-183;pxtestapp -n -t 6;(data ~ "POSIX is a Goodest");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good message;nomatch;0;0
+-184;pxtestapp -n -t 6;severity=DEBUG && (data contains "POSIX is a Good");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good message;nomatch;0;0
+-185;pxtestapp -n -t 6;(data ~ "POSIX is a Goodest");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good message;nomatch;0;0
++168;pxtestapp -n -t 6;severity=EMERG&&event_type=3&&(data ~ "POSIX is Good");insmod -f ./testmod.ko MYSEVERITY=0 MYEVENTTYPE=3 MYFUNCTION=printf;Just a POSIX is Good message;match;0;0
++169;pxtestapp -n -t 6;severity=ALERT&&event_type<=4&&(data contains "POSIX is Good" && data !~ "POSIX in not good.....");insmod -f ./testmod.ko MYSEVERITY=1 MYEVENTTYPE=3 MYFUNCTION=printf;Just a POSIX is Good message;match;0;0
++170;pxtestapp -n -t 6;severity=CRIT&&event_type!=5&&(data contains "POSIX is Good");insmod -f ./testmod.ko MYSEVERITY=2 MYEVENTTYPE=9 MYFUNCTION=printf;Just a POSIX is Good message;match;0;0
++171;pxtestapp -n -t 6;severity=WARNING&&event_type=5&&(data ~ "SIX is Go");insmod -f ./testmod.ko MYSEVERITY=4 MYEVENTTYPE=5 MYFUNCTION=printf;Just a POSIX is Good message;match;0;0
++172;pxtestapp -n -t 6;severity=NOTICE&&event_type>=6&&(data ~ "POSIX is Good");insmod -f ./testmod.ko MYSEVERITY=5 MYEVENTTYPE=6 MYFUNCTION=printf;Just a POSIX is Good message;match;0;0
++173;pxtestapp -n -t 6;severity=INFO&&event_type<=7&&(data contains "POSIX is Good");insmod -f ./testmod.ko MYSEVERITY=6 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is Good message;match;0;0
++174;pxtestapp -n -t 6;severity=DEBUG && (data contains "POSIX is a Good");insmod -f ./testmod.ko MYSEVERITY=7 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good message;match;0;0
++175;pxtestapp -n -t 6;severity=EMERG&&event_type=3&&(data ~ "POSIX is Good");insmod -f ./testmod.ko MYSEVERITY=0 MYEVENTTYPE=3 MYFUNCTION=write;Just a POSIX is Good message;match;0;0
++176;pxtestapp -n -t 6;severity=ALERT&&event_type<4&&(data contains "POSIX is Gooder");insmod -f ./testmod.ko MYSEVERITY=1 MYEVENTTYPE=3 MYFUNCTION=write;Just a POSIX is Gooder message;match;0;0
++177;pxtestapp -n -t 6;severity=CRIT&&event_type!=5&&(data contains "POSIX is Good");insmod -f ./testmod.ko MYSEVERITY=2 MYEVENTTYPE=9 MYFUNCTION=write;Just a POSIX is Good message;match;0;0
++178;pxtestapp -n -t 6;severity=WARNING&&event_type=5&&(data ~ "SIX is Go");insmod -f ./testmod.ko MYSEVERITY=4 MYEVENTTYPE=5 MYFUNCTION=write;Just a POSIX is Good message;match;0;0
++179;pxtestapp -n -t 6;severity=NOTICE&&event_type>=6&&(data ~ "POSIX is Good");insmod -f ./testmod.ko MYSEVERITY=5 MYEVENTTYPE=6 MYFUNCTION=write;Just a POSIX is Good message;match;0;0
++180;pxtestapp -n -t 6;severity=INFO&&event_type<=7&&(data contains "POSIX is Good");insmod -f ./testmod.ko MYSEVERITY=6 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is Good message;match;0;0
++181;pxtestapp -n -t 6;severity=DEBUG && (data contains "POSIX is a Good");insmod -f ./testmod.ko MYSEVERITY=7 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good message;match;0;0
++182;pxtestapp -n -t 6;severity=DEBUG && (data contains "POSIX is a Good");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good message;nomatch;0;0
++183;pxtestapp -n -t 6;(data ~ "POSIX is a Goodest");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good message;nomatch;0;0
++184;pxtestapp -n -t 6;severity=DEBUG && (data contains "POSIX is a Good");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good message;nomatch;0;0
++185;pxtestapp -n -t 6;(data ~ "POSIX is a Goodest");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good message;nomatch;0;0
+ # Time tests
+-186;pxtestapp -n -t 6;(age > "10s" && data ~ "This is a time message test");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good messageand This is a time message test.;nomatch;0;0
+-187;pxtestapp -n -t 6;(age < "10s" && data ~ "This is a time message test");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good messageand This is a time message test.;match;0;0
+-188;pxtestapp -n -t 6;(age > "10s" && data ~ "This is a time message test");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good messageand This is a time message test.;nomatch;0;0
+-189;pxtestapp -n -t 6;(age < "10s" && data ~ "This is a time message test");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good messageand This is a time message test.;match;0;0
+-190;pxtestapp -n -t 6;(age > "10s" && data ~ "This is a printk time message test");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;Just a POSIX is a Good messageand This is a printk time message test.;nomatch;0;0
+-191;pxtestapp -n -t 6;(age < "10s" && data ~ "This is a printk time message test");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;Just a POSIX is a Good messageand This is a printk time message test.;match;0;0
++186;pxtestapp -n -t 6;(age > "10s" && data ~ "This is a time message test");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good messageand This is a time message test.;nomatch;0;0
++187;pxtestapp -n -t 6;(age < "10s" && data ~ "This is a time message test");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good messageand This is a time message test.;match;0;0
++188;pxtestapp -n -t 6;(age > "10s" && data ~ "This is a time message test");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good messageand This is a time message test.;nomatch;0;0
++189;pxtestapp -n -t 6;(age < "10s" && data ~ "This is a time message test");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good messageand This is a time message test.;match;0;0
++# 190;pxtestapp -n -t 6;(age > "10s" && data ~ "This is a printk time message test");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;Just a POSIX is a Good messageand This is a printk time message test.;nomatch;0;0
++# 191;pxtestapp -n -t 6;(age < "10s" && data ~ "This is a printk time message test");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;Just a POSIX is a Good messageand This is a printk time message test.;match;0;0
+ # Size tests
+-192;pxtestapp -n -t 6;(age < "10s" && size=89 && data ~ "This is a time message test");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good message and This is a time message test.;match;0;0
+-193;pxtestapp -n -t 6;(age < "10s" && size<89 && data ~ "This is a time message test");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good message and This is a time message test.;nomatch;0;0
+-194;pxtestapp -n -t 6;(age < "10s" && size=64 && data ~ "This is a time message test");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good message and This is a time message test.;match;0;0
+-195;pxtestapp -n -t 6;(age < "10s" && size>64 && data ~ "This is a time message test");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good message and This is a time message test.;nomatch;0;0
+-196;pxtestapp -n -t 6;(age < "10s" && size=79 && data ~ "This is a time message test");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;Just a POSIX is a Good message and This is a time message test.;match;0;0
+-197;pxtestapp -n -t 6;(age < "10s" && size!=79 && data ~ "This is a time message test");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;Just a POSIX is a Good message and This is a time message test.;nomatch;0;0
++192;pxtestapp -n -t 6;(age < "10s" && size=89 && data ~ "This is a time message test");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good message and This is a time message test.;match;0;0
++193;pxtestapp -n -t 6;(age < "10s" && size<89 && data ~ "This is a time message test");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Just a POSIX is a Good message and This is a time message test.;nomatch;0;0
++194;pxtestapp -n -t 6;(age < "10s" && size=64 && data ~ "This is a time message test");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good message and This is a time message test.;match;0;0
++195;pxtestapp -n -t 6;(age < "10s" && size>64 && data ~ "This is a time message test");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Just a POSIX is a Good message and This is a time message test.;nomatch;0;0
++# 196;pxtestapp -n -t 6;(age < "10s" && size=79 && data ~ "This is a time message test");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;Just a POSIX is a Good message and This is a time message test.;match;0;0
++# 197;pxtestapp -n -t 6;(age < "10s" && size!=79 && data ~ "This is a time message test");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;Just a POSIX is a Good message and This is a time message test.;nomatch;0;0
+ # Test data = and !=. Remember that testmod adds to the front of message
+ # and a newline to the end on printf and printk but not write.
+-198;pxtestapp -n -t 6;(age < "9s" && data = "posix_log_printf testing This is a facility test.");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;This is a facility test.;match;0;0
+-199;pxtestapp -n -t 6;(age < "9s" && data = "posix_log_printf testing Boy, This is a facility test.");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;This is a facility test.;nomatch;0;0
+-200;pxtestapp -n -t 6;(age < "9s" && data = "posix_log_printf testing ABC This is a facility test!");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;ABC This is a facility test.;nomatch;0;0
+-201;pxtestapp -n -t 6;(age < "9s" && data != "osix_log_printf testing Boy. ABC This is a facility test.");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Boy. ABC This is a facility test.;match;0;0
+-202;pxtestapp -n -t 6;(age < "9s" && data != "posix_log_printf testing This is a facility test!");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;This is a facility test.;match;0;0
+-203;pxtestapp -n -t 6;(age < "9s" && data = "This is a facility test.");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;This is a facility test.;match;0;0
+-204;pxtestapp -n -t 6;(age < "9s" && data = "Boy, This is a facility test.");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;This is a facility test.;nomatch;0;0
+-205;pxtestapp -n -t 6;(age < "9s" && data = "ABC This is a facility test!");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;ABC This is a facility test.;nomatch;0;0
+-206;pxtestapp -n -t 6;(age < "9s" && data != "oy. ABC This is a facility test.");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Boy. ABC This is a facility test.;match;0;0
+-207;pxtestapp -n -t 6;(age < "9s" && data != "This is a facility test!");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;This is a facility test.;match;0;0
+-208;pxtestapp -n -t 6;(age < "9s" && data = "printk testing This is a facility test.");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;This is a facility test.;match;0;0
+-209;pxtestapp -n -t 6;(age < "9s" && data = "printk testing Boy, This is a facility test.");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;This is a facility test.;nomatch;0;0
+-210;pxtestapp -n -t 6;(age < "9s" && data = "printk testing ABC This is a facility test!");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;ABC This is a facility test.;nomatch;0;0
+-211;pxtestapp -n -t 6;(age < "9s" && data != "rintk testing Boy. ABC This is a facility test.");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;Boy. ABC This is a facility test.;match;0;0
+-212;pxtestapp -n -t 6;(age < "9s" && data != "printk testing This is a facility test!");insmod -f ./testmod.o MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;This is a facility test.;match;0;0
++198;pxtestapp -n -t 6;(age < "9s" && data = "posix_log_printf testing This is a facility test.");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;This is a facility test.;match;0;0
++199;pxtestapp -n -t 6;(age < "9s" && data = "posix_log_printf testing Boy, This is a facility test.");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;This is a facility test.;nomatch;0;0
++200;pxtestapp -n -t 6;(age < "9s" && data = "posix_log_printf testing ABC This is a facility test!");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;ABC This is a facility test.;nomatch;0;0
++201;pxtestapp -n -t 6;(age < "9s" && data != "osix_log_printf testing Boy. ABC This is a facility test.");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;Boy. ABC This is a facility test.;match;0;0
++202;pxtestapp -n -t 6;(age < "9s" && data != "posix_log_printf testing This is a facility test!");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printf;This is a facility test.;match;0;0
++203;pxtestapp -n -t 6;(age < "9s" && data = "This is a facility test.");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;This is a facility test.;match;0;0
++204;pxtestapp -n -t 6;(age < "9s" && data = "Boy, This is a facility test.");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;This is a facility test.;nomatch;0;0
++205;pxtestapp -n -t 6;(age < "9s" && data = "ABC This is a facility test!");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;ABC This is a facility test.;nomatch;0;0
++206;pxtestapp -n -t 6;(age < "9s" && data != "oy. ABC This is a facility test.");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;Boy. ABC This is a facility test.;match;0;0
++207;pxtestapp -n -t 6;(age < "9s" && data != "This is a facility test!");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=write;This is a facility test.;match;0;0
++# 208;pxtestapp -n -t 6;(age < "9s" && data = "printk testing This is a facility test.");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;This is a facility test.;match;0;0
++# 209;pxtestapp -n -t 6;(age < "9s" && data = "printk testing Boy, This is a facility test.");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;This is a facility test.;nomatch;0;0
++210;pxtestapp -n -t 6;(age < "9s" && data = "printk testing ABC This is a facility test!");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;ABC This is a facility test.;nomatch;0;0
++# 211;pxtestapp -n -t 6;(age < "9s" && data != "rintk testing Boy. ABC This is a facility test.");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;Boy. ABC This is a facility test.;match;0;0
++# 212;pxtestapp -n -t 6;(age < "9s" && data != "printk testing This is a facility test!");insmod -f ./testmod.ko MYSEVERITY=3 MYEVENTTYPE=7 MYFUNCTION=printk;This is a facility test.;match;0;0
+Index: evlog-telco-1.5.1/evlog-examples/Makefile.testmod
+===================================================================
+--- /dev/null
++++ evlog-telco-1.5.1/evlog-examples/Makefile.testmod
+@@ -0,0 +1 @@
++obj-m += testmod.o

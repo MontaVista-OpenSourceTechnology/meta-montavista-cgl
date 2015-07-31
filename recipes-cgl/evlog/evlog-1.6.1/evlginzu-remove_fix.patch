@@ -1,0 +1,25 @@
+diff -ruN evlog-1.6.1_org/user/cmd/evlginzu/explosion.c evlog-1.6.1/user/cmd/evlginzu/explosion.c
+--- evlog-1.6.1_org/user/cmd/evlginzu/explosion.c	2007-03-26 10:05:10.000000000 -1000
++++ evlog-1.6.1/user/cmd/evlginzu/explosion.c	2007-03-26 11:42:21.000000000 -1000
+@@ -102,6 +102,10 @@
+ 			{
+ 				(void) fsync(fd);
+ 				(void) close(fd);
++				if ( remove )
++				{
++					(void) unlink(path);
++				}
+ 			}
+ 
+ 			output_time = event_time;
+@@ -127,6 +131,10 @@
+ 
+ 		if ( status != 0 )
+ 		{
++			if ( remove )
++			{
++				(void) unlink(path);
++			}
+ 			return (2);
+ 		}
+ 

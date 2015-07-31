@@ -1,0 +1,40 @@
+meta-cge
+===============
+
+The purpose of this layer is to provide MontaVista CGE support.
+
+
+Dependencies
+============
+This layer depends on Poky and OpenEmbedded-Core metadata. 
+
+For information about OpenEmbedded, see the OpenEmbedded website:
+    	http://www.openembedded.org/
+
+For more information on Poky, see the Yocto Project website:
+	http://www.yoctoproject.org
+
+
+The Yocto Project has extensive documentation about OE including a reference manual
+which can be found at:
+    http://yoctoproject.org/documentation
+
+Building the meta-cge layer
+=================
+In order to add MontaVista CGE support to the poky build this layer should be added
+to the bblayers.conf file. 
+
+Maintenance
+-----------
+Please send patches to support@mvista.com
+For Maintenance please contact support@mvista.com
+
+License
+-------
+
+All metadata is MIT licensed unless otherwise stated. Source code included
+in tree for individual recipes is under the LICENSE stated in each recipe
+(.bb file) unless otherwise stated.
+
+This README document is Copyright (C) 2014 MontaVista, LLC.
+

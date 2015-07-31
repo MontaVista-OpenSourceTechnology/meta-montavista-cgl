@@ -1,0 +1,37 @@
+diff -Naur evlog-telco-1.5.1-orig/evlforward/evlforward.c evlog-telco-1.5.1/evlforward/evlforward.c
+--- evlog-telco-1.5.1-orig/evlforward/evlforward.c	2006-06-05 17:01:06.000000000 -0700
++++ evlog-telco-1.5.1/evlforward/evlforward.c	2006-06-06 12:56:38.000000000 -0700
+@@ -613,6 +613,8 @@
+ 	}
+ 	else
+ 	{
++		(void) signal(SIGTERM, evlexit);
++
+ 		c = fork();
+ 
+ 		if ( c == -1 )
+@@ -626,7 +628,6 @@
+ 		if ( c != 0 )
+ 		{
+ 			/* parent process */
+-			(void) signal(SIGTERM, evlexit);
+ 			sleep(60);
+ 			exit(1);
+ 		}
+@@ -697,6 +698,8 @@
+ 	int	c;
+ 	pid_t	ppid = getpid();
+ 
++	(void) signal(SIGTERM, evlexit);
++
+ 	c = fork();
+ 
+ 	if ( c == -1 )
+@@ -710,7 +713,6 @@
+ 	if ( c != 0 )
+ 	{
+ 		/* parent process */
+-		(void) signal(SIGTERM, evlexit);
+ 		sleep(60);
+ 		exit(1);
+ 	}

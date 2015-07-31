@@ -1,0 +1,35 @@
+The conversion table for ARM had the values for ARM in the wrong places
+when running across the table.
+
+Index: evlog-1.6.1/user/lib/template/convert.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/template/convert.c
++++ evlog-1.6.1/user/lib/template/convert.c
+@@ -102,17 +102,17 @@ extern tmpl_arch_type_info_t _evlTmplArc
+  * The 2nd subscript represents the local architecture (local host) 
+  */
+ conv_t conv_info[][10] = {
+-	   /*   I386      IA64      S390      S390X     PPC       PPC64	    X86_64    ARM_LE    ARM_BE  */
++	   /*   I386      IA64      S390      S390X     PPC       PPC64	    X86_64    ARM_BE    ARM_LE  */
+ /* NOARCH*/{ 0, 0,        0,        0,        0,        0,        0,        0,	      0,        0 },
+-/* I386  */{ 0, NO_CONV,  LE_32_64, BS_32_32, BS_32_64, BS_32_32, BS_32_64, LE_32_64, NO_CONV,  BS_32_32 },
+-/* IA64  */{ 0, LE_64_32, NO_CONV,  BS_64_32, BS_64_64, BS_64_32, BS_64_64, NO_CONV,  LE_64_32, BS_64_32 },
+-/* S390  */{ 0, BS_32_32, BS_32_64, NO_CONV,  BE_32_64, NO_CONV,  BE_32_64, BS_32_64, BS_32_32, NO_CONV },
+-/* S390X */{ 0, BS_64_32, BS_64_64, BE_64_32, NO_CONV,  BE_64_32, NO_CONV,  BS_64_64, BS_64_32, BE_64_32 },
+-/* PPC   */{ 0, BS_32_32, BS_32_64, NO_CONV,  BE_32_64, NO_CONV,  BE_32_64, BS_32_64, BS_32_32, NO_CONV },
+-/* PPC64 */{ 0, BS_64_32, BS_64_64, BE_64_32, NO_CONV,  BE_64_32, NO_CONV,  BS_64_64, BS_64_32, BE_64_32 },
+-/* X86_64*/{ 0, LE_64_32, NO_CONV,  BS_64_32, BS_64_64, BS_64_32, BS_64_64, NO_CONV,  LE_64_32, BE_64_32 },
+-/* ARM_BE*/{ 0, BS_32_32, BS_32_64, NO_CONV,  BE_32_64, NO_CONV,  BE_32_64, BS_32_64, BS_32_32, NO_CONV },
+-/* ARM_LE*/{ 0, NO_CONV,  LE_32_64, BS_32_32, BS_32_64, BS_32_32, BS_32_64, LE_32_64, NO_CONV,  BS_32_32 },
++/* I386  */{ 0, NO_CONV,  LE_32_64, BS_32_32, BS_32_64, BS_32_32, BS_32_64, LE_32_64, BS_32_32, NO_CONV },
++/* IA64  */{ 0, LE_64_32, NO_CONV,  BS_64_32, BS_64_64, BS_64_32, BS_64_64, NO_CONV,  BS_64_32, LE_64_32 },
++/* S390  */{ 0, BS_32_32, BS_32_64, NO_CONV,  BE_32_64, NO_CONV,  BE_32_64, BS_32_64, NO_CONV,  BS_32_32 },
++/* S390X */{ 0, BS_64_32, BS_64_64, BE_64_32, NO_CONV,  BE_64_32, NO_CONV,  BS_64_64, BE_64_32, BS_64_32 },
++/* PPC   */{ 0, BS_32_32, BS_32_64, NO_CONV,  BE_32_64, NO_CONV,  BE_32_64, BS_32_64, NO_CONV,  BS_32_32 },
++/* PPC64 */{ 0, BS_64_32, BS_64_64, BE_64_32, NO_CONV,  BE_64_32, NO_CONV,  BS_64_64, BE_64_32, BS_64_32 },
++/* X86_64*/{ 0, LE_64_32, NO_CONV,  BS_64_32, BS_64_64, BS_64_32, BS_64_64, NO_CONV,  BS_64_32, LE_64_32 },
++/* ARM_BE*/{ 0, BS_32_32, BS_32_64, NO_CONV,  BE_32_64, NO_CONV,  BE_32_64, BS_32_64, NO_CONV,  BS_32_32 },
++/* ARM_LE*/{ 0, NO_CONV,  LE_32_64, BS_32_32, BS_32_64, BS_32_32, BS_32_64, LE_32_64, BS_32_32, NO_CONV },
+ };
+ 
+ static void

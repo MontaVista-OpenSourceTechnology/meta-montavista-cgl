@@ -1,0 +1,683 @@
+Add the ability for evlog to work between 32-bit and 64-bit binaries.
+
+This also removes the _PPC_64KERN_32USER thing, which was completely
+broken, anyway.  No need for it, the kernel does the conversion.
+
+Index: evlog-1.6.1/user/cmd/evlogd/evlogd.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlogd/evlogd.c
++++ evlog-1.6.1/user/cmd/evlogd/evlogd.c
+@@ -1161,28 +1161,6 @@ closeClientSocket(clientinfo_t *ci)
+ 	TRACE("Done closeClientSocket: maxsd = %d\n", maxsd);
+ 	return;
+ }
+-#ifdef _PPC_64KERN_32USER_
+-struct ppc64kern_log_entry {
+-	unsigned int            log_magic;
+-	posix_log_recid_t       log_recid;
+-	long long               log_size;
+-	int                     log_format;
+-	int                     log_event_type;
+-	posix_log_facility_t    log_facility;
+-	posix_log_severity_t    log_severity;
+-	uid_t                   log_uid;
+-	gid_t                   log_gid;
+-	pid_t                   log_pid;
+-	pid_t                   log_pgrp;
+-	unsigned int            log_flags;
+-	unsigned long long	log_thread;
+-	posix_log_procid_t	log_processor;
+-	long long		log_time_tv_sec;
+-	long long		log_time_tv_nsec;
+-};
+-#define REC_HDR_PPC64_SIZE sizeof(struct ppc64kern_log_entry)
+-#endif
+-
+ 
+ /* 
+  * FUNCTION	:  processKernelEvents()
+@@ -1473,33 +1451,8 @@ getRecHeader(const char *buf, struct pos
+ 	 */
+ 	/* FALLTHROUGH */
+ #endif
+-#ifdef _PPC_64KERN_32USER_
+-	{
+-		struct ppc64kern_log_entry ppc64_entry;
+-		memcpy(&ppc64_entry, buf, sizeof(struct ppc64kern_log_entry));
+-
+-		entry->log_magic = ppc64_entry.log_magic;
+-		entry->log_recid = ppc64_entry.log_recid;
+-		entry->log_size = (size_t) ppc64_entry.log_size;
+-		entry->log_format = ppc64_entry.log_format;
+-		entry->log_event_type = ppc64_entry.log_event_type;
+-		entry->log_facility = ppc64_entry.log_facility;
+-		entry->log_severity = ppc64_entry.log_severity;
+-		entry->log_uid = ppc64_entry.log_uid;
+-		entry->log_gid = ppc64_entry.log_gid;
+-		entry->log_pid = ppc64_entry.log_pid;
+-		entry->log_pgrp = ppc64_entry.log_pgrp;
+-		entry->log_time.tv_sec = (long) ppc64_entry.log_time_tv_sec;
+-		entry->log_time.tv_nsec = (long) ppc64_entry.log_time_tv_nsec;
+-		entry->log_flags = ppc64_entry.log_flags;
+-		entry->log_thread = (unsigned long) ppc64_entry.log_thread;
+-		entry->log_processor = ppc64_entry.log_processor;
+-		*hdr_size = sizeof(struct ppc64kern_log_entry);
+-	}
+-#else
+ 	memcpy(entry, buf, sizeof(struct posix_log_entry));
+ 	*hdr_size = sizeof(struct posix_log_entry);
+-#endif
+ }
+ /* 
+  * FUNCTION	:  writeKernEvt()
+@@ -2977,38 +2930,15 @@ handleFacRegEvent(struct posix_log_entry
+ }
+ #endif
+ 
+-/* The record header would looks like this for 32 bit app under x86_64 */
+-struct rec_hdr_32 {
+-	unsigned int            log_magic;
+-	posix_log_recid_t       log_recid;
+-	unsigned int		log_size;
+-	int                     log_format;
+-	int                     log_event_type;
+-	posix_log_facility_t    log_facility;
+-	posix_log_severity_t    log_severity;
+-	uid_t                   log_uid;
+-	gid_t                   log_gid;
+-	pid_t                   log_pid;
+-	pid_t                   log_pgrp;
+-	unsigned int 		log_time_tv_sec;
+-	unsigned int		log_time_tv_nsec;
+-	unsigned int            log_flags;
+-	unsigned int		log_thread;
+-	posix_log_procid_t	log_processor;
+-};
+-/* Annotate record comes from 32 bit apps under x86_64 */ 
+-#define LOGREC_ARCH_X86_32	0xf000
+-
+ static int
+ populateRecHdr(clientinfo_t *ci, struct posix_log_entry * rhdr)
+ {
+ 	unsigned int daemon_arch = LOCAL_ARCH;
+ 	unsigned int client_arch;
+-	struct rec_hdr_32 rhdr32;
+ 	char *tmp;
+ 	int log_magic_size = sizeof(unsigned int);
+-	int rec_hdr_32_size = sizeof(struct rec_hdr_32);
+ 	int nbytes;
++	int asize;
+ 
+ 	nbytes = read(ci->sd, &client_arch, log_magic_size);
+ 	if (nbytes != log_magic_size) {
+@@ -3016,55 +2946,70 @@ populateRecHdr(clientinfo_t *ci, struct 
+ 		return -1;
+ 	}
+ 	TRACE("client_arch = %x\n", client_arch);
+-	if ((daemon_arch == LOGREC_ARCH_X86_64) &&
+-					(client_arch == LOGREC_ARCH_I386)) {
++
++	asize = ARCH_TO_SIZE(client_arch);
++
++	if (asize == ARCH_SIZE_32) {
++		struct rec_hdr_32 arhdr;
+ 		/* 
+-		 * 32 bit app writes this record - the header size 
+-		 * is different (smaller)
++		 * 32 bit app writes this record
+ 		 */
+-		tmp = (char *) &rhdr32;
++		tmp = (char *) &arhdr;
+ 		tmp += log_magic_size;
+-		nbytes = read(ci->sd, tmp, rec_hdr_32_size - log_magic_size);
++		nbytes = read(ci->sd, tmp, sizeof(arhdr) - log_magic_size);
+ 
+-		if (nbytes != rec_hdr_32_size - log_magic_size) {
++		if (nbytes != sizeof(arhdr) - log_magic_size) {
+ 			closeClientSocket(ci);
+ 			return -1;
+ 		}
+ 		
+-		rhdr->log_magic = LOGREC_ARCH_X86_32; 
++		rhdr->log_magic = client_arch;
+ 		rhdr->log_recid = 0;
+-		rhdr->log_size = (size_t) rhdr32.log_size;
+-		rhdr->log_format = rhdr32.log_format;
+-		rhdr->log_event_type = rhdr32.log_event_type;
+-		rhdr->log_facility = rhdr32.log_facility;
+-		rhdr->log_severity = rhdr32.log_severity;
+-		rhdr->log_uid = rhdr32.log_uid;
+-		rhdr->log_gid = rhdr32.log_gid;
+-		rhdr->log_pid = rhdr32.log_pid;
+-		rhdr->log_pgrp = rhdr32.log_pgrp;
+-		rhdr->log_time.tv_sec = (long) rhdr32.log_time_tv_sec;
+-		rhdr->log_time.tv_nsec = (long) rhdr32.log_time_tv_nsec;
+-		rhdr->log_thread = rhdr32.log_thread;
+-		rhdr->log_processor = (long) rhdr32.log_processor;
+-		
+-
+-	} else if (daemon_arch == LOGREC_ARCH_I386 &&
+-			   client_arch == LOGREC_ARCH_X86_64) {
+-		/* Hmm, would some one wants this */
+-		closeClientSocket(ci);
+-		return -1;
+-	}
+-	else {
+-		TRACE("REC_HDR_SIZE=%d\n", REC_HDR_SIZE);	
+-		tmp = (char *) rhdr;
++		rhdr->log_size = (size_t) arhdr.log_size;
++		rhdr->log_format = arhdr.log_format;
++		rhdr->log_event_type = arhdr.log_event_type;
++		rhdr->log_facility = arhdr.log_facility;
++		rhdr->log_severity = arhdr.log_severity;
++		rhdr->log_uid = arhdr.log_uid;
++		rhdr->log_gid = arhdr.log_gid;
++		rhdr->log_pid = arhdr.log_pid;
++		rhdr->log_pgrp = arhdr.log_pgrp;
++		rhdr->log_time.tv_sec = (long) arhdr.log_time_tv_sec;
++		rhdr->log_time.tv_nsec = (long) arhdr.log_time_tv_nsec;
++		rhdr->log_thread = arhdr.log_thread;
++		rhdr->log_processor = (long) arhdr.log_processor;
++	} else if (asize == ARCH_SIZE_64) {
++		struct rec_hdr_64 arhdr;
++		/*
++		 * 64 bit app writes this record
++		 */
++		tmp = (char *) &arhdr;
+ 		tmp += log_magic_size;
+-		nbytes = read(ci->sd, tmp, REC_HDR_SIZE - log_magic_size);
++		nbytes = read(ci->sd, tmp, sizeof(arhdr) - log_magic_size);
+ 
+-		if (nbytes != REC_HDR_SIZE - log_magic_size) {
++		if (nbytes != sizeof(arhdr) - log_magic_size) {
+ 			closeClientSocket(ci);
+ 			return -1;
+ 		}
++
+ 		rhdr->log_magic = client_arch;
++		rhdr->log_recid = 0;
++		rhdr->log_size = arhdr.log_size;
++		rhdr->log_format = arhdr.log_format;
++		rhdr->log_event_type = arhdr.log_event_type;
++		rhdr->log_facility = arhdr.log_facility;
++		rhdr->log_severity = arhdr.log_severity;
++		rhdr->log_uid = arhdr.log_uid;
++		rhdr->log_gid = arhdr.log_gid;
++		rhdr->log_pid = arhdr.log_pid;
++		rhdr->log_pgrp = arhdr.log_pgrp;
++		rhdr->log_time.tv_sec = arhdr.log_time_tv_sec;
++		rhdr->log_time.tv_nsec = arhdr.log_time_tv_nsec;
++		rhdr->log_thread = arhdr.log_thread;
++		rhdr->log_processor = arhdr.log_processor;
++	} else {
++		closeClientSocket(ci);
++		return -1;
+ 	}
+ 	TRACE("Read %d bytes into rhdr, log_magic = %x, facility=%d.\n",
+ 				nbytes, rhdr->log_magic, rhdr->log_facility);
+@@ -3163,27 +3108,11 @@ Process_Event(clientinfo_t *ci)
+ 				closeClientSocket(ci);
+ 				return 0;
+ 			}
+-		}
+-
+-		if (rhdr->log_magic == LOGREC_ARCH_X86_32) {
+-			/* 
+- 			 * This record appears to come from 32 bit app
+-			 * under x86_64 environment - 
+-			 */
+-			rhdr->log_magic =
+-				(LOGREC_MAGIC & 0xffff0000) | LOGREC_ARCH_I386;
+ 		} else {
+ 			rhdr->log_magic = LOG_MAGIC_ARCH;
+ 			TRACE("local event - log_magic = %x\n",
+ 							rhdr->log_magic);
+ 		}
+-
+-		if (rhdr->log_flags & EVL_KERNEL_EVENT) {
+-#if defined(_PPC_64KERN_32USER_)
+-			rhdr->log_magic =  (LOGREC_MAGIC & 0xffff0000) | 
+-				LOGREC_ARCH_PPC64;	
+-#endif
+-		} 
+ 	}
+ 
+ 	if (rhdr->log_size <= 0) {
+Index: evlog-1.6.1/user/include/posix_evlsup.h
+===================================================================
+--- evlog-1.6.1.orig/user/include/posix_evlsup.h
++++ evlog-1.6.1/user/include/posix_evlsup.h
+@@ -24,6 +24,7 @@
+  *
+  */
+ #include <sys/un.h>
++#include <stdint.h>
+ #ifndef _POSIX_EVLSUP_H_
+ #define _POSIX_EVLSUP_H_ 1
+ 
+@@ -156,6 +157,76 @@ _EvlLogWrite(	posix_log_facility_t	facil
+ 		int			format,
+ 		unsigned int		flags);
+ 
++
++/* The record header would looks like this for a 32 bit app */
++struct rec_hdr_32 {
++	unsigned int            log_magic;
++	posix_log_recid_t       log_recid;
++	unsigned int		log_size;
++	int                     log_format;
++	int                     log_event_type;
++	posix_log_facility_t    log_facility;
++	posix_log_severity_t    log_severity;
++	uid_t                   log_uid;
++	gid_t                   log_gid;
++	pid_t                   log_pid;
++	pid_t                   log_pgrp;
++	unsigned int 		log_time_tv_sec;
++	unsigned int		log_time_tv_nsec;
++	unsigned int            log_flags;
++	unsigned int		log_thread;
++	posix_log_procid_t	log_processor;
++};
++
++struct rec_hdr_64 {
++	unsigned int            log_magic;
++	posix_log_recid_t       log_recid;
++	uint64_t		log_size;
++	int                     log_format;
++	int                     log_event_type;
++	posix_log_facility_t    log_facility;
++	posix_log_severity_t    log_severity;
++	uid_t                   log_uid;
++	gid_t                   log_gid;
++	pid_t                   log_pid;
++	pid_t                   log_pgrp;
++	uint64_t 		log_time_tv_sec;
++	uint64_t		log_time_tv_nsec;
++	unsigned int            log_flags;
++	uint64_t		log_thread;
++	posix_log_procid_t	log_processor;
++};
++
++#define ARCH_SIZE_SAME 0
++#define ARCH_SIZE_32   1
++#define ARCH_SIZE_64   2
++
++extern unsigned short evl_arch_to_size[];
++
++/*
++ * If the arch is invalid, assume it is the same as the caller.
++ */
++#define ARCH_TO_SIZE(arch) \
++	(((arch >= LOGREC_NUM_ARCHES)				\
++		|| (evl_arch_to_size[arch] == ARCH_SIZE_SAME))	\
++	 ? evl_arch_to_size[LOCAL_ARCH] : evl_arch_to_size[arch])
++
++struct log_header_32 {
++	uint		log_magic;	/* Magic number indicating log file */
++	int		log_version;	/* Event logging version */
++	posix_log_recid_t last_recId;	/* Last recid in log: used by evlogd */
++	int		reserved1;
++	uint		log_generation;	/* Changes during log maintenance */
++};
++
++struct log_header_64 {
++	uint		log_magic;	/* Magic number indicating log file */
++	int64_t		log_version;	/* Event logging version */
++	posix_log_recid_t last_recId;	/* Last recid in log: used by evlogd */
++	int64_t		reserved1;
++	uint		log_generation;	/* Changes during log maintenance */
++};
++
+ #ifdef __cplusplus
+ }
+ #endif	/* __cplusplus */
+Index: evlog-1.6.1/user/lib/posix2.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/posix2.c
++++ evlog-1.6.1/user/lib/posix2.c
+@@ -68,6 +68,26 @@ The log file has a magic number up front
+ static pthread_mutex_t logdSocketMutex = PTHREAD_MUTEX_INITIALIZER;
+ 
+ /*
++ * Mapping table to get the arch size.
++ */
++unsigned short evl_arch_to_size[LOGREC_NUM_ARCHES] = {
++	ARCH_SIZE_SAME, /* LOGREC_NO_ARCH */
++	ARCH_SIZE_32, /* LOGREC_ARCH_I386 */
++	ARCH_SIZE_64, /* LOGREC_ARCH_IA64 */
++	ARCH_SIZE_32, /* LOGREC_ARCH_S390 */
++	ARCH_SIZE_64, /* LOGREC_ARCH_S390X */
++	ARCH_SIZE_32, /* LOGREC_ARCH_PPC */
++	ARCH_SIZE_64, /* LOGREC_ARCH_PPC64 */
++	ARCH_SIZE_64, /* LOGREC_ARCH_X86_64 */
++	ARCH_SIZE_32, /* LOGREC_ARCH_ARM_BE */
++	ARCH_SIZE_32, /* LOGREC_ARCH_ARM_LE */
++	ARCH_SIZE_32, /* LOGREC_ARCH_MIPS_BE */
++	ARCH_SIZE_32, /* LOGREC_ARCH_MIPS_LE */
++	ARCH_SIZE_64, /* LOGREC_ARCH_MIPS64_BE */
++	ARCH_SIZE_64  /* LOGREC_ARCH_MIPS64_LE */
++};
++
++/*
+  * In some implementations of POSIX threads (notably Linux), different threads
+  * of (supposedly) the same process can have different process IDs.  Since
+  * the logging daemon expects all requests on the same socket to come from
+@@ -94,8 +114,9 @@ static int logMagic = LOGFILE_MAGIC;
+ typedef struct _log_description {
+ 	unsigned int	ld_magic;	/* always LOGD_MAGIC */
+ 	int		ld_fd;		/* file descriptor */
+-	log_header_t	*ld_header;	/* mmap-ed log header (read-only) */
++	void		*ld_header;	/* mmap-ed log header (read-only) */
+ 	unsigned int	ld_generation;	/* generation # at time of open */
++	int		ld_asize;	/* Pointer size of generator. */
+ } log_desc_t;
+ 
+ #define LOGD_MMAP_SZ (getpagesize())
+@@ -215,6 +236,12 @@ _evlWriteLogHeader(int fd)
+ 
+ 	log_hdr.log_magic = logMagic;
+ 	log_hdr.log_version = 0;	/*TODO: Plug in current version. */
++	/*
++	 * Set last_recId to non-zero.  It is not generally used
++	 * except by evlogd, but setting it non-zero allows the
++	 * size-detection to work properly.
++	 */
++	log_hdr.last_recId = 1;
+ 	log_hdr.log_generation = 0;
+ 
+ 	nBytes = safeWrite(fd, &log_hdr, sizeof(log_hdr));
+@@ -227,9 +254,11 @@ _evlOpen(posix_logd_t *logdes, const cha
+ {
+ 	int fd;	
+ 	log_desc_t *logd;
+-	log_header_t *logHdr;
+ 	void *mappedLog;
+ 	struct stat64 st;
++	int asize;
++	int hsize;
++	uint *magic;
+ 
+ 	if (path == (char *) NULL) {
+ 		path = LOG_CURLOG_PATH;
+@@ -248,6 +277,17 @@ _evlOpen(posix_logd_t *logdes, const cha
+ 		return EINVAL;
+ 	}
+ 
++	/*
++	 * The the log file is just a header, figure out the size.
++	 * Otherwise we have to use trickery to figure out the size.
++	 */
++	if (st.st_size == sizeof(struct log_header_32))
++		asize = ARCH_SIZE_32;
++	else if (st.st_size == sizeof(struct log_header_64))
++		asize = ARCH_SIZE_64;
++	else
++		asize = ARCH_SIZE_SAME;
++
+ 	logd = makeLogDescription();
+ 	logd->ld_fd = fd;
+ 
+@@ -258,7 +298,7 @@ _evlOpen(posix_logd_t *logdes, const cha
+ 	 * or seek, to ensure prompt detection of ongoing maintenance activities
+ 	 * that might clobber the log as we read it.
+ 	 */
+-	assert(LOGD_MMAP_SZ >= sizeof(log_header_t));
++	assert(LOGD_MMAP_SZ >= sizeof(struct log_header_64));
+ 	mappedLog = mmap(0, LOGD_MMAP_SZ, PROT_READ, MAP_PRIVATE, fd, 0);
+ 
+ 	if (mappedLog == MAP_FAILED) {
+@@ -268,25 +308,53 @@ _evlOpen(posix_logd_t *logdes, const cha
+ 		return EINVAL;
+ 	}
+ 
+-	logHdr = (log_header_t *) mappedLog;
+-	logd->ld_header = logHdr;
+-
+-	/* Check the magic number to verify that this is a valid log file. */
+-	if (logHdr->log_magic != logMagic) {
++	magic = mappedLog;
++	if (*magic != logMagic) {
+ 		(void) releaseLogDescription(logd);
+ 
+ 		return EINVAL;
+ 	}
+-	if (isBusyLog(logHdr)) {
+-		(void) releaseLogDescription(logd);
+ 
+-		return EBUSY;
++	if (asize == ARCH_SIZE_SAME) {
++		struct log_header_64 *h64 = mappedLog;
++		/*
++		 * We don't know the size yet, the log file is not
++		 * empty.  However, if the log file is not empty, that
++		 * means last_recId in the log file cannot be zero.
++		 * Since log_version must be zero, that means it will
++		 * not be zero if we have a 32-bit header and we try
++		 * to map a 64-bit header over the top of it.
++		 */
++		if (h64->log_version == 0)
++			asize = ARCH_SIZE_64;
++		else
++			asize = ARCH_SIZE_32;
++	}
++
++	logd->ld_header = mappedLog;
++	logd->ld_asize = asize;
++	if (asize == ARCH_SIZE_32) {
++		struct log_header_32 *h = mappedLog;
++
++		if (isBusyLog(h)) {
++			(void) releaseLogDescription(logd);
++			return EBUSY;
++		}
++		logd->ld_generation = h->log_generation;
++		hsize = sizeof(*h);
++	} else {
++		struct log_header_64 *h = mappedLog;
++
++		if (isBusyLog(h)) {
++			(void) releaseLogDescription(logd);
++			return EBUSY;
++		}
++		logd->ld_generation = h->log_generation;
++		hsize = sizeof(*h);
+ 	}
+-	logd->ld_generation = logHdr->log_generation;
+ 
+ 	/* Seek past header to first record. */
+-	if (lseek64(fd, (loff_t) sizeof(log_header_t), SEEK_CUR) ==
+-								(loff_t)-1) {
++	if (lseek64(fd, (loff_t) hsize, SEEK_CUR) == (loff_t)-1) {
+ 		perror("Seek past log header on open");
+ 		(void) releaseLogDescription(logd);
+ 
+@@ -309,9 +377,17 @@ _evlValidateLogdes(posix_logd_t logd, in
+ 		return -1;
+ 	}
+ 
+-	if (checkGeneration &&
+-	    (logd->ld_generation != logd->ld_header->log_generation)) {
+-		return -1;
++	if (checkGeneration) {
++		uint generation;
++		if (logd->ld_asize == ARCH_SIZE_32)
++			generation = ((struct log_header_32 *)
++				      logd->ld_header)->log_generation;
++		else
++			generation = ((struct log_header_64 *)
++				      logd->ld_header)->log_generation;
++
++		if (logd->ld_generation != generation)
++			return -1;
+ 	}
+ 
+ 	return 0;
+@@ -441,11 +517,15 @@ int
+ _evlRewind(posix_logd_t logdes)
+ {
+ 	int fd = logdToFd(logdes);
++	int hsize;
+ 
+-	if (lseek64(fd, (loff_t) sizeof(log_header_t), SEEK_SET) ==
+-							(loff_t)-1) {
++	if (logdes->ld_asize == ARCH_SIZE_32)
++		hsize = sizeof(struct log_header_32);
++	else
++		hsize = sizeof(struct log_header_64);
++
++	if (lseek64(fd, (loff_t) hsize, SEEK_SET) ==(loff_t)-1)
+ 		return EIO;
+-	}
+ 
+ 	return 0;
+ }
+@@ -735,6 +815,8 @@ _evlWriteEx2(int sd, struct posix_log_en
+ #ifdef POSIX_LOG_TRUNCATE
+ 	if ((entry->log_format == POSIX_LOG_STRING) &&
+ 	    (entry->log_flags & POSIX_LOG_TRUNCATE) != 0) {
++		size_t wrote;
++
+ 		/*
+ 		 * buf contains a string that was truncated to
+ 		 * POSIX_LOG_ENTRY_MAXLEN bytes.  Stick a null character at the
+@@ -747,10 +829,13 @@ _evlWriteEx2(int sd, struct posix_log_en
+ 		bcopy((void *) buf, (void *) writebuf, entry->log_size);
+ 		writebuf[POSIX_LOG_ENTRY_MAXLEN - 1] = '\0';
+ 
+-		if (write(sd, writebuf, entry->log_size) != entry->log_size) {
++		wrote = write(sd, writebuf, entry->log_size);
++		if (wrote != entry->log_size) {
+ 			/* socket is broken */
+-			(void) fprintf(stderr,
+-			"Failed to write the msg body to evlog daemon.\n");
++			fprintf(stderr,
++				"Failed to write the msg body to evlog daemon."
++				" wrote %d, expected to write %d. (2)\n",
++				wrote, entry->log_size);
+ 			return EIO;
+ 		}
+ 
+@@ -758,10 +843,13 @@ _evlWriteEx2(int sd, struct posix_log_en
+ 	}
+ #endif
+ 	if (entry->log_size > 0) {
+-		if (write(sd, buf, entry->log_size) != entry->log_size) {
++		size_t wrote = write(sd, buf, entry->log_size);
++		if (wrote != entry->log_size) {
+ 			/* socket is broken */
+-			(void) fprintf(stderr,
+-			"Failed to write the msg body to evlog daemon.\n");
++			fprintf(stderr,
++				"Failed to write the msg body to evlog daemon,"
++				" wrote %d, expected to write %d.\n",
++				wrote, entry->log_size);
+ 			return EIO;
+ 		}
+ 	}
+Index: evlog-1.6.1/user/include/evlog.h
+===================================================================
+--- evlog-1.6.1.orig/user/include/evlog.h
++++ evlog-1.6.1/user/include/evlog.h
+@@ -31,7 +31,7 @@
+ #include <stdarg.h>
+ #include <string.h>
+ 
+-#include <linux/evl_log.h>
++#include <sys/evl_log.h>
+ 
+ #ifdef __cplusplus
+ extern "C" {
+@@ -118,6 +118,12 @@ typedef int evlrecsize_t;
+ #define LOGREC_ARCH_X86_64			0x0007
+ #define LOGREC_ARCH_ARM_BE			0x0008
+ #define LOGREC_ARCH_ARM_LE			0x0009
++#define LOGREC_ARCH_MIPS_BE			0x000a
++#define LOGREC_ARCH_MIPS_LE			0x000b
++#define LOGREC_ARCH_MIPS64_BE			0x000c
++#define LOGREC_ARCH_MIPS64_LE			0x000d
++
++#define LOGREC_NUM_ARCHES			14
+ 
+ /*
+  * Logfile Header structure.
+@@ -126,7 +132,7 @@ typedef struct log_header {
+ 	uint		log_magic;	/* Magic number indicating log file */
+ 	long		log_version;	/* Event logging version */
+ 	posix_log_recid_t last_recId;	/* Last recid in log: used by evlogd */
+-	loff_t		reserved1;
++	off_t		reserved1;
+ 	uint		log_generation;	/* Changes during log maintenance */
+ } log_header_t;
+ 
+@@ -185,31 +191,56 @@ extern void syslog(int priority, char *f
+ #define __stringify2(s) #s
+ #define __stringify(s) __stringify2(s)
+ 
+-struct evlog_position {
+-   int line;
+-   char function[64 - sizeof(int)];
+-   char file[128];
+-};
+-
+-#if defined(__GNUC__) && ((__GNUC__ < 3) || \
+-				((__GNUC__ == 3) && (__GNUC_MINOR__ < 4)))
+-#define	_EVLOG_FUNCTION_SYMBOL_	__FUNCTION__
++#if defined(__GNUC__)
++# if (__GNUC__ < 3) || ((__GNUC__ == 3) && (__GNUC_MINOR__ < 4))
++#  define	_EVLOG_FUNCTION_SYMBOL_	__FUNCTION__
++# else
++#  define	_EVLOG_FUNCTION_SYMBOL_	__func__
++# endif
+ #else
+ #define	_EVLOG_FUNCTION_SYMBOL_	"{unimplemented}"
+ #endif
+ 
+-#define _EVLOG_POS { __LINE__, _EVLOG_FUNCTION_SYMBOL_, __FILE__ }
++struct evlog_position_v0 {
++   int line;
++   char function[64 - sizeof(int)];
++   char file[128];
++};
+ 
+-struct evlog_info {
++struct evlog_info_v0 {
+    char format[128+64];
+    char facility[64];
+-   struct evlog_position pos;
++   struct evlog_position_v0 pos;
++};
++
++struct evlog_info_v1 {
++   char id;
++   char version;
++   char dummy[6];
++   char *format;
++   char *facility;
++   char *file;
++   char *function;
++   unsigned int line;
++   /* Pad this out to a multiple of 32 bytes. */
++#define evlog_v1_dsize (8 + 4 * sizeof(char *) + sizeof(int))
++   char pad[(((evlog_v1_dsize / 32) + 1) * 32) - evlog_v1_dsize];
+ };
+ 
++struct evlog_info_header {
++   char id; /* Will always be zero for v1, always be non-zero for v0 */
++   char version; /* Unused for version 0, 1 for version 1. */
++};
++
++/*
++ * Attribute on the .log section variable is "unused" to keep from generating
++ * warnings and "used" to make it actually generate output.
++ */
+ #define syslogat(priority, fmt, ...) \
+     do { \
+-	static struct evlog_info __attribute__((section(".log"),unused)) ___ \
+-		= { fmt, __stringify(EVL_FACILITY_NAME), _EVLOG_POS }; \
++	static struct evlog_info_v1 __attribute__((section(".log"),unused,used)) \
++		___ = { 0, 1, { 0 }, fmt, __stringify(EVL_FACILITY_NAME), \
++			__FILE__, _EVLOG_FUNCTION_SYMBOL_, __LINE__ }; \
+ 	char *unbraced_fmt = _evl_unbrace(fmt); \
+ 	if (_evl_syslogat(priority, __stringify(EVL_FACILITY_NAME), \
+ 	    evl_gen_event_type(__FILE__, _EVLOG_FUNCTION_SYMBOL_, fmt), \

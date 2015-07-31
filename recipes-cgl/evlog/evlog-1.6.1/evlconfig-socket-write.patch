@@ -1,0 +1,22 @@
+MR: 25254
+Type: Defect fix
+Description:
+    Corrected socket write call return status for evlconfig failure. 
+
+Root Cause:
+    updateConfValues socket write call checked the wrong return status
+    when it wrote a string.
+
+Index: evlog-1.6.1/user/cmd/evlconfig/evlconfig.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlconfig/evlconfig.c	2007-10-01 16:34:24.000000000 -0700
++++ evlog-1.6.1/user/cmd/evlconfig/evlconfig.c	2007-10-01 16:59:18.000000000 -0700
+@@ -382,7 +382,7 @@
+ 
+ 				return 1;
+ 			}
+-			if (write(sd, (void *) wbuf, len) != sizeof(int)) {
++			if (write(sd, (void *) wbuf, len) != len) {
+ 				(void) fprintf(stderr,
+ 					"%s: Failed to write on socket\n",
+ 					progname);

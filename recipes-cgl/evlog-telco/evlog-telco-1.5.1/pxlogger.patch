@@ -1,0 +1,20 @@
+diff -urN evlog-telco-1.5.1/evlog-examples/pxlogger.c .devel-evlog-telco-1.5.1/evlog-examples/pxlogger.c
+--- evlog-telco-1.5.1/evlog-examples/pxlogger.c	2004-09-08 21:01:30.000000000 +0400
++++ .devel-evlog-telco-1.5.1/evlog-examples/pxlogger.c	2011-02-23 12:09:33.180983206 +0300
+@@ -86,6 +86,7 @@
+ #include <sys/socket.h>
+ #include <sys/file.h>
+ #include <sys/signal.h>
++#include <stdlib.h>
+ #include <unistd.h>
+ #include <linux/evl_log.h>
+ #include <posix_evlog.h>
+@@ -401,7 +402,7 @@
+ 		mesg=malloc(strlen(argv[optind])+strlen(timestr)+1);
+ 		sprintf(mesg, "%s %s", timestr, argv[optind]);
+ 		for(i=optind+1; i<argc; ++i) {
+-			realloc(mesg, strlen(mesg)+strlen(argv[i])+1);
++			(void)realloc(mesg, strlen(mesg)+strlen(argv[i])+1);
+ 			strcat(mesg, " ");
+ 			strcat(mesg, argv[i]);
+ 		}

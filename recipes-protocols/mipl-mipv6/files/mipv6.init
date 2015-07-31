@@ -1,0 +1,435 @@
+#! /bin/sh
+#
+# Name: mip6d
+# Date: 2008-03-25 12:00
+# Author: MontaVista Software, Inc. <source@mvista.com>
+# Copyright: Copyright 1999-2008 MontaVista Software, Inc.
+# License: 2003 (c) MontaVista Software, Inc. This file is licensed
+#          under the terms of the GNU General Public License version 2.
+#          This program is licensed "as is" without any warranty of any
+#          kind, whether express or implied.
+#
+# Copyright 2002, 2003, 2004 Sony Corporation
+# Copyright 2002, 2003, 2004 Matsushita Electric Industrial Co., Ltd.
+#
+### BEGIN INIT INFO
+# Required-Start: 
+# Required-Stop:
+# Should-Start:
+# Should-Stop:
+# Default-Start: 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: start/stop the Mobile IPv6 daemon 
+# Description: start/stop the Mobile IPv6 daemon 
+### END INIT INFO 
+# chkconfig: 2345 75 05
+
+# Init script information
+DESC="Mobile IPv6 for Linux"
+
+# Individual Daemon information
+DAEMON="/usr/sbin/mip6d"
+BASENAME=${DAEMON##*/}
+DAEMON_CONF="/etc/mipv6/mip6d.conf"
+ARGS="-c $DAEMON_CONF"
+IFCONFIG="/sbin/ifconfig"
+SED=/bin/sed
+AWK=/usr/bin/awk
+GREP=/bin/grep
+SLEEP=/bin/sleep
+SETKEY=/usr/sbin/setkey
+MODPROBE=/sbin/modprobe
+ZCAT=/bin/zcat
+
+# Daemon configuration variables
+NODECONFIG_NAME="NodeConfig"
+LINKNAME_NAME="Interface"
+
+# Module names
+INET6_MODULE=ipv6
+INET6_MODULE_ARGS=
+INET6_TUNNEL_MODULE=ip6_tunnel
+INET6_MODULE_ARGS=
+AH6_MODULE=ah6
+AH6_MODULE_ARGS=
+ESP6_MODULE=esp6
+ESP6_MODULE_ARGS=
+PFKEY_MODULE=af_key
+PFKEY_MODULE_ARGS=
+XFRM_USER_MODULE=xfrm_user
+XFRM_USER_MODULE_ARGS=
+MIP6_MODULE=mip6
+XFRM6_RO_MODULE=xfrm6_mode_ro
+
+# Source the init script functions
+. /etc/init.d/init-functions
+
+# Verify daemon and tools are installed
+[ "$1" = "status" ] && NFOUND=4 || NFOUND=5
+test -f $DAEMON -a -f $SETKEY || exit $NFOUND
+
+start() {
+	local RET
+
+	## Check if the kernel has support for mobility
+	KSYMS="/proc/kallsyms"
+	KCONFIG="/proc/config.gz"
+
+	# Make sure there is IPv6 support in the kernel
+	#
+	$MODPROBE $INET6_MODULE $INET6_MODULE_ARGS 2> /dev/null
+	RET=$?
+	if [ "$RET" -ne 0 ]; then
+
+		# Check for built-in IPv6 support
+		INET6_INITSYM=inet6_init                                               		
+
+	        "$GREP" "$INET6_INITSYM" $KSYMS > /dev/null
+	        RET=$?
+	        if [ "$RET" -ne 0 ]; then
+	        	log_failure_msg "The kernel does not have support for IPV6 protocol."
+	        	log_failure_msg "Please recompile with CONFIG_IPV6 and CONFIG_IPV6_MIP6."
+	        	return $RET 
+	        fi
+	fi
+
+	# Make sure Mobile IPv6 is supported
+	#
+	$MODPROBE $MIP6_MODULE 2> /dev/null
+	$MODPROBE $XFRM6_RO_MODULE 2> /dev/null
+	MIP6_INITSYM=mip6_init
+	"$GREP" "$MIP6_INITSYM" $KSYMS > /dev/null
+	RET=$?
+	if [ "$RET" -ne 0 ]; then
+		log_failure_msg "You do not have a kernel configured for Mobile IPv6"
+		log_failure_msg "Please recompile with CONFIG_IPV6_MIP6 option"
+		return $RET 
+	fi
+
+	# Make sure IPv6-in-IPv6 tunnels are supported in the kernel
+	#
+	$MODPROBE $INET6_TUNNEL_MODULE $INET6_TUNNEL_MODULE_ARGS 2> /dev/null
+	RET=$?
+	if [ "$RET" -ne 0 ]; then
+
+		# Check for built-in INET6_TUNNEL support
+		INET6_TUNNEL_INITSYM=ip6_tunnel_init
+
+	        "$GREP" "$INET6_TUNNEL_INITSYM" $KSYMS > /dev/null
+	        RET=$?
+	        if [ "$RET" -ne 0 ]; then
+	        	log_failure_msg "The kernel does not have support for IPV6-in-IPv6 tunnels."
+	        	log_failure_msg "Please recompile with CONFIG_IPV6_TUNNEL option."
+	        	return $RET 
+	        fi
+	fi
+
+	## Make sure PF_KEY is enabled
+	#  Takes care of XFRM
+
+	# Try to load the PF_KEY module first (af_key)
+	$MODPROBE $PFKEY_MODULE $PFKEY_MODULE_ARGS 2> /dev/null
+	RET=$?
+	if [ "$RET" -ne 0 ]; then
+
+		# Check for built-in PF_KEY support
+		PFKEY_INITSYM=ipsec_pfkey_init                                               		
+	        "$GREP" "$PFKEY_INITSYM" $KSYMS > /dev/null
+	        RET=$?
+	        if [ "$RET" -ne 0 ]; then
+	        	log_failure_msg "The kernel does not have support for PF_KEY sockets."
+	        	log_failure_msg "Please recompile with CONFIG_NET_KEY option"
+	        	return $RET 
+	        fi
+	fi
+
+	## Make sure XFRM_SUB_POLICY is supported
+	# 
+	if [ -e "$KCONFIG" -a -r "$KCONFIG" ]
+	then
+		XFRM_SUB_POLICY_CONFIGOPT=CONFIG_XFRM_SUB_POLICY
+		"$ZCAT" "$KCONFIG" | "$GREP" "$XFRM_SUB_POLICY_CONFIGOPT" | "$GREP" "=y" > /dev/null
+		RET=$?
+		if [ "$RET" -ne 0 ]; then
+			log_failure_msg "Mobile IPv6 won't work without XFRM sub policy support."
+			log_failure_msg "Please recompile the kernel with CONFIG_XFRM_SUB_POLICY=y."
+			return $RET 
+		fi
+	else
+		log_failure_msg "Could not verify whether the kernel has XFRM sub policy support enabled."
+		log_failure_msg "I will attempt to start the daemon anyway. If it doesn't work,"
+		log_failure_msg "you might need to recompile your kernel with CONFIG_XFRM_SUB_POLICY=y"
+		echo
+	fi
+
+	## Make sure XFRM_USER is supported
+	# 
+	$MODPROBE $XFRM_USER_MODULE $XFRM_USER_MODULE_ARGS 2> /dev/null
+	RET=$?
+	if [ "$RET" -ne 0 ]; then
+
+		# Check for built-in XFRM_USER support
+		XFRM_USER_INITSYM=xfrm_user_init
+
+	        "$GREP" "$XFRM_USER_INITSYM" $KSYMS > /dev/null
+	        RET=$?
+	        if [ "$RET" -ne 0 ]; then
+	        	log_failure_msg "IPsec won't work without XFRM user configuration interface."
+	        	log_failure_msg "Please recompile with CONFIG_XFRM_USER option."
+	        	return $RET 
+	        fi
+	fi
+
+        ## Verify ESP and AH is supported in the kernel
+	#  Sufficient to check if cryptographic algorithms are included
+	$MODPROBE $ESP6_MODULE $ESP6_MODULE_ARGS 2> /dev/null
+	RET=$?
+	if [ "$RET" -ne 0 ]; then
+
+		# Check for built-in ESP6 support
+		ESP6_INITSYM=esp6_init                                                                            		
+	        "$GREP" "$ESP6_INITSYM" $KSYMS > /dev/null
+	        RET=$?
+	        if [ "$RET" -ne 0 ]; then
+	        	log_failure_msg "The kernel does not have support for ESP6."
+	        	log_failure_msg "Please recompile with CONFIG_INET6_ESP or CONFIG_INET6_ESP_MODULE option"
+	        	return $RET 
+	        fi
+	fi
+
+	## Check AH6
+	$MODPROBE $AH6_MODULE $AH6_MODULE_ARGS 2> /dev/null
+	RET=$?
+	if [ "$RET" -ne 0 ]; then
+
+		# Check for built-in AH6 support
+		AH6_INITSYM=ah6_init                                                                     		
+	        "$GREP" "$AH6_INITSYM" $KSYMS > /dev/null
+	        RET=$?
+	        if [ "$RET" -ne 0 ]; then
+	        	log_failure_msg "Warning: The kernel does not have support for AH6."
+	        	log_failure_msg "Please recompile with CONFIG_INET6_AH or CONFIG_INET6_AH_MODULE"
+	        	log_failure_msg "option, if you require AH functionality"
+	        fi
+	fi
+
+        ## If there is no daemon config file, skip starting
+        if ! [ -f "$DAEMON_CONF" ]; then
+		RET=6
+		log_failure_msg "no file $DAEMON_CONF found (return code $RET)"
+		ret=$RET
+        fi
+
+	# Flush IPsec SA and Policy database
+	log_status_msg "Cleaning up IPsec SA and Policy databases .. " -n
+	"$SETKEY" -F
+	"$SETKEY" -FP
+
+	# Check for errors at every step
+	RET=$?
+	if [ "$RET" -eq 0 ]; then
+		log_success_msg "done."
+	else
+		log_failure_msg "failed (return code $RET)."
+		return $RET 
+	fi
+
+	# Default case for mobile node
+	FORWARD_ON="0"
+	AUTOCONF_ON="1"
+	ACCEPT_RA="1"
+	ACCEPT_REDIRECTS="1"
+
+	# Extract mode information from DAEMON_CONF
+	Mode=`sed -n "/$NODECONFIG_NAME/p" $DAEMON_CONF | awk '{print $2}' | awk -F\; '{print $1}' | sed 's/^[ \t]*//'`
+	
+	# We set forwarding ON only on the Home Agent
+	if [[ "$Mode" = "HA" ]];
+	then
+		FORWARD_ON="1"      			
+                AUTOCONF_ON="0"
+                ACCEPT_RA="0"
+                ACCEPT_REDIRECTS="0"
+
+		# This is necessary for 'radvd' to work
+		echo $FORWARD_ON > /proc/sys/net/ipv6/conf/all/forwarding
+	fi
+
+	# Extract interface information from DAEMON_CONF
+	Interfaces=`$SED -n "/$LINKNAME_NAME/p" $DAEMON_CONF | $AWK '{print $1, $2}' | $GREP -v "^#" | $AWK -F\" '{print $2}'`
+
+	if [ "$Interfaces" != "" ]; then
+
+	    # Disable forwarding on the mobile node (on each of the interfaces)
+	    log_status_msg "Verifying IPv6 settings .. "
+
+	    for i in "$Interfaces"; do
+		log_status_msg "Interface $i .. " -n
+
+		##
+		echo $FORWARD_ON > /proc/sys/net/ipv6/conf/$i/forwarding
+		echo $AUTOCONF_ON > /proc/sys/net/ipv6/conf/$i/autoconf
+		echo $ACCEPT_RA > /proc/sys/net/ipv6/conf/$i/accept_ra
+		echo $ACCEPT_REDIRECTS > /proc/sys/net/ipv6/conf/$i/accept_redirects
+	    	
+		log_status_msg "done"
+	    done
+	fi
+
+	# Start the mobile ipv6 daemon
+	log_status_msg "Starting $DESC: as $Mode .. " -n
+
+	start_daemon $DAEMON $ARGS #&>/dev/null
+	RET=$?
+
+	# Additional Checking of pidofproc $BASENAME makes sure that the return
+	# code is error if there are parse errors while reading $DAEMON_CONF
+	if [ $RET -eq 0 ] && pidofproc $BASENAME &>/dev/null; then
+		log_success_msg "done."
+	else
+		RET=7
+		log_failure_msg "failed (return code $RET)."
+		return $RET 
+	fi
+
+	if [[ $Mode = "HA" ]];
+	then
+		log_status_msg "Please remember to start Router Adv Damon (radvd) on the HA interface."
+		log_status_msg "To verify that it is running use 'radvdump'"
+	fi
+		
+	return $RET 
+}
+
+stop () {
+	local RET
+	
+	log_status_msg "Stopping $DESC: " -n
+
+	killproc "$BASENAME"
+	RET=$?
+
+	if [ "$RET" -eq 0 ]; then
+		log_success_msg "done."
+	else
+		log_failure_msg "failed (return code $RET). "
+	fi
+
+	return "$RET"
+}
+
+restart() {
+	local RET
+
+	log_status_msg "Restarting $DESC: "
+	stop
+	start
+	RET=$?
+
+	if [ $RET -eq 0 ]; then
+        	log_success_msg "done."
+        else
+                log_failure_msg "failed (return code $RET). "
+        fi
+
+	return $RET
+}
+
+tryrestart() {
+	local RET
+
+	pidstatus $BASENAME
+	RET=$?
+	if [ $RET -eq 0 ]; then
+		restart
+		RET=$?
+	else
+		RET=7
+	fi
+
+	return $RET
+}
+
+
+reload() {
+	local RET
+
+	log_status_msg "Reloading $DESC configuration: " -n
+
+	killproc $BASENAME -HUP
+	RET=$?
+
+        if [ $RET -eq 0 ]; then
+                log_success_msg "done."
+        else
+                log_failure_msg "failed (return code $RET). "
+        fi
+
+	return $RET
+}
+
+forcereload() {
+	local RET
+
+	reload
+	RET=$?
+
+	if [ $RET -ne 0 ]; then
+		restart
+		RET=$?
+	fi
+
+	return $RET
+}
+
+status() {
+	local RET
+
+	printstatus $BASENAME
+	RET=$?
+
+	return $RET
+}
+
+parse() {
+	case "$1" in
+ 		start)
+			start
+			return $?
+			;;
+  		stop)
+			stop
+			return $?
+			;;
+		restart)
+			restart
+			return $?
+			;;
+		try-restart)
+			tryrestart
+			return $?
+			;;
+		reload)
+			reload
+			return $?
+			;;
+		force-reload)
+			forcereload
+			return $?
+			;;
+		status)
+			status
+			return $?
+			;;
+  		*)
+			echo "Usage: $INIT_NAME " \
+			"{start|stop|restart|try-restart|reload|" \
+			"force-reload|status}" >&2
+			;;
+	esac
+	
+	return 1
+}
+
+parse $@
+

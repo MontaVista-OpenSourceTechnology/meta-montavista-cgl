@@ -1,0 +1,96 @@
+--- cpuspeed-1.5/cpuspeed.cc.orig	2008-10-08 14:59:29.000000000 -0400
++++ cpuspeed-1.5/cpuspeed.cc	2008-10-08 19:22:33.000000000 -0400
+@@ -159,6 +159,8 @@ unsigned last_step; // lowest speed step
+ // which CPU cores are we controlling
+ unsigned tied_cpu_cores[MAX_TIED_CORES];
+ unsigned num_tied_cores = 0;
++unsigned cpu = 0;
++bool no_affected_cpus_attr = false;
+ 
+ // display an error message and exit the program
+ void
+@@ -485,12 +487,16 @@ get_times(
+     if (nice_counts_as_idle)
+     {
+         idle_time += nice_time;
++    } else {
++        user_time += nice_time;
+     }
+ 
+     // count IO wait time as idle time
+     if (io_counts_as_idle)
+     {
+         idle_time += wait_time;
++    } else {
++        user_time += wait_time;
+     }
+ 
+     unsigned long total_time = user_time + system_time + idle_time;
+@@ -711,6 +717,7 @@ unsigned num_cores = 0; // how many CPU 
+ // restore  initial speed on program exit
+ unsigned saved_speed = 0;
+ char saved_governor[32];
++pid_t * saved_pids;
+ 
+ void
+ term_handler(int which)
+@@ -721,6 +728,12 @@ term_handler(int which)
+         write_line(GOVERNOR_FILE, "%s\n", saved_governor);
+     }
+ 
++    if (cpu == 0 && no_affected_cpus_attr)
++    {
++        for (unsigned i = 1; i < num_cores; i++)
++            kill(saved_pids[i], which);
++    }
++
+     raise(which);
+ }
+ 
+@@ -1036,6 +1049,7 @@ main(int argc, char * argv[])
+         // iterate through all cpu cores in main process
+         for (unsigned i = 0, forked = 0; i < num_cores && !forked; i++)
+         {
++	    int n;
+             // does this core do cpufreq?
+             char cpufreq_dir[256];
+             snprintf(cpufreq_dir, sizeof cpufreq_dir, SYSFS_CPUFREQ_DIR, i);
+@@ -1067,7 +1081,14 @@ main(int argc, char * argv[])
+             }
+ #endif
+             unsigned cores[MAX_TIED_CORES];
+-            int n = read_values(acfn, cores, MAX_TIED_CORES);
++            if (access(acfn, F_OK) != 0)
++            {
++                // fall back to the old 1.2.x method of forking for each core
++                no_affected_cpus_attr = true;
++                n = 1;
++            }
++            else
++                n = read_values(acfn, cores, MAX_TIED_CORES);
+ 
+             // if we can't figure out the affected cores
+             if (n == 0)
+@@ -1102,8 +1123,22 @@ main(int argc, char * argv[])
+                     i, cores[0]
+                 );
+ #endif
++            if (no_affected_cpus_attr)
++                break;
+             }
+         }
++
++        if (no_affected_cpus_attr)
++        {
++            saved_pids = (pid_t *)calloc(num_cores, sizeof(pid_t));
++
++            // fork() a process to handle each core
++            for (unsigned i = 1; i < num_cores; i++)
++                if ( !(saved_pids[i] = fork())) {
++                    cpu = i;
++                    break;
++                }
++        }
+     }
+ 
+ 

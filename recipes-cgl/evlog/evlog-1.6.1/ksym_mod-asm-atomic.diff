@@ -1,0 +1,22 @@
+diff -ruN evlog-1.6.1.orig/user/cmd/evlogd/ksym_mod.c evlog-1.6.1/user/cmd/evlogd/ksym_mod.c
+--- evlog-1.6.1.orig/user/cmd/evlogd/ksym_mod.c	2004-03-17 00:26:24.000000000 +0300
++++ evlog-1.6.1/user/cmd/evlogd/ksym_mod.c	2007-02-27 12:59:27.000000000 +0300
+@@ -91,7 +91,7 @@
+ #include <errno.h>
+ #include <sys/fcntl.h>
+ #include <sys/stat.h>
+-#include <asm/atomic.h>
++//#include <asm/atomic.h>
+ #include <stdarg.h>
+ #include <paths.h>
+ 
+@@ -114,7 +114,8 @@
+ 
+         union
+         {
+-                atomic_t usecount;
++                //atomic_t usecount;
++                int usecount;
+                 long pad;
+         } uc;                           /* Needs to keep its size - so says rth */
+ 

@@ -1,0 +1,57 @@
+#!/bin/sh
+#
+# /etc/init.d/evlsyslog: Starts evlsyslog.
+#
+# chkconfig: 2345 85 45
+#
+
+. /etc/init.d/init-functions
+
+[ -f /sbin/evlsyslog ] || exit 0
+
+print_status()
+{
+    if test "$?" -eq 0
+    then
+        log_success_msg "success"
+    else
+        log_failure_msg "failed"
+    fi
+}
+
+start() {
+    echo -n "Starting enterprise event log syslog forwarding agent:  "
+    start_daemon /sbin/evlsyslog
+    RETVAL=$?
+    print_status
+    if test "$RETVAL" -eq 0; then
+	mkdir -p /var/lock/subsys
+	touch /var/lock/subsys/evlsyslog
+    fi
+}
+
+stop() {
+    echo -n "Stopping enterprise event log syslog forwarding agent: "
+    killproc evlsyslog
+    RETVAL=$?
+    print_status
+    if test "$RETVAL" -eq 0; then
+	rm -f /var/lock/subsys/evlforward
+    fi
+}
+
+case "$1" in
+  start)  
+	start
+	;;
+  stop)
+	stop
+	;;
+  restart|reload|force-reload)
+	stop
+	start
+	;;
+  *)
+	echo "Usage: /etc/init.d/evlsyslog {start|stop|reload|restart|force-reload}"
+	exit 1
+esac

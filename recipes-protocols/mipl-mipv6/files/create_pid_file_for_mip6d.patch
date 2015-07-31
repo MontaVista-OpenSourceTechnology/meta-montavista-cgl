@@ -1,0 +1,73 @@
+--- git/src/main.c	2014-01-29 13:54:58.506467780 +0530
++++ git/src/main.c	2014-01-29 13:57:04.294465030 +0530
+@@ -31,6 +31,7 @@
+ #include <sys/ioctl.h>
+ #include <sys/wait.h>
+ #include <sys/param.h>
++#include <sys/stat.h>
+ #include <pthread.h>
+ #include <fcntl.h>
+ #include <unistd.h>
+@@ -41,6 +42,7 @@
+ #include <signal.h>
+ #include <syslog.h>
+ #include <netinet/icmp6.h>
++#include <paths.h>
+ 
+ #include "conf.h"
+ #include "cn.h"
+@@ -73,6 +75,7 @@ static void reinit(void)
+ 	return;
+ }
+ 
++char pid_file[MAXPATHLEN];
+ 
+ struct mip6_config conf;
+ struct mip6_stat mipl_stat;
+@@ -84,6 +87,11 @@ static void terminate(void)
+ 	dbg("got SIGINT, exiting\n");
+ 	debug_close();
+ 	pthread_exit(NULL);
++	if (access (pid_file, F_OK) != -1) {
++		if(unlink(pid_file) == -1) {
++			syslog(LOG_INFO, "unable to remove %s file", pid_file);
++		}
++	}
+ }
+ 
+ /*
+@@ -178,6 +186,8 @@ int main(int argc, char **argv)
+ 	sigset_t sigblock;
+ 	int logflags = 0;
+ 	int ret = 1;
++	FILE *fp;
++	pid_t mip6d_pid = 0;
+ 
+ 	debug_init();
+ 
+@@ -227,6 +237,25 @@ int main(int argc, char **argv)
+ 		conf_show(&conf);
+ 	}
+ 
++	/* Get the pid of the process */
++	strncpy(pid_file, _PATH_VARRUN "mip6d.pid", MAXPATHLEN);
++	fp = fopen(pid_file, "w");
++	if (fp) {
++		if (fchmod(fileno(fp), 
++			S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == -1) {
++			fprintf(stderr, "%s", strerror(errno));
++			fclose(fp);
++		}
++		else {
++			mip6d_pid = getpid();
++			fprintf(fp, "%ld\n", (long)mip6d_pid);
++			fclose(fp);
++		}
++	}
++	else {
++		fprintf(stderr, "can't create pid file under _PATH_VARRUN \n");
++	}
++
+ 	srandom(time(NULL));
+ 
+ 	if (rr_cn_init() < 0)

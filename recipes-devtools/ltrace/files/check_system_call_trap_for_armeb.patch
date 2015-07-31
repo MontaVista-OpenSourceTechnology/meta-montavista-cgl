@@ -1,0 +1,15 @@
+--- git_org/sysdeps/linux-gnu/arm/trace.c	2015-07-20 19:39:50.142446547 +0530
++++ git/sysdeps/linux-gnu/arm/trace.c	2015-07-20 19:44:39.926807005 +0530
+@@ -76,6 +76,12 @@ syscall_p(struct process *proc, int stat
+ 				       (void *)pc, 0);
+ 		int ip = ptrace(PTRACE_PEEKUSER, proc->pid, off_ip, 0);
+ 
++		/* Instructions in ARMv7+ (or BE8) is always stored in little-endian
++		 * so we need a byteswap of the instruction. */
++#if defined(__ARMEB__) && defined(__ARM_ARCH_7A__)
++		insn = __builtin_bswap32(insn);
++#endif /* __ARMEB__ && __ARM_ARCH_7A__ */
++		
+ 		if (insn == 0xef000000 || insn == 0x0f000000
+ 		    || (insn & 0xffff0000) == 0xdf000000) {
+ 			/* EABI syscall */

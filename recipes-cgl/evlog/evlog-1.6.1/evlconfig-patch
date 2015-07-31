@@ -1,0 +1,734 @@
+diff -Naur evlog-1.6.1-orig/user/cmd/evlconfig/evlconfig.c evlog-1.6.1/user/cmd/evlconfig/evlconfig.c
+--- evlog-1.6.1-orig/user/cmd/evlconfig/evlconfig.c	2004-09-08 10:45:19.000000000 -0700
++++ evlog-1.6.1/user/cmd/evlconfig/evlconfig.c	2006-11-01 10:44:16.000000000 -0700
+@@ -40,7 +40,7 @@
+ 
+ #if !defined(__GLIBC__)
+ # define __NR_ksyslog __NR_syslog
+-_syscall3(int,ksyslog,int, type, char *, buf, int, len);
++_syscall3(int, ksyslog, int, type, char *, buf, int, len);
+ #else
+ #include <sys/klog.h>
+ #define ksyslog klogctl
+@@ -49,13 +49,13 @@
+ const char *progname;
+ 
+ typedef struct options {
+-        int  conflist;
+-        char *scr_filter;
+-        int  dcount;			/* 0 = infinite count */
+-        int  dinterval;			/* 0 = infinite interval */
+-		int	 dnumdups;			/* 0 = default value */
+-        char *dis_on;
+-        int sev_level;			/* -1 = disable console message */
++	int	conflist;
++	char	*scr_filter;
++	int	dcount;			/* 0 = infinite count */
++	int	dinterval;		/* 0 = infinite interval */
++	int	dnumdups;		/* 0 = default value */
++	char	*dis_on;
++	int	sev_level;		/* -1 = disable console message */
+ } options_t;
+ 
+ static options_t cmd_opt = {0, NULL, -1, -1, -1, NULL, 0xbad};
+@@ -80,15 +80,18 @@
+ static void
+ usage()
+ {
+-	fprintf(stderr,
+-		"Usage: \tevlconfig -l | --list\n"
+-		"\tevlconfig -d | --discarddups on | off\n"
+-		"\tevlconfig -i | --interval seconds\n"
+-		"\tevlconfig -c | --count events\n"
+-		"\tevlconfig -L | --lookbacks size\n"
+-		"\tevlconfig -s | --screen filter | nofilter\n"
+-		"\tevlconfig -o | --output severity-level | off\n"
+-		"\tevlconfig --help\n");
++	(void) fprintf(stderr, "Usage: %s options ...\n\n", progname);
++	(void) fprintf(stderr, "\tOPTIONS\n");
++	(void) fprintf(stderr, "\t-l | --list\n");
++	(void) fprintf(stderr, "\t-d | --discarddups on | off\n");
++	(void) fprintf(stderr, "\t-i | --interval seconds\n");
++	(void) fprintf(stderr, "\t-c | --count events\n");
++	(void) fprintf(stderr, "\t-L | --lookbacks size\n");
++	(void) fprintf(stderr, "\t-s | --screen filter | nofilter\n");
++	(void) fprintf(stderr, "\t-o | --output severity-level | off\n");
++	(void) fprintf(stderr, "\t--help\n");
++	(void) fprintf(stderr, "\n");
++
+ 	exit(1);
+ }
+ 
+@@ -99,7 +102,7 @@
+ 	long value = strtol(s, &end, 0);
+ 
+ 	if (end == s) {
+-		fprintf(stderr, "evlconfig: Invalid value\n");
++		(void) fprintf(stderr, "%s: Invalid value\n", progname);
+ 		return -1;
+ 	}
+ 	return value;
+@@ -119,11 +122,11 @@
+ 	while (i < argc){
+ 		if (!strcmp(argv[i], "--help")) {
+ 			usage();
+-		} else if (!strcmp(argv[i], "--list") || 
+-			!strcmp(argv[i], "-l")) {
++		} else if (!strcmp(argv[i], "--list") ||
++						!strcmp(argv[i], "-l")) {
+ 			optp->conflist = 1;
+ 		} else if (!strcmp(argv[i], "--lookbacks") ||
+-			!strcmp(argv[i], "-L")) {
++						!strcmp(argv[i], "-L")) {
+ 			if ((argc - i) == 1) {
+ 				usage();
+ 			}
+@@ -134,12 +137,12 @@
+ 			if (optp->dnumdups < 0 ||
+ 				optp->dnumdups > MAX_DUP_ARRAY_SIZE) {
+ 				fprintf(stderr,
+-						"%s: Invalid duplicate lookback size. Allowable range is from 1 to %d.\n",
++"%s: Invalid duplicate lookback size. Allowable range is from 1 to %d.\n",
+ 						progname, MAX_DUP_ARRAY_SIZE);
+ 				exit(1);
+ 			}
+ 		} else if (!strcmp(argv[i], "--interval") || 
+-			!strcmp(argv[i], "-i")) {
++						!strcmp(argv[i], "-i")) {
+ 			if ((argc - i) == 1) {
+ 				usage();
+ 			}
+@@ -148,14 +151,15 @@
+ 				usage();
+ 			}
+ 			if (optp->dinterval < 0 || 
+-				optp->dinterval > MAX_DUP_INTERVAL) {
+-				fprintf(stderr, 
+-					"%s: Invalid Discard Interval. Allowable range is from 1 to 3600 (in seconds).\n",
++					optp->dinterval > MAX_DUP_INTERVAL) {
++				(void) fprintf(stderr,
++"%s: Invalid Discard Interval. Allowable range is from 1 to 3600 (seconds).\n",
+ 					progname);
++
+ 				exit(1);
+ 			}
+ 		} else if (!strcmp(argv[i], "--count") || 
+-			!strcmp(argv[i], "-c")) {
++						!strcmp(argv[i], "-c")) {
+ 			if ((argc - i) == 1) {
+ 				usage();
+ 			}
+@@ -164,29 +168,33 @@
+ 				usage();
+ 			}
+ 			if (optp->dcount < 0 || optp->dcount > MAX_DUP_COUNT) {
+-				fprintf(stderr,"%s: Invalid Discard Count. Allowable range is from 1 to 10000.\n",
++				(void) fprintf(stderr,
++	"%s: Invalid Discard Count. Allowable range is from 1 to 10000.\n",
+ 					progname);
+ 				exit(1);
+ 			}
+ 		} else if (!strcmp(argv[i], "--screen") || 
+-			!strcmp(argv[i], "-s")) {
++						!strcmp(argv[i], "-s")) {
+ 			if ((argc - i) == 1) {
+ 				usage();
+ 			}
+ 			optp->scr_filter = argv[++i];
+ 		} else if (!strcmp(argv[i], "--discarddups") || 
+-				!strcmp(argv[i], "-d")) {
++						!strcmp(argv[i], "-d")) {
+ 			if ((argc - i) == 1) {
+ 				usage();
+ 			}
+-			if (strcmp(argv[++i], "on") && strcmp(argv[i], "off")) {
+-				fprintf(stderr, "%s: Invalid value with '--discarddups' option\n", 
++
++			if (strcmp(argv[++i], "on") &&
++						strcmp(argv[i], "off")) {
++				(void) fprintf(stderr,
++			"%s: Invalid value with '--discarddups' option\n",
+ 					progname);
+ 				usage();
+ 			}
+ 			optp->dis_on = argv[i];
+ 		} else if (!strcmp(argv[i], "--output") ||
+-				!strcmp(argv[i], "-o")) {
++						!strcmp(argv[i], "-o")) {
+ 			char *sev_level_str;
+ 			if ((argc - i) == 1) {
+ 				usage();
+@@ -213,8 +221,7 @@
+ 				optp->sev_level = LOG_DEBUG;
+ 			} else {
+ 				usage();
+-			} 
+-			
++			}
+ 		}			  
+ 		else {
+ 			usage();
+@@ -224,8 +231,9 @@
+ 
+ 	if ((optp->dis_on != NULL) && !strcmp(optp->dis_on,"off") &&
+ 			((optp->dcount > 0) || (optp->dinterval > 0))) {
+-		fprintf(stderr,
+-			"%s: Cannot specify '-discard_dups' as 'off' with options '--count' or '--interval'\n", progname);
++		(void) fprintf(stderr,
++		"%s: Cannot specify '%s' as 'off' with options '%s' or '%s'\n",
++			progname, "--discard_dups", "--count", "--interval");
+ 		usage();
+ 	}
+ }
+@@ -260,8 +268,9 @@
+ 			continue;
+ 		}
+ 		if ((s = strchr(p, ':')) == NULL) {
+-			fprintf(stderr, 
+-				"%s: '%s' file got corrupted\n", progname, confPath);
++			(void) fprintf(stderr,
++					"%s: '%s' file got corrupted\n",
++					progname, confPath);
+ 			return -1;
+ 		}
+ 		*s++ = '\0';
+@@ -272,10 +281,13 @@
+ 			(void)fstat(fd, &st);
+ 			move_size = st.st_size - cur_off;
+ 
+-			if ((mov_buf = (char *)malloc(move_size + 1)) == NULL) {
+-				fprintf(stderr,
+-					"%s: Out of memory to resize evlog.conf file\n",
++			mov_buf = (char *) malloc(move_size + 1);
++
++			if (mov_buf == NULL) {
++				(void) fprintf(stderr,
++				"%s: resize evlog.conf file memory failure\n",
+ 					progname);
++
+ 				return -1;
+ 			}
+ 			(void)fread(mov_buf + 1, move_size, 1, fp);
+@@ -314,14 +326,16 @@
+ 	if (type == SEV_LEVEL) {
+ 		if (value == CONSOLE_OUTPUT_DISABLE ) {
+ 			if (ksyslog(6, NULL, 0) != 0) {
+-				fprintf(stderr, 
+-					"evlogd: Fail to disable console display\n");
++				(void) fprintf(stderr,
++				"%s: Failed to disable console display\n",
++				progname);
+ 				return 1;
+ 			}	
+ 		} else {
+ 			if (ksyslog(8, NULL, value) != 0) {
+-				fprintf(stderr, 
+-					"evlogd: Fail to set console display level\n");
++				(void) fprintf(stderr,
++				"%s: Failed to set console display level\n",
++				progname);
+ 				return 1;
+ 			}	
+ 		}
+@@ -329,40 +343,46 @@
+ 		/*
+ 		 * Send data to evlogd daemon.
+ 		 */
+-		if (write(sd, &type, sizeof(int)) <= 0) {
+-			fprintf(stderr, "%s: Failed to write on socket\n", progname);
++		if (write(sd, (void *) &type, sizeof(int)) != sizeof(int)) {
++			(void) fprintf(stderr,
++				"%s: Failed to write on socket\n", progname);
++
+ 			return 1;
+ 		}
+ 		if (type >= DIS_DUPS) {
+ 			/*
+ 			 * Send string values
+ 			 */
+-			if (write(sd, &len, sizeof(int)) <= 0) {
+-				fprintf(stderr, "%s: Failed to write on socket\n",
+-						progname);
++			if (write(sd, (void *) &len, sizeof(int)) !=
++							sizeof(int)) {
++				(void) fprintf(stderr,
++					"%s: Failed to write on socket\n",
++					progname);
++
+ 				return 1;
+ 			}
+-			if (write(sd, wbuf, len) <= 0) {
+-				fprintf(stderr, "%s: Failed to write on socket\n",
+-						progname);
++			if (write(sd, (void *) wbuf, len) != sizeof(int)) {
++				(void) fprintf(stderr,
++					"%s: Failed to write on socket\n",
++					progname);
+ 				perror("write");
++
+ 				return 1;
+ 			}
+ 		} else {
+-			if (write(sd, &value, sizeof(int)) <= 0) {
+-				fprintf(stderr, "%s: Failed to write on socket\n",
+-						progname);
++			if (write(sd, (void *) &value, sizeof(int)) !=
++							sizeof(int)) {
++				(void) fprintf(stderr,
++					"%s: Failed to write on socket\n",
++					progname);
++
+ 				return 1;
+ 			}
+ 		}
+ 	} 
+-		
+-	/* Updated evlog.conf file */
+-	if (updateFile(fd, fp, wbuf, len, symbol) < 0) {
+-		return -1;
+-	}
+ 
+-	return 0;
++	/* Updated evlog.conf file */
++	return (updateFile(fd, fp, wbuf, len, symbol) < 0);
+ }
+ 
+ /*
+@@ -378,16 +398,17 @@
+ {
+ 	FILE *fp;
+ 	char wrbuf[255];
+-	int retry = 0, sock_len;
+ 	int error = 0;
+ 	struct sockaddr_un sa;
+-	char *evlconf_str = "evlogd is reading new configure parameter";
+ 	int end_tran = EVENT_SCREEN + 1;
+-	struct posix_log_entry entry;
+-	int gotTimeStamp = 0;
+-	if ((sd = _establishNonBlkConnection(EVLOG_CONF_SOCKET, &sa, 1 /*timeout*/)) < 0) {
+-			/* Can't connect to log daemon - exit */
+-			exit(1);
++
++	if ((sd = _establishNonBlkConnection(EVLOG_CONF_SOCKET, &sa,
++						1 /*timeout*/)) < 0) {
++		(void) fprintf(stderr,
++				"%s: Unable to establish connection\n",
++				progname);
++
++		exit(1);
+ 	}
+ 	if ((fp = fdopen(fd, "r+")) == NULL) {
+ 		perror("fdopen");
+@@ -398,31 +419,31 @@
+ 	if (cmd_opt.dcount >= 0) {
+ 		snprintf(wrbuf, sizeof(wrbuf), "%d", cmd_opt.dcount);
+ 		if ((error = updateConfValues(fd, fp, sd, DIS_COUNT, 
+-			cmd_opt.dcount, wrbuf, strlen(wrbuf), 
+-			"Discard Count")) != 0) {
++				cmd_opt.dcount, wrbuf, strlen(wrbuf),
++				"Discard Count")) != 0) {
+ 			goto out;
+ 		}
+ 	}
+ 	if (cmd_opt.dinterval >= 0) {
+ 		snprintf(wrbuf, sizeof(wrbuf), "%d", cmd_opt.dinterval);
+ 		if ((error = updateConfValues(fd, fp, sd, DIS_INTERVAL, 
+-			cmd_opt.dinterval, wrbuf, strlen(wrbuf),
+-			"Discard Interval")) != 0) {
++				cmd_opt.dinterval, wrbuf, strlen(wrbuf),
++				"Discard Interval")) != 0) {
+ 			goto out;
+ 		}
+ 	}
+ 	if (cmd_opt.dnumdups >= 0) {
+ 		snprintf(wrbuf, sizeof(wrbuf), "%d", cmd_opt.dnumdups);
+ 		if ((error = updateConfValues(fd, fp, sd, LOOKBACK_SIZE,
+-			cmd_opt.dnumdups, wrbuf, strlen(wrbuf),
+-			"Lookback Size")) != 0) {
++				cmd_opt.dnumdups, wrbuf, strlen(wrbuf),
++				"Lookback Size")) != 0) {
+ 			goto out;
+ 		}
+ 	}
+ 	if (cmd_opt.dis_on != (char *)NULL) {
+ 		if ((error = updateConfValues(fd, fp, sd, DIS_DUPS, 0, 
+-			cmd_opt.dis_on, strlen(cmd_opt.dis_on),
+-			"Discard Dups")) != 0) {
++				cmd_opt.dis_on, strlen(cmd_opt.dis_on),
++				"Discard Dups")) != 0) {
+ 			goto out;
+ 		}
+ 	}
+@@ -432,49 +453,87 @@
+ 		/*
+ 		 * Test whether the user requested filter is valid.
+ 		 */
+-		if(strcmp(cmd_opt.scr_filter, "nofilter")) {
+-			if (posix_log_query_create(cmd_opt.scr_filter,POSIX_LOG_PRPS_NOTIFY, 
+-					&query, errbuf, 80) != 0) {
+-				fprintf(stderr, "%s: Invalid event screen: %s\n", 
+-						progname, errbuf);
++		if (strcmp(cmd_opt.scr_filter, "nofilter")) {
++			if (posix_log_query_create(cmd_opt.scr_filter,
++						POSIX_LOG_PRPS_NOTIFY, &query,
++						errbuf, 80) != 0) {
++				(void) fprintf(stderr,
++					"%s: Invalid event screen: %s\n",
++					progname, errbuf);
+ 				error = -1;
+ 				goto out;
+ 			}
+ 		}
+ 		if ((error = updateConfValues(fd, fp, sd, EVENT_SCREEN, 0,
+-				cmd_opt.scr_filter, strlen(cmd_opt.scr_filter),
+-				"Event Screen")) != 0) {
+-				goto out;
++					cmd_opt.scr_filter,
++					strlen(cmd_opt.scr_filter),
++					"Event Screen")) != 0) {
++			goto out;
+ 		}
+-			
+ 	}
+ 	if (cmd_opt.sev_level != 0xbad) {
+ 		snprintf(wrbuf, sizeof(wrbuf), "%d", cmd_opt.sev_level);
+ 		if ((error = updateConfValues(fd, fp, sd, SEV_LEVEL, 
+-			cmd_opt.sev_level, wrbuf, strlen(wrbuf),
+-			"Console display level")) != 0) {
++				cmd_opt.sev_level, wrbuf, strlen(wrbuf),
++				"Console display level")) != 0) {
+ 			goto out;
+ 		}
+ 	}
+-	
++
+ out:
++	(void) fclose(fp);	/* closes fd */
++
+ 	/*
+-	 * Send the end of transmission value to evlogd. This value allows to
+-	 * send mutiple options in one socket connection. The error value will 
+-	 * be 1 only if the previous write call failed.
++	 * Send the end of transmission value to evlogd and await a
++	 * response if no error occured before this.
+ 	 */
+-	if ((error != 1) && write(sd, &end_tran, sizeof(int)) < 0) {
+-		error = -1;
++
++	if (error == 0) {
++		if (write(sd, &end_tran, sizeof(int)) == sizeof(int)) {
++			/*
++			 * Wait for the completion status.
++			 */
++
++			if (read(sd, (void *) &error, sizeof(int)) !=
++							sizeof(int)) {
++				(void) fprintf(stderr,
++					"%s: Failed to read from socket\n",
++					progname);
++
++				return (-1);
++			}
++
++			if (error != 0) {
++				(void) fprintf(stderr,
++					"%s: command failure: %d\n",
++					progname, error);
++			}
++		}
++		else {
++			(void) fprintf(stderr,
++					"%s: Failed to write on socket\n",
++					progname);
++
++			error = -1;
++		}
+ 	}
+-	fclose(fp);	/* closes fd */
+-	return error;
+-}
+ 
++	return (error);
++}
+ 
+ main(int argc, char **argv)
+ {
++	char *p;
+ 	int i, status, fd, sd, estatus = 0;
+-	progname = argv[0];
++
++	p = strrchr(argv[0], '/');
++
++	if (p == (char *) NULL) {
++		progname = argv[0];
++	}
++	else {
++		progname = p + 1;
++	}
+ 
+ 	get_cmd_opts(argc, argv, &cmd_opt);
+ 
+@@ -498,21 +557,24 @@
+ 			exit(1);
+ 		}
+ 		if ((sd = socket(PF_UNIX, SOCK_STREAM, 0)) < 0) {
+-			fprintf(stderr, 
+-				"evlconfig: cannot create socket for communication with 'evlogd' daemon.\n");
++			(void) fprintf(stderr,
++				"%s: cannot create 'evlogd' socket.\n",
++				progname);
+ 			perror("socket");
+ 			return -1;
+ 		}
+ 		if (fcntl(sd, F_SETFL, O_NONBLOCK) < 0) {
+ 			perror("fcntl");
+-			close(sd);
+-			return -1;
++			(void) close(fd);
++			(void) close(sd);
++			exit(1);
+ 		}
+ 		(void) fcntl(fd, F_WRLCK);
+ 		estatus = evlconf_ops(fd, sd);
+ 		(void) fcntl(fd, F_UNLCK);
+ 		close(fd);
+ 		close(sd);
++
+ 		if (estatus != 0) {
+ 			exit(1);
+ 		}
+@@ -524,8 +586,8 @@
+ 
+ 		if ((fd = open(confPath, O_RDONLY)) < 0) {
+ 			fprintf(stderr,
+-				"%s: Cannot open evlog.conf file for reading\n",
+-				progname);
++					"%s: Cannot open evlog.conf: %s\n",
++					progname, strerror(errno));
+ 			exit(1);
+ 		}
+ 		if ((conf_f = fdopen(fd, "r")) == NULL) {
+@@ -558,7 +620,8 @@
+ 					fprintf(stdout, "off\n");
+ 				} else {
+ 					fprintf(stderr,
+-					  "Invalid string for 'Discard Dups\n");
++					"Invalid string for 'Discard Dups\n");
++
+ 					exit(1);
+ 				}
+ 				continue;
+@@ -637,7 +700,8 @@
+ 				}
+ 			 
+ 			} else {
+-				fprintf(stderr, "%s: '%s' file got corrupted\n",
++				fprintf(stderr,
++					"%s: '%s' file got corrupted\n",
+ 					progname, confPath);
+ 				exit(1);
+ 			} 
+diff -Naur evlog-1.6.1-orig/user/cmd/evlogd/evlogd.c evlog-1.6.1/user/cmd/evlogd/evlogd.c
+--- evlog-1.6.1-orig/user/cmd/evlogd/evlogd.c	2006-11-01 10:43:35.000000000 -0700
++++ evlog-1.6.1/user/cmd/evlogd/evlogd.c	2006-11-01 10:44:16.000000000 -0700
+@@ -126,12 +126,12 @@
+ #define FALSE   0
+ 
+ #define MAX_EVL_LINE 	1024
+-#define DIS_COUNT 			0
+-#define DIS_INTERVAL 		1
+-#define SEV_LEVEL			2
+-#define DIS_SIZE			3
+-#define DIS_DUPS			4
+-#define EVENT_SCREEN		5
++#define DIS_COUNT 	0
++#define DIS_INTERVAL	1
++#define SEV_LEVEL	2
++#define DIS_SIZE	3
++#define DIS_DUPS	4
++#define EVENT_SCREEN	5
+ 
+ #define MAX(a,b) (((a) > (b)) ? (a) : (b))
+ #ifdef DEBUG2
+@@ -1609,42 +1609,74 @@
+ }
+ 
+ /*
+- * Update evlogd config values. User send these values through 'evlconfig'
++ * Update evlogd config values. User sent these values through 'evlconfig'
+  * command.
+  */
++
+ static int 
+ updateConfvalues(int confsd) 
+ {
+-	int ctype, value;
+-	int qexp_defined = 0;
+-	char cbuf[MAX_EVL_LINE];
+-	
+-	if (read(confsd, &ctype, sizeof(int)) < 0) {
+-		fprintf(stderr, "evlogd: Read call for configuration failed\n");
+-		return -1;
+-	}
++	int	error;
++
+ 	/*
+-	 * Read for different configuration elements until end of transmissin
++	 * Read for different configuration elements until end of transmission
+ 	 * (EVENT_SCREEN + 1) is received. Hence, it supports for multiple
+ 	 * elements in a single 'evlconfig' command.
+ 	 */
+-	while (ctype <= EVENT_SCREEN) {
+-		if (read(confsd, &value, sizeof(int)) < 0) {
++
++	do {
++		int	cmd;
++		int	value;
++		char	cbuf[MAX_EVL_LINE];
++
++		TRACE("%s: awaiting command\n", ProgName);
++
++		if (read(confsd, (void *) &cmd, sizeof(int)) != sizeof(int)) {
++			(void) fprintf(stderr,
++				"evlogd: Configuration command read failed\n");
++
++			error = EIO;
++			break;
++		}
++
++		TRACE("%s: command: %d\n", ProgName, cmd);
++
++		if (cmd > EVENT_SCREEN) {
++			error = 0;
++			break;
++		}
++
++		if (read(confsd, (void *) &value, sizeof(int)) != sizeof(int)) {
+ 			fprintf(stderr, 
+-					"evlogd: Read call for configuration failed\n");
+-			return -1;
++				"evlogd: Configuration value read failed\n");
++
++			error = EIO;
++			break;
+ 		}
+-		if (ctype >= DIS_DUPS) {
+-			if (value > sizeof(cbuf)) 
+-				return -1;
+-			if (read(confsd, &cbuf, value) < 0) {
+-				fprintf(stderr, 
+-						"evlogd: Read call for configuration failed\n");
+-				return -1;
++
++		TRACE("%s: value: %d\n", ProgName, value);
++
++		if (cmd >= DIS_DUPS) {
++			TRACE("%s: expecting string\n", ProgName);
++
++			if (value > sizeof(cbuf)) {
++				error = E2BIG;
++				break;
++			}
++
++			if (read(confsd, (void *) &cbuf, value) != value) {
++				(void) fprintf(stderr,
++				"evlogd: Configuration string read failed\n");
++
++				error = EIO;
++				break;
+ 			}
+ 			cbuf[value] = '\0';
+ 		}
+-		switch (ctype) {
++
++		error = 0;
++
++		switch (cmd) {
+ 		case DIS_COUNT:
+ 			Dup_count = value;
+ 			if (Dup_count == 0) {
+@@ -1671,50 +1703,59 @@
+ 			if (dis_dup_recs == FALSE && !strcmp(cbuf, "on")) {
+ 				reallocLookBack(dup_array_size, FALSE, TRUE);
+ 				dis_dup_recs = TRUE;
+-			} else if (dis_dup_recs == TRUE && !strcmp(cbuf, "off")) {
++			} else if (dis_dup_recs == TRUE && !strcmp(cbuf,
++								"off")) {
+ 				reallocLookBack(dup_array_size, TRUE, FALSE);
+ 				dis_dup_recs = FALSE;
+ 			}
+ 			break;
+ 		case DIS_SIZE:
+ 			if (dup_array_size != value) {
+-				/* Given the current implementation an infinitely
+-				 * sized array is absurd. Instead we'll just go to
+-				 * a default value.
++				/* Given the current implementation an
++				 * infinitely sized array is absurd. Instead
++				 * we'll just go to a default value.
+ 				 */
+-				if (value == 0)
++				if (value == 0) {
+ 					value = DEFAULT_DUP_ARRAY_SIZE;
+-			
++				}
++
+ 				reallocLookBack(value, dis_dup_recs,
+- 								dis_dup_recs);
++								dis_dup_recs);
+ 			}
+ 			break;
+ 		case EVENT_SCREEN:
+-			strcpy(query_exp, cbuf);
+-			qexp_defined = 1;
++			/*
++			 * Attempt to destroy the previous query and
++			 * create a new query.
++			 */
++
++			if (createQuery(cbuf) < 0) {
++				if (query_exp[0] != '\0') {
++					(void) createQuery(query_exp);
++				}
++
++				error = EINVAL;
++			}
++			else {
++				(void) strcpy(query_exp, cbuf);
++			}
++
+ 			break;
+-		}
+-		if (read(confsd, &ctype, sizeof(int)) < 0) {
+-			fprintf(stderr, 
+-					"evlogd: Read call for configuration failed\n");
+-			return -1;
+-		}
+ 	}
++	while (error == 0);
+ 
+-	if (qexp_defined) {
+-		/*
+-		 * User requested to update screen filer. Hence, destroy the 
+-		 * previous query and creaty a new query.
+-		 */
+-		if (createQuery(query_exp) < 0) {
+-			return -1;
+-		}
++	/*
++	 * Return the status information to evlconfig.
++	 */
++
++	if (write(confsd, (void *) &error, sizeof(int)) != sizeof(int)) {
++		(void) fprintf(stderr,
++			"evlogd: Configuration status write failed\n");
+ 	}
+ 
+-	return 0;
++	return error;
+ }
+ 
+-
+ static int
+ createSocket(char *sockname, int *sd, socklen_t *sock_len, struct sockaddr_un *sa, 
+ 			 mode_t mode, int backlog)

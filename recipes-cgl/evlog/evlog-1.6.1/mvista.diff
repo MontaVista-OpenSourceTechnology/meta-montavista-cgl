@@ -1,0 +1,167 @@
+diff -Naur evlog-1.6.1-orig/user/cmd/evlactiond/evlactiond.c evlog-1.6.1/user/cmd/evlactiond/evlactiond.c
+--- evlog-1.6.1-orig/user/cmd/evlactiond/evlactiond.c	2004-09-08 10:36:36.000000000 -0700
++++ evlog-1.6.1/user/cmd/evlactiond/evlactiond.c	2005-05-23 09:42:19.000000000 -0700
+@@ -71,6 +71,8 @@
+ 
+ #define QUERY_FLAGS_NOT_SET	999
+ 
++int notify_retries = 60;	/* seconds */
++
+ typedef struct clientinfo {
+ 	int sd;
+ 	uid_t uid;
+@@ -191,6 +193,16 @@
+    		fprintf(stderr, "Failed to load action registry.\n");
+    	}
+ 
++   	/* read the action registry file */
++
++	TRACE("Loading action registry.. \n");
++
++	if (loadActionsFromFile() != 0) {
++   		fprintf(stderr, "Failed to load action registry.\n");
++   	}
++
++	/* install signal handlers */
++
+ 	(void) memset(&SigTERMAction, 0, sizeof(SigTERMAction));
+ 	SigTERMAction.sa_handler = SIGTERM_handler;
+ 	SigTERMAction.sa_flags = 0;
+diff -Naur evlog-1.6.1-orig/user/cmd/evlnotifyd/evlnotifyd.c evlog-1.6.1/user/cmd/evlnotifyd/evlnotifyd.c
+--- evlog-1.6.1-orig/user/cmd/evlnotifyd/evlnotifyd.c	2004-03-23 15:18:23.000000000 -0700
++++ evlog-1.6.1/user/cmd/evlnotifyd/evlnotifyd.c	2005-05-23 09:42:19.000000000 -0700
+@@ -113,7 +113,10 @@
+ 	
+ 	/* Init clients info array */
+ 	initClients();
+-	
++
++	/* unlink notify server address */
++	(void) unlink(EVLNOTIFYD_SERVER_SOCKET);
++
+ 	/*
+ 	 * Create the list with the first node is empty (NULL). 
+ 	 * This first node will always exist from now on. 
+diff -Naur evlog-1.6.1-orig/user/include/evlog.h evlog-1.6.1/user/include/evlog.h
+--- evlog-1.6.1-orig/user/include/evlog.h	2004-12-28 15:37:31.000000000 -0700
++++ evlog-1.6.1/user/include/evlog.h	2005-05-23 09:51:06.000000000 -0700
+@@ -191,7 +191,14 @@
+    char file[128];
+ };
+ 
+-#define _EVLOG_POS { __LINE__, __FUNCTION__, __FILE__ }
++#if defined(__GNUC__) && ((__GNUC__ < 3) || \
++				((__GNUC__ == 3) && (__GNUC_MINOR__ < 4)))
++#define	_EVLOG_FUNCTION_SYMBOL_	__FUNCTION__
++#else
++#define	_EVLOG_FUNCTION_SYMBOL_	"{unimplemented}"
++#endif
++
++#define _EVLOG_POS { __LINE__, _EVLOG_FUNCTION_SYMBOL_, __FILE__ }
+ 
+ struct evlog_info {
+    char format[128+64];
+@@ -205,7 +212,7 @@
+ 		= { fmt, __stringify(EVL_FACILITY_NAME), _EVLOG_POS }; \
+ 	char *unbraced_fmt = _evl_unbrace(fmt); \
+ 	if (_evl_syslogat(priority, __stringify(EVL_FACILITY_NAME), \
+-	    evl_gen_event_type(__FILE__, __FUNCTION__, fmt), \
++	    evl_gen_event_type(__FILE__, _EVLOG_FUNCTION_SYMBOL_, fmt), \
+ 	    fmt, unbraced_fmt, ##__VA_ARGS__) != 1) \
+ 		syslog(priority, unbraced_fmt, ##__VA_ARGS__); \
+     	free(unbraced_fmt); \
+diff -Naur evlog-1.6.1-orig/user/include/evlog.h.in evlog-1.6.1/user/include/evlog.h.in
+--- evlog-1.6.1-orig/user/include/evlog.h.in	2004-09-24 11:27:12.000000000 -0700
++++ evlog-1.6.1/user/include/evlog.h.in	2005-05-23 09:50:26.000000000 -0700
+@@ -191,7 +191,14 @@
+    char file[128];
+ };
+ 
+-#define _EVLOG_POS { __LINE__, __FUNCTION__, __FILE__ }
++#if defined(__GNUC__) && ((__GNUC__ < 3) || \
++				((__GNUC__ == 3) && (__GNUC_MINOR__ < 4)))
++#define	_EVLOG_FUNCTION_SYMBOL_	__FUNCTION__
++#else
++#define	_EVLOG_FUNCTION_SYMBOL_	"{unimplemented}"
++#endif
++
++#define _EVLOG_POS { __LINE__, _EVLOG_FUNCTION_SYMBOL_, __FILE__ }
+ 
+ struct evlog_info {
+    char format[128+64];
+@@ -205,7 +212,7 @@
+ 		= { fmt, __stringify(EVL_FACILITY_NAME), _EVLOG_POS }; \
+ 	char *unbraced_fmt = _evl_unbrace(fmt); \
+ 	if (_evl_syslogat(priority, __stringify(EVL_FACILITY_NAME), \
+-	    evl_gen_event_type(__FILE__, __FUNCTION__, fmt), \
++	    evl_gen_event_type(__FILE__, _EVLOG_FUNCTION_SYMBOL_, fmt), \
+ 	    fmt, unbraced_fmt, ##__VA_ARGS__) != 1) \
+ 		syslog(priority, unbraced_fmt, ##__VA_ARGS__); \
+     	free(unbraced_fmt); \
+diff -Naur evlog-1.6.1-orig/user/lib/template/convert.c evlog-1.6.1/user/lib/template/convert.c
+--- evlog-1.6.1-orig/user/lib/template/convert.c	2004-12-15 10:05:46.000000000 -0700
++++ evlog-1.6.1/user/lib/template/convert.c	2005-05-23 09:42:19.000000000 -0700
+@@ -245,6 +245,7 @@
+ 			}
+ 			break;
+     default:
++	    break;
+ 	}
+ }
+ 
+diff -Naur evlog-1.6.1-orig/user/lib/test/threadTest2.c evlog-1.6.1/user/lib/test/threadTest2.c
+--- evlog-1.6.1-orig/user/lib/test/threadTest2.c	2003-03-17 14:47:17.000000000 -0700
++++ evlog-1.6.1/user/lib/test/threadTest2.c	2005-05-23 09:42:19.000000000 -0700
+@@ -24,7 +24,7 @@
+  * (which in turn calls posix_log_vprintf).
+  */
+ 
+-#define MAX_THREADS (PTHREAD_THREADS_MAX-2)
++#define MAX_THREADS (_POSIX_THREAD_THREADS_MAX - 2)
+ 
+ struct workerStats {
+ 	pthread_t	tid;
+diff -Naur evlog-1.6.1-orig/user/lib/test/threadTest.c evlog-1.6.1/user/lib/test/threadTest.c
+--- evlog-1.6.1-orig/user/lib/test/threadTest.c	2002-03-25 14:19:05.000000000 -0700
++++ evlog-1.6.1/user/lib/test/threadTest.c	2005-05-23 09:42:19.000000000 -0700
+@@ -33,7 +33,7 @@
+  * 
+  */
+ 
+-#define MAX_THREADS (PTHREAD_THREADS_MAX-2)
++#define MAX_THREADS (_POSIX_THREAD_THREADS_MAX - 2)
+ 
+ struct workerStats {
+ 	pthread_t	tid;
+diff -Naur evlog-1.6.1-orig/user/lib/util/format.c evlog-1.6.1/user/lib/util/format.c
+--- evlog-1.6.1-orig/user/lib/util/format.c	2004-04-29 17:27:56.000000000 -0700
++++ evlog-1.6.1/user/lib/util/format.c	2005-05-23 09:42:19.000000000 -0700
+@@ -286,7 +286,8 @@
+ 		seg->u.fs_attname = nsaName;
+ 		seg->u2.fs_attribute = NULL;
+ 		break;
+-  default:
++        default:
++    		break;
+ 	}
+ 	seg->fs_userfmt = attrFmt;
+ 	if (attrFmt
+@@ -475,7 +476,8 @@
+ 			 */
+ 			size += _evlGetMaxDumpLen();
+ 			break;
+-    default:
++    		default:
++			break;
+ 		}
+ 		p = p->li_next;
+ 	} while (p != head);
+@@ -667,7 +669,7 @@
+ 	case TY_INT:		return TY_UINT;
+ 	case TY_LONG:		return TY_ULONG;
+ 	case TY_LONGLONG:	return TY_ULONGLONG;
+-  default:
++        default:		break;
+ 	}
+ 	return ty;
+ }

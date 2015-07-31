@@ -1,0 +1,129 @@
+diff -Naurp smartmontools-5.43_org/smartd.8.in smartmontools-5.43/smartd.8.in
+--- smartmontools-5.43_org/smartd.8.in	2013-06-28 16:56:05.407391878 +0530
++++ smartmontools-5.43/smartd.8.in	2013-06-28 17:03:18.659389474 +0530
+@@ -26,7 +26,7 @@ University of California, Santa Cruz. ht
+ 
+ .\" %IF NOT OS Windows
+ .SH FULL PATH
+-.B /usr/local/sbin/smartd
++.B /usr/sbin/smartd
+ 
+ .\" %ENDIF NOT OS Windows
+ .SH PACKAGE VERSION
+@@ -69,7 +69,7 @@ every 30 minutes. See the \fB\'\-i\'\fP
+ details.
+ 
+ \fBsmartd\fP can be configured at start-up using the configuration
+-file \fB/usr/local/etc/smartd.conf\fP (Windows: \fBEXEDIR/smartd.conf\fP).
++file \fB/etc/smartd.conf\fP (Windows: \fBEXEDIR/smartd.conf\fP).
+ If the configuration file is subsequently modified, \fBsmartd\fP
+ can be told to re-read the configuration file by sending it a
+ \fBHUP\fP signal, for example with the command:
+@@ -97,7 +97,7 @@ configuration file. To exit \fBsmartd\fP
+ .\" %ENDIF OS Windows
+ 
+ On startup, in the absence of the configuration file
+-\fB/usr/local/etc/smartd.conf\fP, the \fBsmartd\fP daemon first scans for all
++\fB/etc/smartd.conf\fP, the \fBsmartd\fP daemon first scans for all
+ devices that support SMART.  The scanning is done as follows:
+ .\" %IF OS Linux
+ .IP \fBLINUX:\fP 9
+@@ -192,9 +192,9 @@ Please see the \fBsmartctl\fP(8) man pag
+ .TP
+ .B \-c FILE, \-\-configfile=FILE
+ Read \fBsmartd\fP configuration Directives from FILE, instead of from
+-the default location \fB/usr/local/etc/smartd.conf\fP (Windows: \fBEXEDIR/smartd.conf\fP).
++the default location \fB/etc/smartd.conf\fP (Windows: \fBEXEDIR/smartd.conf\fP).
+ If FILE does \fBnot\fP exist, then \fBsmartd\fP will print an error
+-message and exit with nonzero status.  Thus, \'\-c /usr/local/etc/smartd.conf\'
++message and exit with nonzero status.  Thus, \'\-c /etc/smartd.conf\'
+ can be used to verify the existence of the default configuration file.
+ 
+ By using \'\-\' for FILE, the configuration is read from standard
+@@ -230,7 +230,7 @@ debug mode is enabled.
+ .TP
+ .B \-D, \-\-showdirectives
+ Prints a list (to STDOUT) of all the possible Directives which may
+-appear in the configuration file /usr/local/etc/smartd.conf, and then exits.
++appear in the configuration file /etc/smartd.conf, and then exits.
+ These Directives are also described later in this man page. They may
+ appear in the configuration file following the device name.
+ .TP
+@@ -353,7 +353,7 @@ at startup in the configuration file.  T
+ 
+ .I errors
+ \- Exit if there are no devices to monitor, or if any errors are found
+-in the configuration file /usr/local/etc/smartd.conf at startup or whenever it
++in the configuration file /etc/smartd.conf at startup or whenever it
+ is reloaded.
+ 
+ .I nodevstartup
+@@ -365,7 +365,7 @@ reloaded.
+ \- Only exit if a fatal error occurs (no remaining system memory,
+ invalid command line arguments). In this mode, even if there are no
+ devices to monitor, or if the configuration file
+-\fB/usr/local/etc/smartd.conf\fP has errors, \fBsmartd\fP will continue to run,
++\fB/etc/smartd.conf\fP has errors, \fBsmartd\fP will continue to run,
+ waiting to load a configuration file listing valid devices.
+ 
+ .I onecheck
+@@ -493,15 +493,15 @@ were detected or some other problem was
+ 
+ .fi 
+ Note that \fBsmartmontools\fP provides a start-up script in
+-\fB/usr/local/etc/init.d/smartd\fP which is responsible for starting and
++\fB/etc/init.d/smartd\fP which is responsible for starting and
+ stopping the daemon via the normal init interface.  Using this script,
+ you can start \fBsmartd\fP by giving the command:
+ .nf
+-.B /usr/local/etc/init.d/smartd start
++.B /etc/init.d/smartd start
+ .fi
+ and stop it by using the command:
+ .nf
+-.B /usr/local/etc/init.d/smartd stop
++.B /etc/init.d/smartd stop
+ .fi
+ .SH CONFIGURATION
+ The syntax of the smartd.conf(5) file is discussed separately.
+@@ -578,8 +578,8 @@ The Cygwin Version of \fBsmartd\fP can b
+ cygrunsrv tool. The start-up script provides Cygwin-specific commands
+ to install and remove the service:
+ .nf
+-.B /usr/local/etc/rc.d/init.d/smartd install [options]
+-.B /usr/local/etc/rc.d/init.d/smartd remove
++.B /etc/init.d/smartd install [options]
++.B /etc/init.d/smartd remove
+ .fi
+ The service can be started and stopped by the start-up script as usual
+ (see \fBEXAMPLES\fP above).
+@@ -682,7 +682,7 @@ ran out of memory during startup.
+ .TP
+ .B 9:
+ A compile time constant of\fB smartd\fP was too small.  This can be caused by an
+-excessive number of disks, or by lines in \fB /usr/local/etc/smartd.conf\fP that are too long.
++excessive number of disks, or by lines in \fB /etc/smartd.conf\fP that are too long.
+ Please report this problem to \fB smartmontools-support@lists.sourceforge.net\fP.
+ .TP
+ .B 10:
+@@ -693,7 +693,7 @@ smartmontools-support@lists.sourceforge.
+ .TP
+ .B 16:
+ A device explicitly listed in
+-.B /usr/local/etc/smartd.conf
++.B /etc/smartd.conf
+ can\'t be monitored.
+ .TP
+ .B 17:
+diff -Naurp smartmontools-5.43_org/smartd.initd.in smartmontools-5.43/smartd.initd.in
+--- smartmontools-5.43_org/smartd.initd.in	2013-06-28 16:56:05.407391878 +0530
++++ smartmontools-5.43/smartd.initd.in	2013-06-28 16:56:35.375391787 +0530
+@@ -39,7 +39,7 @@
+ # /etc/{default,sysconfig}/smartmontools might override these
+ #smartd_opts="--interval=1800"
+ 
+-SMARTD_BIN=/usr/local/sbin/smartd
++SMARTD_BIN=/usr/sbin/smartd
+ 
+ report_unsupported () {
+     echo "Currently the smartmontools package has no init script for"

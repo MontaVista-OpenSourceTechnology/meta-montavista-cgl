@@ -1,0 +1,30 @@
+--- evlog-telco-1.5.1/evlforward/evlforward.c.orig	2007-02-16 06:28:53.000000000 -0700
++++ evlog-telco-1.5.1/evlforward/evlforward.c	2007-02-16 06:30:03.000000000 -0700
+@@ -377,7 +377,7 @@
+ 
+ 	stpp.response = response;
+ 	stpp.catch_up = catch_up;
+-	stpp.grok = 1;
++	stpp.grok = grok;
+ 	stpp.facility = facility;
+ 	stpp.level = level;
+ 	stpp.listen_path = input_file;
+@@ -426,7 +426,7 @@
+ 	msg("	-l Specify level for alternative input file entries\n");
+ 	msg("\n");
+ 
+-	exit(0);
++	exit(1);
+ }
+ 
+ struct pair {
+@@ -591,6 +591,9 @@
+ 			sflag = 0;
+ 			sflag_entered = 1;
+ 			break;
++
++		case '?':
++			usage();
+ 		}
+ 	}
+ 

@@ -1,0 +1,11 @@
+--- openhpi-2.16.0/configure.ac	2011-04-08 15:08:45.955767998 +0400
++++ openhpi-2.16.0/configure.ac	2011-04-08 15:09:13.994768000 +0400
+@@ -173,7 +173,7 @@
+ 
+ dnl xml is used for XML-based communication in ilo2_ribcl and oa_soap
+ AC_CHECK_LIB([xml2],[xmlParseMemory],[XML2_LIB=-lxml2],[XML2_LIB=])
+-AC_CHECK_HEADERS([libxml2/libxml/xmlexports.h],[XML2_INCLUDE="-I/usr/include/libxml2"],[XML2_INCLUDE])
++AC_CHECK_HEADERS([libxml2/libxml/xmlexports.h],[XML2_INCLUDE="-I${PKG_CONFIG_SYSROOT_DIR}/usr/include/libxml2"],[XML2_INCLUDE])
+ AC_SUBST(XML2_LIB)
+ AC_SUBST(XML2_INCLUDE)
+ 

@@ -1,0 +1,121 @@
+--- xfsdump-3.1.4_org/common/drive_minrmt.c	2015-07-30 16:09:23.026797156 +0530
++++ xfsdump-3.1.4/common/drive_minrmt.c	2015-07-30 16:16:16.835986270 +0530
+@@ -45,6 +45,7 @@
+ #include "rec_hdr.h"
+ #include "arch_xlate.h"
+ #include "ts_mtio.h"
++#include "min_max.h"
+ 
+ 
+ /* drive_minrmt.c - drive strategy for non-SGI rmt tape devices
+--- xfsdump-3.1.4_org/common/drive_scsitape.c	2015-07-30 16:09:23.030797161 +0530
++++ xfsdump-3.1.4/common/drive_scsitape.c	2015-07-30 16:16:40.628062642 +0530
+@@ -45,6 +45,7 @@
+ #include "rec_hdr.h"
+ #include "arch_xlate.h"
+ #include "ts_mtio.h"
++#include "min_max.h"
+ 
+ /* drive_scsitape.c - drive strategy for all scsi tape devices
+  */
+--- xfsdump-3.1.4_org/common/drive_simple.c	2015-07-30 16:09:23.030797161 +0530
++++ xfsdump-3.1.4/common/drive_simple.c	2015-07-30 16:16:53.268103175 +0530
+@@ -34,6 +34,7 @@
+ #include "drive.h"
+ #include "media.h"
+ #include "arch_xlate.h"
++#include "min_max.h"
+ 
+ /* this rmt junk is here because the rmt protocol supports writing ordinary
+  * (non-device) files in the remote /dev directory! yuck!
+--- xfsdump-3.1.4_org/restore/content.c	2015-07-30 16:09:23.062797213 +0530
++++ xfsdump-3.1.4/restore/content.c	2015-07-30 16:17:35.412238109 +0530
+@@ -64,6 +64,7 @@
+ #include "arch_xlate.h"
+ #include "win.h"
+ #include "hsmapi.h"
++#include "min_max.h"
+ 
+ /* content.c - manages restore content
+  */
+--- xfsdump-3.1.4_org/restore/node.c	2015-07-30 16:09:23.058797206 +0530
++++ xfsdump-3.1.4/restore/node.c	2015-07-30 16:17:09.572155413 +0530
+@@ -29,6 +29,7 @@
+ #include "win.h"
+ #include "node.h"
+ #include "mmap.h"
++#include "min_max.h"
+ 
+ extern size_t pgsz;
+ extern size_t pgmask;
+--- xfsdump-3.1.4_org/restore/tree.c	2015-07-30 16:09:23.058797206 +0530
++++ xfsdump-3.1.4/restore/tree.c	2015-07-30 16:17:21.876194805 +0530
+@@ -53,6 +53,7 @@
+ #include "libgen.h"
+ #include "mmap.h"
+ #include "exit.h"
++#include "min_max.h"
+ 
+ /* structure definitions used locally ****************************************/
+ 
+--- xfsdump-3.1.4_org/include/min_max.h	1970-01-01 05:30:00.000000000 +0530
++++ xfsdump-3.1.4/include/min_max.h	2015-07-30 16:15:47.379891574 +0530
+@@ -0,0 +1,16 @@
++#ifndef MIN_MAX_H
++#define MIN_MAX_H
++
++
++/* define min and max functions */
++#define min( a, b) \
++         ({ __typeof__ (a) _a = (a); \
++              __typeof__ (b) _b = (b); \
++            _a < _b ? _a : _b; })
++#define max( a, b) \
++         ({ __typeof__ (a) _a = (a); \
++              __typeof__ (b) _b = (b); \
++            _a > _b ? _a : _b; })
++
++#endif /* MIN_MAX_H */
++
+diff -Naurp xfsdump-3.1.4_org/dump/content.c xfsdump-3.1.4/dump/content.c
+--- xfsdump-3.1.4_org/dump/content.c	2015-07-30 23:27:29.391329977 +0530
++++ xfsdump-3.1.4/dump/content.c	2015-07-30 23:28:26.259459904 +0530
+@@ -63,6 +63,7 @@
+ #include "inventory.h"
+ #include "getdents.h"
+ #include "arch_xlate.h"
++#include "min_max.h"
+ 
+ /* max "unsigned long long int"
+  */
+diff -Naurp xfsdump-3.1.4_org/dump/inomap.c xfsdump-3.1.4/dump/inomap.c
+--- xfsdump-3.1.4_org/dump/inomap.c	2015-07-30 23:27:29.391329977 +0530
++++ xfsdump-3.1.4/dump/inomap.c	2015-07-30 23:30:35.451756509 +0530
+@@ -40,6 +40,7 @@
+ #include "arch_xlate.h"
+ #include "exit.h"
+ #include <attr/attributes.h>
++#include "min_max.h"
+ 
+ /* structure definitions used locally ****************************************/
+ 
+--- xfsdump-3.1.4_org/restore/dirattr.c	2015-07-30 23:33:49.188204944 +0530
++++ xfsdump-3.1.4/restore/dirattr.c	2015-07-30 23:35:11.368396442 +0530
+@@ -48,6 +48,7 @@
+ #include "dirattr.h"
+ #include "openutil.h"
+ #include "mmap.h"
++#include "min_max.h"
+ 
+ /* structure definitions used locally ****************************************/
+ 
+--- xfsdump-3.1.4_org/restore/namreg.c	2015-07-30 23:33:49.104204748 +0530
++++ xfsdump-3.1.4/restore/namreg.c	2015-07-30 23:35:45.748476775 +0530
+@@ -31,6 +31,7 @@
+ #include "namreg.h"
+ #include "openutil.h"
+ #include "mmap.h"
++#include "min_max.h"
+ 
+ /* structure definitions used locally ****************************************/
+ 

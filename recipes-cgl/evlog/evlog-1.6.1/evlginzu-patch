@@ -1,0 +1,2773 @@
+Index: evlog-1.6.1/configure
+===================================================================
+--- evlog-1.6.1.orig/configure
++++ evlog-1.6.1/configure
+@@ -23987,7 +23987,7 @@ RPM_RELEASE=1
+ 
+ 
+ 
+-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ac_config_files="$ac_config_files evlog.spec Makefile user/Makefile user/cmd/Makefile user/cmd/ela/Makefile user/cmd/ela/ela_funcs user/cmd/ela/test/run_ela_tests.sh user/cmd/ela/test/ela_test1.sh user/cmd/ela/test/ela_test2.sh user/cmd/ela/test/Makefile user/cmd/ela/templates/Makefile user/cmd/evlactiond/Makefile user/cmd/evlconfig/Makefile user/cmd/evlfacility/Makefile user/cmd/evlfacility/test/Makefile user/cmd/evlgentmpls/Makefile user/cmd/evlnotify/Makefile user/cmd/evlnotify/test/Makefile user/cmd/evlnotify/test/test4.sh user/cmd/evlnotifyd/Makefile user/cmd/evlnotifyd/test/Makefile user/cmd/evlogd/Makefile user/cmd/evlogd/tcp_rmtlog_be/Makefile user/cmd/evlogd/tcp_rmtlog_be/tcp_rmtlog_be.spec user/cmd/evlogd/test/Makefile user/cmd/evlogd/udp_rmtlog_be/Makefile user/cmd/evlogd/udp_rmtlog_be/udp_rmtlog_be.spec user/cmd/evlogmgr/Makefile user/cmd/evlogmgr/test/Makefile user/cmd/evlsend/Makefile user/cmd/evltc/Makefile user/cmd/evlview/Makefile user/include/Makefile user/include/evlog.h user/include/linux/Makefile user/lib/Makefile user/lib/query/Makefile user/lib/template/Makefile user/lib/test/Makefile user/lib/test/bitfields/Makefile user/lib/test/facreg/Makefile user/lib/test/runtests.sh user/lib/util/Makefile user/libevlsyslog/Makefile user/man/Makefile user/man/evlconfig.1 user/man/evlfacility.1 user/man/evlgentmpls.1 user/man/evlnotify.1 user/man/evlog.1 user/man/evlogmgr.1 user/man/evlquery.1 user/man/evlremote.1 user/man/evlsend.1 user/man/evltc.1 user/man/evlview.1 user/sysfiles/Makefile user/sysfiles/etc/Makefile user/sysfiles/etc/init.d/Makefile user/sysfiles/etc/init.d/evlog"
++                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ac_config_files="$ac_config_files evlog.spec Makefile user/Makefile user/cmd/Makefile user/cmd/ela/Makefile user/cmd/ela/ela_funcs user/cmd/ela/test/run_ela_tests.sh user/cmd/ela/test/ela_test1.sh user/cmd/ela/test/ela_test2.sh user/cmd/ela/test/Makefile user/cmd/ela/templates/Makefile user/cmd/evlactiond/Makefile user/cmd/evlconfig/Makefile user/cmd/evlfacility/Makefile user/cmd/evlfacility/test/Makefile user/cmd/evlgentmpls/Makefile user/cmd/evlginzu/Makefile user/cmd/evlnotify/Makefile user/cmd/evlnotify/test/Makefile user/cmd/evlnotify/test/test4.sh user/cmd/evlnotifyd/Makefile user/cmd/evlnotifyd/test/Makefile user/cmd/evlogd/Makefile user/cmd/evlogd/tcp_rmtlog_be/Makefile user/cmd/evlogd/tcp_rmtlog_be/tcp_rmtlog_be.spec user/cmd/evlogd/test/Makefile user/cmd/evlogd/udp_rmtlog_be/Makefile user/cmd/evlogd/udp_rmtlog_be/udp_rmtlog_be.spec user/cmd/evlogmgr/Makefile user/cmd/evlogmgr/test/Makefile user/cmd/evlsend/Makefile user/cmd/evltc/Makefile user/cmd/evlview/Makefile user/include/Makefile user/include/evlog.h user/include/linux/Makefile user/lib/Makefile user/lib/query/Makefile user/lib/template/Makefile user/lib/test/Makefile user/lib/test/bitfields/Makefile user/lib/test/facreg/Makefile user/lib/test/runtests.sh user/lib/util/Makefile user/libevlsyslog/Makefile user/man/Makefile user/man/evlconfig.1 user/man/evlfacility.1 user/man/evlgentmpls.1 user/man/evlginzu.1 user/man/evlnotify.1 user/man/evlog.1 user/man/evlogmgr.1 user/man/evlquery.1 user/man/evlremote.1 user/man/evlsend.1 user/man/evltc.1 user/man/evlview.1 user/sysfiles/Makefile user/sysfiles/etc/Makefile user/sysfiles/etc/init.d/Makefile user/sysfiles/etc/init.d/evlog"
+ 
+ 
+ cat >confcache <<\_ACEOF
+@@ -24569,6 +24569,7 @@ do
+   "user/cmd/evlfacility/Makefile" ) CONFIG_FILES="$CONFIG_FILES user/cmd/evlfacility/Makefile" ;;
+   "user/cmd/evlfacility/test/Makefile" ) CONFIG_FILES="$CONFIG_FILES user/cmd/evlfacility/test/Makefile" ;;
+   "user/cmd/evlgentmpls/Makefile" ) CONFIG_FILES="$CONFIG_FILES user/cmd/evlgentmpls/Makefile" ;;
++  "user/cmd/evlginzu/Makefile" ) CONFIG_FILES="$CONFIG_FILES user/cmd/evlginzu/Makefile" ;;
+   "user/cmd/evlnotify/Makefile" ) CONFIG_FILES="$CONFIG_FILES user/cmd/evlnotify/Makefile" ;;
+   "user/cmd/evlnotify/test/Makefile" ) CONFIG_FILES="$CONFIG_FILES user/cmd/evlnotify/test/Makefile" ;;
+   "user/cmd/evlnotify/test/test4.sh" ) CONFIG_FILES="$CONFIG_FILES user/cmd/evlnotify/test/test4.sh" ;;
+@@ -24601,6 +24602,7 @@ do
+   "user/man/evlconfig.1" ) CONFIG_FILES="$CONFIG_FILES user/man/evlconfig.1" ;;
+   "user/man/evlfacility.1" ) CONFIG_FILES="$CONFIG_FILES user/man/evlfacility.1" ;;
+   "user/man/evlgentmpls.1" ) CONFIG_FILES="$CONFIG_FILES user/man/evlgentmpls.1" ;;
++  "user/man/evlginzu.1" ) CONFIG_FILES="$CONFIG_FILES user/man/evlginzu.1" ;;
+   "user/man/evlnotify.1" ) CONFIG_FILES="$CONFIG_FILES user/man/evlnotify.1" ;;
+   "user/man/evlog.1" ) CONFIG_FILES="$CONFIG_FILES user/man/evlog.1" ;;
+   "user/man/evlogmgr.1" ) CONFIG_FILES="$CONFIG_FILES user/man/evlogmgr.1" ;;
+Index: evlog-1.6.1/configure.ac
+===================================================================
+--- evlog-1.6.1.orig/configure.ac
++++ evlog-1.6.1/configure.ac
+@@ -287,6 +287,7 @@ AC_CONFIG_FILES([evlog.spec \
+ 		 user/cmd/evlsend/Makefile \
+ 		 user/cmd/evltc/Makefile \
+ 		 user/cmd/evlview/Makefile \
++		 user/cmd/evlginzu/Makefile \
+ 		 user/include/Makefile \
+ 		 user/include/evlog.h \
+ 		 user/include/linux/Makefile \
+@@ -311,6 +312,7 @@ AC_CONFIG_FILES([evlog.spec \
+ 		 user/man/evlsend.1 \
+ 		 user/man/evltc.1 \
+ 		 user/man/evlview.1 \
++		 user/man/evlginzu.1 \
+ 		 user/sysfiles/Makefile \
+ 		 user/sysfiles/etc/Makefile \
+ 		 user/sysfiles/etc/init.d/Makefile \
+Index: evlog-1.6.1/user/cmd/evlginzu/common.c
+===================================================================
+--- /dev/null
++++ evlog-1.6.1/user/cmd/evlginzu/common.c
+@@ -0,0 +1,283 @@
++/*
++ * Linux Event Logging for the Enterprise
++ * Copyright (c) International Business Machines Corp., 2002
++ * Copyright (c) Monta Vista Software, Inc., 2006
++ *
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ *  Please send e-mail to lkessler@users.sourceforge.net if you have
++ *  questions or comments.
++ *
++ *  Project Website:  http://evlog.sourceforge.net/
++ *
++ */
++
++#define _LARGEFILE64_SOURCE
++#include <stdio.h>
++#include <stdlib.h>
++#include <errno.h>
++#include <string.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <linux/limits.h>
++#include <unistd.h>
++#include <fcntl.h>
++#include <dirent.h>
++
++#include "config.h"
++#include "posix_evlog.h"
++#include "posix_evlsup.h"
++#include "evlog.h"
++#include "internal.h"
++
++extern char *ProgName;
++
++LIST_HEAD(Sources);
++
++int
++source_count( void )
++{
++	struct evlog_source	*s;
++
++	int			count = 0;
++
++	list_for_each_entry( s, &Sources, e_link )
++	{
++		count++;
++	}
++
++	return (count);
++}
++
++int
++add_source ( char *path, struct stat64 *statbuf, int fail_quiet )
++{
++	struct evlog_source	*p;
++	int			status;
++	struct evlog_source	*new_source;
++
++	/*
++	 * Attempt to allocate a source structure.
++	 */
++
++	new_source = (struct evlog_source *) malloc(sizeof(*new_source));
++
++	if ( new_source == (struct evlog_source *) NULL )
++	{
++		(void) fprintf(stderr, "%s: memory allocation failure\n",
++								ProgName);
++
++		return (-1);
++	}
++
++	/*
++	 * Can POSIX log services open it?
++	 */
++
++	status = posix_log_open(&new_source->e_desc, path);
++
++	if ( status != 0 )
++	{
++		/*
++		 * No, fail appropriately.
++		 */
++
++		free((void *) new_source);
++
++		if ( fail_quiet )
++		{
++			status = 0;
++		}
++		else
++		{
++			(void) fprintf(stderr,
++				"%s: POSIX log open error on %s: %s\n",
++				ProgName, path, strerror(status));
++
++			status = -1;
++		}
++
++		return (status);
++	}
++
++	/*
++	 * Fill in the basic data.
++	 */
++
++	(void) memcpy((void *) &new_source -> e_statbuf, (void *) statbuf,
++						sizeof(*statbuf));
++
++	new_source -> e_path = strdup(path);
++
++	if ( new_source -> e_path == (char *) NULL )
++	{
++		(void) fprintf(stderr, "%s: memory allocation failure\n",
++								ProgName);
++
++		return (-1);
++	}
++
++	new_source -> e_flags = EVS_NO_DATA | EVS_FIRST;
++
++	/*
++	 * Each source must be unique.
++	 */
++
++	list_for_each_entry( p, &Sources, e_link )
++	{
++		if ( (new_source -> e_statbuf.st_dev ==
++						p -> e_statbuf.st_dev) &&
++		     (new_source -> e_statbuf.st_ino ==
++						p -> e_statbuf.st_ino) )
++		{
++			(void) fprintf(stderr,
++				"%s: Source collision error on %s and %s\n",
++				ProgName, path, p -> e_path);
++
++			return (-1);
++		}
++	}
++
++	/*
++	 * Everything looks OK. Add this source to the list.
++	 */
++
++	list_add_tail(&new_source -> e_link, &Sources);
++
++	/*
++	 * Done!
++	 */
++
++	return (0);
++}
++
++int
++create_logfile( char *path, mode_t mode )
++{
++	int	fd;
++
++	(void) unlink(path);
++
++	fd = open64(path, O_RDWR | O_CREAT, mode);
++
++	if ( fd == -1 )
++	{
++		(void) fprintf(stderr,
++				"%s: cannot create POSIX log file %s: %s\n",
++				ProgName, path, strerror(errno));
++
++		return (-1);
++	}
++
++	if ( _evlWriteLogHeader(fd) < 0 )
++	{
++		(void) unlink(path);
++
++		(void) fprintf(stderr,
++				"%s: cannot write POSIX log file %s: %s\n",
++				ProgName, path, strerror(errno));
++
++		return (-1);
++	}
++
++	return (fd);
++}
++
++int
++write_entry( int fd, struct posix_log_entry *entry, char *data )
++{
++	int				status;
++
++	static unsigned long		rec_id = 1;
++
++	entry -> log_recid = rec_id++;
++
++	status = _evlFdWrite(fd, entry, data);
++
++	if ( status != 0 )
++	{
++		(void) fprintf(stderr,
++				"%s: Cannot write POSIX log file: %s",
++				ProgName, strerror(errno));
++	}
++
++	return (status);
++}
++
++int
++source_state( struct evlog_source *source )
++{
++	int	status;
++
++	if ( source -> e_flags & EVS_EOF )
++	{
++		return (SOURCE_AT_EOF);
++	}
++
++	if ( (source -> e_flags & EVS_NO_DATA) == 0 )
++	{
++		return (SOURCE_HAS_DATA);
++	}
++
++	if ( source -> e_flags & EVS_FIRST )
++	{
++		status = posix_log_seek(source -> e_desc,
++						(posix_log_query_t *) NULL,
++						POSIX_LOG_SEEK_FIRST);
++
++		source -> e_flags &= ~EVS_FIRST;
++	}
++	else
++	{
++		status = posix_log_seek(source -> e_desc,
++						(posix_log_query_t *) NULL,
++						POSIX_LOG_SEEK_FORWARD);
++	}
++
++	if ( status != 0 )
++	{
++		if ( status == ENOENT )	/* EOF */
++		{
++			(void) posix_log_close(source -> e_desc);
++
++			source -> e_flags |= (EVS_EOF | EVS_NO_DATA);
++
++			return (SOURCE_HIT_EOF);
++		}
++
++		(void) fprintf(stderr,
++				"%s: Cannot seek POSIX log file %s: %s",
++				ProgName, source -> e_path, strerror(errno));
++
++		return (SOURCE_IO_ERROR);
++	}
++
++	status = posix_log_read(source -> e_desc, &source -> e_entry,
++				source -> e_data, POSIX_LOG_ENTRY_MAXLEN);
++
++	if ( status != 0 )
++	{
++		(void) fprintf(stderr,
++				"%s: Cannot read POSIX log file %s: %s",
++				ProgName, source -> e_path, strerror(errno));
++
++		return (SOURCE_IO_ERROR);
++	}
++
++	source -> e_flags &= ~(EVS_EOF | EVS_NO_DATA);
++
++	return (SOURCE_HAS_DATA);
++}
+Index: evlog-1.6.1/user/cmd/evlginzu/evlginzu.c
+===================================================================
+--- /dev/null
++++ evlog-1.6.1/user/cmd/evlginzu/evlginzu.c
+@@ -0,0 +1,457 @@
++/*
++ * Linux Event Logging for the Enterprise
++ * Copyright (c) International Business Machines Corp., 2002
++ * Copyright (c) Monta Vista Software, Inc., 2006
++ *
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ *  Please send e-mail to lkessler@users.sourceforge.net if you have
++ *  questions or comments.
++ *
++ *  Project Website:  http://evlog.sourceforge.net/
++ *
++ */
++
++#define _LARGEFILE64_SOURCE
++#include <stdio.h>
++#include <stdlib.h>
++#include <errno.h>
++#include <string.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <unistd.h>
++#define _GNU_SOURCE
++#include <getopt.h>
++
++#include "config.h"
++#include "posix_evlog.h"
++#include "posix_evlsup.h"
++#include "evlog.h"
++#include "internal.h"
++
++#define	DEFAULT_PREFIX	"posix_log"
++
++char	*ProgName;
++
++static struct option Long_options[] = {
++	{ "dir",		1,	(int *) NULL,	'd' },
++	{ "explode",		0,	(int *) NULL,	'e' },
++	{ "help",		0,	(int *) NULL,	'h' },
++	{ "merge",		0,	(int *) NULL,	'm' },
++	{ "prefix",		1,	(int *) NULL,	'p' },
++	{ "remove",		0,	(int *) NULL,	'r' },
++	{ "suppress",		0,	(int *) NULL,	's' },
++	{ (char *) NULL,	0,	(int *) NULL,	0 }
++};
++
++static void
++usage( void )
++{
++	(void) fprintf(stderr,
++			"Usage:\t%s [options] target source...\n\n",
++			ProgName);
++
++	(void) fprintf(stderr, "\t-h | --help\n");
++	(void) fprintf(stderr, "\n");
++
++	(void) fprintf(stderr, "Explode options:\n");
++	(void) fprintf(stderr, "\t-d | --dir directory\n");
++	(void) fprintf(stderr, "\t-e | --explode\n");
++	(void) fprintf(stderr, "\t-e | --prefix string\n");
++	(void) fprintf(stderr, "\t-r | --remove\n");
++	(void) fprintf(stderr, "\n");
++
++	(void) fprintf(stderr, "Merge options:\n");
++	(void) fprintf(stderr, "\t-m | --merge\n");
++	(void) fprintf(stderr, "\t-r | --remove\n");
++	(void) fprintf(stderr, "\t-s | --suppress\n");
++	(void) fprintf(stderr, "\n");
++
++	exit(1);
++}
++
++static int
++merge_function( int argc, char *argv[], int remove, int suppress )
++{
++	char		*p;
++	char		*dir;
++	char		*target;
++	struct stat64	statbuf;
++
++	/*
++	 * Must have at least one source...
++	 */
++
++	if ( argc <= 1 )
++	{
++		usage();
++	}
++
++	target = argv[0];
++
++	argc -= 1;
++	argv += 1;
++
++	/*
++	 * The target is a source if it exists.
++	 */
++
++	if ( lstat64(target, &statbuf) == 0 )
++	{
++		if ( S_ISREG(statbuf.st_mode) )
++		{
++			if ( add_source(target, &statbuf, 0) == -1 )
++			{
++				return (1);
++			}
++		}
++		else
++		{
++			(void) fprintf(stderr,
++					"%s: target %s is not a regular file\n",
++					ProgName, target);
++
++			return (1);
++		}
++	}
++
++	/*
++	 * Process all of the sources.
++	 */
++
++	while ( argc-- )
++	{
++		if ( lstat64(*argv, &statbuf) == -1 )
++		{
++			(void) fprintf(stderr, "%s: source %s does not exist\n",
++							ProgName, *argv);
++
++			return (1);
++		}
++
++		if ( S_ISREG(statbuf.st_mode) )
++		{
++			if ( add_source(*argv, &statbuf, 0) == -1 )
++			{
++				return (1);
++			}
++		}
++		else if ( S_ISDIR(statbuf.st_mode) )
++		{
++			if ( add_directory(*argv) == -1 )
++			{
++				return (1);
++			}
++		}
++		else
++		{
++			(void) fprintf(stderr,
++				"%s: source %s is not a file or a directory\n",
++				ProgName, *argv);
++
++			return (1);
++		}
++
++		argv++;
++	}
++
++	/*
++	 * Anything to process?
++	 */
++
++	if ( source_count() == 0 )
++	{
++		(void) fprintf(stderr, "%s: no valid sources found\n",
++								ProgName);
++
++		return (1);
++	}
++
++	/*
++	 * Handle the temp directory.
++	 */
++
++	p = strrchr(target, '/');
++
++	if ( p == (char *) NULL )
++	{
++		/*
++		 * No slashes in the target path. Use the current directory.
++		 */
++
++		dir = ".";
++	}
++	else
++	{
++		/*
++		 * Slash present. Find the basename.
++		 */
++
++		*p = '\0';
++		dir = strdup(target);
++		*p = '/';
++	}
++
++	/*
++	 * Merge!
++	 */
++
++	return (merge_sources(target, dir, remove, suppress));
++}
++
++static int
++explode_function( int argc, char *argv[], int remove, char *dir, char *prefix )
++{
++	char		*target;
++	struct stat64	statbuf;
++
++	/*
++	 * Only the target is accepted.
++	 */
++
++	if ( argc != 1 )
++	{
++		usage();
++	}
++
++	/*
++	 * Supply the default prefix if one was not specified.
++	 */
++
++	if ( prefix == (char *) NULL )
++	{
++		prefix = DEFAULT_PREFIX;
++	}
++
++	/*
++	 * The target is a source if it exists.
++	 */
++
++	if ( lstat64(argv[0], &statbuf) == 0 )
++	{
++		if ( S_ISREG(statbuf.st_mode) )
++		{
++			if ( add_source(argv[0], &statbuf, 0) == -1 )
++			{
++				return (1);
++			}
++		}
++		else
++		{
++			(void) fprintf(stderr,
++					"%s: %s is not a regular file\n",
++					ProgName, argv[0]);
++
++			return (1);
++		}
++	}
++
++	/*
++	 * Obtain a working directory if one has not been provided.
++	 */
++
++	if ( dir == (char *) NULL )
++	{
++		char	*p;
++
++		p = strrchr(target, '/');
++
++		if ( p == (char *) NULL )
++		{
++			/*
++			 * No slashes in the target path. Use the current
++			 * directory.
++			 */
++
++			dir = ".";
++		}
++		else
++		{
++			/*
++			 * Slash present. Find the basename.
++			 */
++
++			*p = '\0';
++			dir = strdup(target);
++			*p = '/';
++		}
++	}
++
++	/*
++	 * Explode
++	 */
++
++	return (explode_log(argv[0], remove, dir, prefix));
++}
++
++/*
++ * main
++ */
++
++int
++main( int argc, char *argv[] )
++{
++	int	c;
++	char	*p;
++
++	int	merge = 0;
++	int	remove = 0;
++	int	explode = 0;
++	int	suppress = 0;
++
++	char	*dir = (char *) NULL;
++	char	*prefix = (char *) NULL;
++
++	/*
++	 * Set up the program name.
++	 */
++
++	p = strrchr(argv[0], '/');
++
++	if (p == (char *) NULL)
++	{
++		ProgName = argv[0];
++	}
++	else
++	{
++		ProgName = p + 1;
++	}
++
++	/*
++	 * Process the command line options.
++	 */
++
++	while ( (c = getopt_long(argc, argv, "d:ehmp:rs?", Long_options,
++						(int *) NULL)) != -1 )
++	{
++		switch ( c )
++		{
++		case 'd':
++			if ( dir == (char *) NULL )
++			{
++				dir = optarg;
++			}
++			else
++			{
++				usage();
++			}
++
++			break;
++
++		case 'e':
++			if ( explode )
++			{
++				usage();
++			}
++			else
++			{
++				explode++;
++			}
++
++			break;
++
++		case 'h':
++		case '?':
++			usage();
++			break;
++
++		case 'm':
++			if ( merge )
++			{
++				usage();
++			}
++			else
++			{
++				merge++;
++			}
++
++			break;
++
++		case 'p':
++			if ( prefix == (char *) NULL )
++			{
++				prefix = optarg;
++			}
++			else
++			{
++				usage();
++			}
++
++			break;
++
++		case 'r':
++			if ( remove )
++			{
++				usage();
++			}
++			else
++			{
++				remove++;
++			}
++
++			break;
++
++		case 's':
++			if ( suppress )
++			{
++				usage();
++			}
++			else
++			{
++				suppress++;
++			}
++
++			break;
++		}
++	}
++
++	argc -= optind;
++	argv += optind;
++
++	/*
++	 * Basic option checking...
++	 */
++
++	if ( (merge && explode) || (!merge && !explode) )
++	{
++		usage();
++	}
++
++	/*
++	 * Do something!
++	 */
++
++	if ( merge )
++	{
++		if ( (dir != (char *) NULL) || (prefix != (char *) NULL) )
++		{
++			usage();
++		}
++
++		c = merge_function(argc, argv, remove, suppress);
++	}
++	else
++	{
++		if ( suppress )
++		{
++			usage();
++		}
++
++		c = explode_function(argc, argv, remove, dir, prefix);
++	}
++
++	exit(c);
++}
+Index: evlog-1.6.1/user/cmd/evlginzu/explosion.c
+===================================================================
+--- /dev/null
++++ evlog-1.6.1/user/cmd/evlginzu/explosion.c
+@@ -0,0 +1,145 @@
++/*
++ * Linux Event Logging for the Enterprise
++ * Copyright (c) International Business Machines Corp., 2002
++ * Copyright (c) Monta Vista Software, Inc., 2006
++ *
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ *  Please send e-mail to lkessler@users.sourceforge.net if you have
++ *  questions or comments.
++ *
++ *  Project Website:  http://evlog.sourceforge.net/
++ *
++ */
++
++#define _LARGEFILE64_SOURCE
++#include <stdio.h>
++#include <stdlib.h>
++#include <errno.h>
++#include <string.h>
++#include <time.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <linux/limits.h>
++#include <unistd.h>
++#include <dirent.h>
++
++#include "config.h"
++#include "posix_evlog.h"
++#include "posix_evlsup.h"
++#include "evlog.h"
++#include "internal.h"
++
++extern char	*ProgName;
++
++extern struct list_head Sources;
++
++/* only care about unique days */
++
++static int
++times_equal( struct tm *a, struct tm *b )
++{
++	if ( (a -> tm_year != b -> tm_year) ||
++	     (a -> tm_mon != b -> tm_mon) ||
++	     (a -> tm_mday != b -> tm_mday) )
++	{
++		return (0);
++	}
++
++	return (1);
++}
++
++int
++explode_log( char *path, int remove, char *dir, char *prefix )
++{
++	struct list_head	*l;
++	struct evlog_source	*source;
++	struct tm		output_time;
++
++	int			fd = -1;
++
++	source = container_of(Sources.next, struct evlog_source, e_link);
++
++	(void) memset((void *) &output_time, 0, sizeof(output_time));
++
++	while ( 1 )
++	{
++		int		status;
++		struct tm	event_time;
++		char		path[PATH_MAX];
++
++		status = source_state(source);
++
++		if ( status != SOURCE_HAS_DATA )
++		{
++			if ( status == SOURCE_HIT_EOF )
++			{
++				break;
++			}
++
++			return (2);
++		}
++
++		(void) localtime_r(&source -> e_entry.log_time.tv_sec,
++							&event_time);
++
++		if ( !times_equal(&event_time, &output_time) )
++		{
++			if ( fd != -1 )
++			{
++				(void) fsync(fd);
++				(void) close(fd);
++			}
++
++			output_time = event_time;
++
++			(void) sprintf(path,
++				"%s/%s__%4.4d_%02.2d%02.2d",
++				dir,
++				prefix,
++				output_time.tm_year + 1900,
++				output_time.tm_mon + 1,
++				output_time.tm_mday);
++
++			fd = create_logfile(path, 0644);
++
++			if ( fd == -1 )
++			{
++				return (2);
++			}
++		}
++
++		status = write_entry(fd, &source -> e_entry,
++							source -> e_data);
++
++		if ( status != 0 )
++		{
++			return (2);
++		}
++
++		source -> e_flags |= EVS_NO_DATA;
++	}
++
++	(void) fsync(fd);
++	(void) close(fd);
++
++	if ( remove )
++	{
++		(void) unlink(path);
++	}
++
++	return (0);
++}
+Index: evlog-1.6.1/user/cmd/evlginzu/internal.h
+===================================================================
+--- /dev/null
++++ evlog-1.6.1/user/cmd/evlginzu/internal.h
+@@ -0,0 +1,391 @@
++/*
++ * Linux Event Logging for the Enterprise
++ * Copyright (c) International Business Machines Corp., 2002
++ * Copyright (c) Monta Vista Software, Inc., 2006
++ *
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ *  Please send e-mail to lkessler@users.sourceforge.net if you have
++ *  questions or comments.
++ *
++ *  Project Website:  http://evlog.sourceforge.net/
++ *
++ */
++
++#include <sys/types.h>
++#include <sys/stat.h>
++
++#include "config.h"
++#include "posix_evlog.h"
++#include "posix_evlsup.h"
++#include "evlog.h"
++
++/*
++ * These are non-NULL pointers that will result in page faults
++ * under normal circumstances, used to verify that nobody uses
++ * non-initialized list entries.
++ */
++#define LIST_POISON1	((void *) 0x00100100)
++#define LIST_POISON2	((void *) 0x00200200)
++
++/*
++ * Simple doubly linked list implementation.
++ *
++ * Some of the internal functions ("__xxx") are useful when
++ * manipulating whole lists rather than single entries, as
++ * sometimes we already know the next/prev entries and we can
++ * generate better code by using them directly rather than
++ * using the generic single-entry routines.
++ */
++
++struct list_head {
++	struct list_head *next, *prev;
++};
++
++#define LIST_HEAD_INIT(name) { &(name), &(name) }
++
++#define LIST_HEAD(name) \
++	struct list_head name = LIST_HEAD_INIT(name)
++
++#define INIT_LIST_HEAD(ptr) do { \
++	(ptr)->next = (ptr); (ptr)->prev = (ptr); \
++} while (0)
++
++/*
++ * Insert a new entry between two known consecutive entries.
++ *
++ * This is only for internal list manipulation where we know
++ * the prev/next entries already!
++ */
++static inline void __list_add(struct list_head *new,
++			      struct list_head *prev,
++			      struct list_head *next)
++{
++	next->prev = new;
++	new->next = next;
++	new->prev = prev;
++	prev->next = new;
++}
++
++/**
++ * list_add - add a new entry
++ * @new: new entry to be added
++ * @head: list head to add it after
++ *
++ * Insert a new entry after the specified head.
++ * This is good for implementing stacks.
++ */
++static inline void list_add(struct list_head *new, struct list_head *head)
++{
++	__list_add(new, head, head->next);
++}
++
++/**
++ * list_add_tail - add a new entry
++ * @new: new entry to be added
++ * @head: list head to add it before
++ *
++ * Insert a new entry before the specified head.
++ * This is useful for implementing queues.
++ */
++static inline void list_add_tail(struct list_head *new, struct list_head *head)
++{
++	__list_add(new, head->prev, head);
++}
++
++/*
++ * Delete a list entry by making the prev/next entries
++ * point to each other.
++ *
++ * This is only for internal list manipulation where we know
++ * the prev/next entries already!
++ */
++static inline void __list_del(struct list_head * prev, struct list_head * next)
++{
++	next->prev = prev;
++	prev->next = next;
++}
++
++/**
++ * list_del - deletes entry from list.
++ * @entry: the element to delete from the list.
++ * Note: list_empty on entry does not return true after this, the entry is
++ * in an undefined state.
++ */
++static inline void list_del(struct list_head *entry)
++{
++	__list_del(entry->prev, entry->next);
++	entry->next = LIST_POISON1;
++	entry->prev = LIST_POISON2;
++}
++
++/**
++ * list_del_init - deletes entry from list and reinitialize it.
++ * @entry: the element to delete from the list.
++ */
++static inline void list_del_init(struct list_head *entry)
++{
++	__list_del(entry->prev, entry->next);
++	INIT_LIST_HEAD(entry);
++}
++
++/**
++ * list_move - delete from one list and add as another's head
++ * @list: the entry to move
++ * @head: the head that will precede our entry
++ */
++static inline void list_move(struct list_head *list, struct list_head *head)
++{
++        __list_del(list->prev, list->next);
++        list_add(list, head);
++}
++
++/**
++ * list_move_tail - delete from one list and add as another's tail
++ * @list: the entry to move
++ * @head: the head that will follow our entry
++ */
++static inline void list_move_tail(struct list_head *list,
++				  struct list_head *head)
++{
++        __list_del(list->prev, list->next);
++        list_add_tail(list, head);
++}
++
++/**
++ * list_empty - tests whether a list is empty
++ * @head: the list to test.
++ */
++static inline int list_empty(const struct list_head *head)
++{
++	return head->next == head;
++}
++
++static inline void __list_splice(struct list_head *list,
++				 struct list_head *head)
++{
++	struct list_head *first = list->next;
++	struct list_head *last = list->prev;
++	struct list_head *at = head->next;
++
++	first->prev = head;
++	head->next = first;
++
++	last->next = at;
++	at->prev = last;
++}
++
++/**
++ * list_splice - join two lists
++ * @list: the new list to add.
++ * @head: the place to add it in the first list.
++ */
++static inline void list_splice(struct list_head *list, struct list_head *head)
++{
++	if (!list_empty(list))
++		__list_splice(list, head);
++}
++
++/**
++ * list_splice_init - join two lists and reinitialise the emptied list.
++ * @list: the new list to add.
++ * @head: the place to add it in the first list.
++ *
++ * The list at @list is reinitialised
++ */
++static inline void list_splice_init(struct list_head *list,
++				    struct list_head *head)
++{
++	if (!list_empty(list)) {
++		__list_splice(list, head);
++		INIT_LIST_HEAD(list);
++	}
++}
++
++#undef offsetof
++#ifdef __compiler_offsetof
++#define offsetof(TYPE,MEMBER) __compiler_offsetof(TYPE,MEMBER)
++#else
++#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
++#endif
++
++/**
++ * container_of - cast a member of a structure out to the containing structure
++ *
++ * @ptr:        the pointer to the member.
++ * @type:       the type of the container struct this is embedded in.
++ * @member:     the name of the member within the struct.
++ *
++ */
++#define container_of(ptr, type, member) ({                      \
++	const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
++	(type *)( (char *)__mptr - offsetof(type, member) );})
++
++/**
++ * list_entry - get the struct for this entry
++ * @ptr:	the &struct list_head pointer.
++ * @type:	the type of the struct this is embedded in.
++ * @member:	the name of the list_struct within the struct.
++ */
++#define list_entry(ptr, type, member) \
++	container_of(ptr, type, member)
++
++static inline void
++prefetch( struct list_head *target )
++{
++}
++
++/**
++ * list_for_each	-	iterate over a list
++ * @pos:	the &struct list_head to use as a loop counter.
++ * @head:	the head for your list.
++ */
++#define list_for_each(pos, head) \
++	for (pos = (head)->next, prefetch(pos->next); pos != (head); \
++        	pos = pos->next, prefetch(pos->next))
++
++/**
++ * __list_for_each	-	iterate over a list
++ * @pos:	the &struct list_head to use as a loop counter.
++ * @head:	the head for your list.
++ *
++ * This variant differs from list_for_each() in that it's the
++ * simplest possible list iteration code, no prefetching is done.
++ * Use this for code that knows the list to be very short (empty
++ * or 1 entry) most of the time.
++ */
++#define __list_for_each(pos, head) \
++	for (pos = (head)->next; pos != (head); pos = pos->next)
++
++/**
++ * list_for_each_prev	-	iterate over a list backwards
++ * @pos:	the &struct list_head to use as a loop counter.
++ * @head:	the head for your list.
++ */
++#define list_for_each_prev(pos, head) \
++	for (pos = (head)->prev, prefetch(pos->prev); pos != (head); \
++        	pos = pos->prev, prefetch(pos->prev))
++
++/**
++ * list_for_each_safe	-	iterate over a list safe against removal of list entry
++ * @pos:	the &struct list_head to use as a loop counter.
++ * @n:		another &struct list_head to use as temporary storage
++ * @head:	the head for your list.
++ */
++#define list_for_each_safe(pos, n, head) \
++	for (pos = (head)->next, n = pos->next; pos != (head); \
++		pos = n, n = pos->next)
++
++/**
++ * list_for_each_entry	-	iterate over list of given type
++ * @pos:	the type * to use as a loop counter.
++ * @head:	the head for your list.
++ * @member:	the name of the list_struct within the struct.
++ */
++#define list_for_each_entry(pos, head, member)				\
++	for (pos = list_entry((head)->next, typeof(*pos), member),	\
++		     prefetch(pos->member.next);			\
++	     &pos->member != (head); 					\
++	     pos = list_entry(pos->member.next, typeof(*pos), member),	\
++		     prefetch(pos->member.next))
++
++/**
++ * list_for_each_entry_reverse - iterate backwards over list of given type.
++ * @pos:	the type * to use as a loop counter.
++ * @head:	the head for your list.
++ * @member:	the name of the list_struct within the struct.
++ */
++#define list_for_each_entry_reverse(pos, head, member)			\
++	for (pos = list_entry((head)->prev, typeof(*pos), member),	\
++		     prefetch(pos->member.prev);			\
++	     &pos->member != (head); 					\
++	     pos = list_entry(pos->member.prev, typeof(*pos), member),	\
++		     prefetch(pos->member.prev))
++
++/**
++ * list_prepare_entry - prepare a pos entry for use as a start point in
++ *			list_for_each_entry_continue
++ * @pos:	the type * to use as a start point
++ * @head:	the head of the list
++ * @member:	the name of the list_struct within the struct.
++ */
++#define list_prepare_entry(pos, head, member) \
++	((pos) ? : list_entry(head, typeof(*pos), member))
++
++/**
++ * list_for_each_entry_continue -	iterate over list of given type
++ *			continuing after existing point
++ * @pos:	the type * to use as a loop counter.
++ * @head:	the head for your list.
++ * @member:	the name of the list_struct within the struct.
++ */
++#define list_for_each_entry_continue(pos, head, member) 		\
++	for (pos = list_entry(pos->member.next, typeof(*pos), member),	\
++		     prefetch(pos->member.next);			\
++	     &pos->member != (head);					\
++	     pos = list_entry(pos->member.next, typeof(*pos), member),	\
++		     prefetch(pos->member.next))
++
++/**
++ * list_for_each_entry_safe - iterate over list of given type safe against removal of list entry
++ * @pos:	the type * to use as a loop counter.
++ * @n:		another type * to use as temporary storage
++ * @head:	the head for your list.
++ * @member:	the name of the list_struct within the struct.
++ */
++#define list_for_each_entry_safe(pos, n, head, member)			\
++	for (pos = list_entry((head)->next, typeof(*pos), member),	\
++		n = list_entry(pos->member.next, typeof(*pos), member);	\
++	     &pos->member != (head); 					\
++	     pos = n, n = list_entry(n->member.next, typeof(*n), member))
++
++/*
++ * e_flags values
++ */
++
++#define	EVS_EOF		1
++#define	EVS_NO_DATA	2
++#define	EVS_FIRST	4
++
++struct evlog_source
++{
++	struct list_head	e_link;
++	char			*e_path;
++	int			e_flags;
++	struct stat64		e_statbuf;
++	posix_logd_t		e_desc;
++	struct posix_log_entry	e_entry;
++	char			e_data[POSIX_LOG_ENTRY_MAXLEN];
++};
++
++/*
++ * Prototypes
++ */
++
++int add_directory ( char *path );
++int add_source ( char *path, struct stat64 *statbuf, int fail_quiet );
++int merge_sources( char *target, char *dir, int remove, int suppress );
++int source_count( void );
++int explode_log(char *path, int remove, char *dir, char *prefix);
++int create_logfile( char *path, mode_t mode );
++int write_entry( int fd, struct posix_log_entry *entry, char *data );
++
++#define	SOURCE_HAS_DATA	0
++#define	SOURCE_AT_EOF	1
++#define	SOURCE_HIT_EOF	2
++#define	SOURCE_IO_ERROR	3
++
++int source_state( struct evlog_source *source );
+Index: evlog-1.6.1/user/cmd/evlginzu/Makefile.am
+===================================================================
+--- /dev/null
++++ evlog-1.6.1/user/cmd/evlginzu/Makefile.am
+@@ -0,0 +1,20 @@
++## Process this file with automake to produce Makefile.in
++
++include $(top_srcdir)/Makefile.vars
++include $(top_srcdir)/Makefile.rules
++
++DISTCLEANFILES +=
++MAINTAINERCLEANFILES +=
++
++EXTRA_DIST += Makefile.mk
++
++MOSTLYCLEANFILES +=
++
++# General compilation flags
++INCLUDES = -I$(top_srcdir)/user/include -I$(top_srcdir)/user/include/linux
++AM_CFLAGS = @CFLAGS@
++
++sbin_PROGRAMS := evlginzu
++evlginzu_SOURCES := evlginzu.c explosion.c merge-sources.c common.c internal.h
++evlginzu_LDADD := ../../lib/.libs/libevl.a
++evlginzu_CFLAGS := $(AM_CFLAGS)
+Index: evlog-1.6.1/user/cmd/evlginzu/Makefile.in
+===================================================================
+--- /dev/null
++++ evlog-1.6.1/user/cmd/evlginzu/Makefile.in
+@@ -0,0 +1,536 @@
++# Makefile.in generated by automake 1.8.3 from Makefile.am.
++# @configure_input@
++
++# Copyright (C) 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
++# 2003, 2004  Free Software Foundation, Inc.
++# This Makefile.in is free software; the Free Software Foundation
++# gives unlimited permission to copy and/or distribute it,
++# with or without modifications, as long as this notice is preserved.
++
++# This program is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
++# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
++# PARTICULAR PURPOSE.
++
++@SET_MAKE@
++
++
++SOURCES = $(evlginzu_SOURCES)
++
++srcdir = @srcdir@
++top_srcdir = @top_srcdir@
++VPATH = @srcdir@
++pkgdatadir = $(datadir)/@PACKAGE@
++pkglibdir = $(libdir)/@PACKAGE@
++pkgincludedir = $(includedir)/@PACKAGE@
++top_builddir = ../../..
++am__cd = CDPATH="$${ZSH_VERSION+.}$(PATH_SEPARATOR)" && cd
++INSTALL = @INSTALL@
++install_sh_DATA = $(install_sh) -c -m 644
++install_sh_PROGRAM = $(install_sh) -c
++install_sh_SCRIPT = $(install_sh) -c
++INSTALL_HEADER = $(INSTALL_DATA)
++transform = $(program_transform_name)
++NORMAL_INSTALL = :
++PRE_INSTALL = :
++POST_INSTALL = :
++NORMAL_UNINSTALL = :
++PRE_UNINSTALL = :
++POST_UNINSTALL = :
++host_triplet = @host@
++DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
++	$(top_srcdir)/Makefile.rules $(top_srcdir)/Makefile.vars
++sbin_PROGRAMS = evlginzu$(EXEEXT)
++subdir = user/cmd/evlginzu
++ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
++am__aclocal_m4_deps = $(top_srcdir)/configure.ac
++am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
++	$(ACLOCAL_M4)
++mkinstalldirs = $(mkdir_p)
++CONFIG_HEADER = $(top_builddir)/config.h
++CONFIG_CLEAN_FILES =
++am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(evlog_confdir)"
++sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
++PROGRAMS = $(sbin_PROGRAMS)
++am_evlginzu_OBJECTS = evlginzu.$(OBJEXT) explosion.$(OBJEXT) \
++			merge-sources.$(OBJEXT) common.$(OBJEXT)
++
++evlginzu_OBJECTS = $(am_evlginzu_OBJECTS)
++evlginzu_DEPENDENCIES = ../../lib/.libs/libevl.a
++DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)
++depcomp = $(SHELL) $(top_srcdir)/depcomp
++am__depfiles_maybe = depfiles
++@AMDEP_TRUE@DEP_FILES = ./$(DEPDIR)/evlginzu.Po ./$(DEPDIR)/explosion.Po \
++				./$(DEPDIR)/merge-sources.Po \
++				./$(DEPDIR)/common.Po
++COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
++	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
++LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) \
++	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
++	$(AM_CFLAGS) $(CFLAGS)
++CCLD = $(CC)
++LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
++	$(AM_LDFLAGS) $(LDFLAGS) -o $@
++SOURCES = $(evlginzu_SOURCES)
++DIST_SOURCES = $(evlginzu_SOURCES)
++evlog_confDATA_INSTALL = $(INSTALL_DATA)
++DATA = $(evlog_conf_DATA)
++ETAGS = etags
++CTAGS = ctags
++DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
++ACLOCAL = @ACLOCAL@
++AMDEP_FALSE = @AMDEP_FALSE@
++AMDEP_TRUE = @AMDEP_TRUE@
++AMTAR = @AMTAR@
++AR = @AR@
++ARCH = @ARCH@
++AUTOCONF = @AUTOCONF@
++AUTOHEADER = @AUTOHEADER@
++AUTOMAKE = @AUTOMAKE@
++AWK = @AWK@
++CC = @CC@
++CCDEPMODE = @CCDEPMODE@
++CFLAGS = @CFLAGS@
++CPP = @CPP@
++CPPFLAGS = @CPPFLAGS@
++CRONDIR = @CRONDIR@
++CXX = @CXX@
++CXXCPP = @CXXCPP@
++CXXDEPMODE = @CXXDEPMODE@
++CXXFLAGS = @CXXFLAGS@
++CYGPATH_W = @CYGPATH_W@
++DEFS = @DEFS@
++DEPDIR = @DEPDIR@
++ECHO = @ECHO@
++ECHO_C = @ECHO_C@
++ECHO_N = @ECHO_N@
++ECHO_T = @ECHO_T@
++EGREP = @EGREP@
++EVLOG_CONF_DIR = @EVLOG_CONF_DIR@
++EVLOG_SHARE_DIR = @EVLOG_SHARE_DIR@
++EXEEXT = @EXEEXT@
++F77 = @F77@
++FFLAGS = @FFLAGS@
++INITDOTD_DIR = @INITDOTD_DIR@
++INSTALL_DATA = @INSTALL_DATA@
++INSTALL_PROGRAM = @INSTALL_PROGRAM@
++INSTALL_SCRIPT = @INSTALL_SCRIPT@
++INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
++KERN_HEADER_INCLUDEDIR = @KERN_HEADER_INCLUDEDIR@
++LDFLAGS = @LDFLAGS@
++LEX = @LEX@
++LEXLIB = @LEXLIB@
++LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
++LIBOBJS = @LIBOBJS@
++LIBS = @LIBS@
++LIBTOOL = @LIBTOOL@
++LN_S = @LN_S@
++LTLIBOBJS = @LTLIBOBJS@
++MAKEINFO = @MAKEINFO@
++OBJEXT = @OBJEXT@
++PACKAGE = @PACKAGE@
++PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
++PACKAGE_NAME = @PACKAGE_NAME@
++PACKAGE_STRING = @PACKAGE_STRING@
++PACKAGE_TARNAME = @PACKAGE_TARNAME@
++PACKAGE_VERSION = @PACKAGE_VERSION@
++PATH_SEPARATOR = @PATH_SEPARATOR@
++PPC64_FALSE = @PPC64_FALSE@
++PPC64_TRUE = @PPC64_TRUE@
++RANLIB = @RANLIB@
++RPM_BUILD = @RPM_BUILD@
++RPM_MAKE_OPTS = @RPM_MAKE_OPTS@
++RPM_NAME = @RPM_NAME@
++RPM_PACKAGER = @RPM_PACKAGER@
++RPM_PROJECT_DESC = @RPM_PROJECT_DESC@
++RPM_RELEASE = @RPM_RELEASE@
++RPM_TCP_RMTLOG_BE_DESC = @RPM_TCP_RMTLOG_BE_DESC@
++RPM_TCP_RMTLOG_BE_NAME = @RPM_TCP_RMTLOG_BE_NAME@
++RPM_UDP_RMTLOG_BE_DESC = @RPM_UDP_RMTLOG_BE_DESC@
++RPM_UDP_RMTLOG_BE_NAME = @RPM_UDP_RMTLOG_BE_NAME@
++RPM_VERSION = @RPM_VERSION@
++SET_MAKE = @SET_MAKE@
++SHELL = @SHELL@
++STRIP = @STRIP@
++THE_TAR_FILE = @THE_TAR_FILE@
++VERSION = @VERSION@
++YACC = @YACC@
++ac_configure_args = @ac_configure_args@
++ac_ct_AR = @ac_ct_AR@
++ac_ct_CC = @ac_ct_CC@
++ac_ct_CXX = @ac_ct_CXX@
++ac_ct_F77 = @ac_ct_F77@
++ac_ct_RANLIB = @ac_ct_RANLIB@
++ac_ct_STRIP = @ac_ct_STRIP@
++am__fastdepCC_FALSE = @am__fastdepCC_FALSE@
++am__fastdepCC_TRUE = @am__fastdepCC_TRUE@
++am__fastdepCXX_FALSE = @am__fastdepCXX_FALSE@
++am__fastdepCXX_TRUE = @am__fastdepCXX_TRUE@
++am__include = @am__include@
++am__leading_dot = @am__leading_dot@
++am__quote = @am__quote@
++bindir = @bindir@
++build = @build@
++build_alias = @build_alias@
++build_cpu = @build_cpu@
++build_os = @build_os@
++build_vendor = @build_vendor@
++datadir = @datadir@
++exec_prefix = @exec_prefix@
++host = @host@
++host_alias = @host_alias@
++host_cpu = @host_cpu@
++host_os = @host_os@
++host_vendor = @host_vendor@
++includedir = @includedir@
++infodir = @infodir@
++install_sh = @install_sh@
++libdir = @libdir@
++libexecdir = @libexecdir@
++localstatedir = @localstatedir@
++mandir = @mandir@
++mkdir_p = @mkdir_p@
++oldincludedir = @oldincludedir@
++optdir = @optdir@
++pluginconfdir = @pluginconfdir@
++plugindir = @plugindir@
++prefix = @prefix@
++program_transform_name = @program_transform_name@
++sbindir = @sbindir@
++sharedstatedir = @sharedstatedir@
++sysconfdir = @sysconfdir@
++target_alias = @target_alias@
++MAINTAINERCLEANFILES = Makefile.in
++DISTCLEANFILES = \\\#*\\\# Makefile
++MOSTLYCLEANFILES = *~ *.[aios] *.bak *.ci *.io
++EXTRA_DIST = evlog.conf Makefile.mk
++
++# General compilation flags
++INCLUDES = -I$(top_srcdir)/user/include -I$(top_srcdir)/user/include/linux
++AM_CFLAGS = @CFLAGS@
++evlginzu_SOURCES := evlginzu.c explosion.c merge-sources.c common.c internal.h
++evlginzu_LDADD := ../../lib/.libs/libevl.a
++evlginzu_CFLAGS := $(AM_CFLAGS)
++evlog_confdir := @EVLOG_CONF_DIR@
++all: all-am
++
++.SUFFIXES:
++.SUFFIXES: .c .lo .o .obj
++$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(top_srcdir)/Makefile.vars $(top_srcdir)/Makefile.rules $(am__configure_deps)
++	@for dep in $?; do \
++	  case '$(am__configure_deps)' in \
++	    *$$dep*) \
++	      cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh \
++		&& exit 0; \
++	      exit 1;; \
++	  esac; \
++	done; \
++	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  user/cmd/evlginzu/Makefile'; \
++	cd $(top_srcdir) && \
++	  $(AUTOMAKE) --foreign  user/cmd/evlginzu/Makefile
++Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
++	@case '$?' in \
++	  *config.status*) \
++	    cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh;; \
++	  *) \
++	    echo ' cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__depfiles_maybe)'; \
++	    cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__depfiles_maybe);; \
++	esac;
++
++$(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
++	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
++
++$(top_srcdir)/configure:  $(am__configure_deps)
++	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
++$(ACLOCAL_M4):  $(am__aclocal_m4_deps)
++	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
++install-sbinPROGRAMS: $(sbin_PROGRAMS)
++	@$(NORMAL_INSTALL)
++	test -z "$(sbindir)" || $(mkdir_p) "$(DESTDIR)$(sbindir)"
++	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
++	  p1=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
++	  if test -f $$p \
++	     || test -f $$p1 \
++	  ; then \
++	    f=`echo "$$p1" | sed 's,^.*/,,;$(transform);s/$$/$(EXEEXT)/'`; \
++	   echo " $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(sbinPROGRAMS_INSTALL) '$$p' '$(DESTDIR)$(sbindir)/$$f'"; \
++	   $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(sbinPROGRAMS_INSTALL) "$$p" "$(DESTDIR)$(sbindir)/$$f" || exit 1; \
++	  else :; fi; \
++	done
++
++uninstall-sbinPROGRAMS:
++	@$(NORMAL_UNINSTALL)
++	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
++	  f=`echo "$$p" | sed 's,^.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
++	  echo " rm -f '$(DESTDIR)$(sbindir)/$$f'"; \
++	  rm -f "$(DESTDIR)$(sbindir)/$$f"; \
++	done
++
++clean-sbinPROGRAMS:
++	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
++	  f=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
++	  echo " rm -f $$p $$f"; \
++	  rm -f $$p $$f ; \
++	done
++evlginzu$(EXEEXT): $(evlginzu_OBJECTS) $(evlginzu_DEPENDENCIES)
++	@rm -f evlginzu$(EXEEXT)
++	$(LINK) $(evlginzu_LDFLAGS) $(evlginzu_OBJECTS) $(evlginzu_LDADD) $(LIBS)
++
++mostlyclean-compile:
++	-rm -f *.$(OBJEXT)
++
++distclean-compile:
++	-rm -f *.tab.c
++
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/evlginzu.Po@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/explosion.Po@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/merge-sources.Po@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/common.Po@am__quote@
++
++.c.o:
++@am__fastdepCC_TRUE@	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \
++@am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/$*.Tpo" "$(DEPDIR)/$*.Po"; else rm -f "$(DEPDIR)/$*.Tpo"; exit 1; fi
++@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
++@AMDEP_TRUE@@am__fastdepCC_FALSE@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
++@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
++@am__fastdepCC_FALSE@	$(COMPILE) -c $<
++
++.c.obj:
++@am__fastdepCC_TRUE@	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ `$(CYGPATH_W) '$<'`; \
++@am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/$*.Tpo" "$(DEPDIR)/$*.Po"; else rm -f "$(DEPDIR)/$*.Tpo"; exit 1; fi
++@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
++@AMDEP_TRUE@@am__fastdepCC_FALSE@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
++@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
++@am__fastdepCC_FALSE@	$(COMPILE) -c `$(CYGPATH_W) '$<'`
++
++.c.lo:
++@am__fastdepCC_TRUE@	if $(LTCOMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \
++@am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/$*.Tpo" "$(DEPDIR)/$*.Plo"; else rm -f "$(DEPDIR)/$*.Tpo"; exit 1; fi
++@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
++@AMDEP_TRUE@@am__fastdepCC_FALSE@	depfile='$(DEPDIR)/$*.Plo' tmpdepfile='$(DEPDIR)/$*.TPlo' @AMDEPBACKSLASH@
++@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
++@am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
++
++mostlyclean-libtool:
++	-rm -f *.lo
++
++clean-libtool:
++	-rm -rf .libs _libs
++
++distclean-libtool:
++	-rm -f libtool
++uninstall-info-am:
++install-evlog_confDATA: $(evlog_conf_DATA)
++	@$(NORMAL_INSTALL)
++	test -z "$(evlog_confdir)" || $(mkdir_p) "$(DESTDIR)$(evlog_confdir)"
++	@list='$(evlog_conf_DATA)'; for p in $$list; do \
++	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
++	  f="`echo $$p | sed -e 's|^.*/||'`"; \
++	  echo " $(evlog_confDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(evlog_confdir)/$$f'"; \
++	  $(evlog_confDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(evlog_confdir)/$$f"; \
++	done
++
++uninstall-evlog_confDATA:
++	@$(NORMAL_UNINSTALL)
++	@list='$(evlog_conf_DATA)'; for p in $$list; do \
++	  f="`echo $$p | sed -e 's|^.*/||'`"; \
++	  echo " rm -f '$(DESTDIR)$(evlog_confdir)/$$f'"; \
++	  rm -f "$(DESTDIR)$(evlog_confdir)/$$f"; \
++	done
++
++ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
++	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
++	unique=`for i in $$list; do \
++	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
++	  done | \
++	  $(AWK) '    { files[$$0] = 1; } \
++	       END { for (i in files) print i; }'`; \
++	mkid -fID $$unique
++tags: TAGS
++
++TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
++		$(TAGS_FILES) $(LISP)
++	tags=; \
++	here=`pwd`; \
++	list='$(SOURCES) $(HEADERS)  $(LISP) $(TAGS_FILES)'; \
++	unique=`for i in $$list; do \
++	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
++	  done | \
++	  $(AWK) '    { files[$$0] = 1; } \
++	       END { for (i in files) print i; }'`; \
++	test -z "$(ETAGS_ARGS)$$tags$$unique" \
++	  || $(ETAGS) $(ETAGSFLAGS) $(AM_ETAGSFLAGS) $(ETAGS_ARGS) \
++	     $$tags $$unique
++ctags: CTAGS
++CTAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
++		$(TAGS_FILES) $(LISP)
++	tags=; \
++	here=`pwd`; \
++	list='$(SOURCES) $(HEADERS)  $(LISP) $(TAGS_FILES)'; \
++	unique=`for i in $$list; do \
++	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
++	  done | \
++	  $(AWK) '    { files[$$0] = 1; } \
++	       END { for (i in files) print i; }'`; \
++	test -z "$(CTAGS_ARGS)$$tags$$unique" \
++	  || $(CTAGS) $(CTAGSFLAGS) $(AM_CTAGSFLAGS) $(CTAGS_ARGS) \
++	     $$tags $$unique
++
++GTAGS:
++	here=`$(am__cd) $(top_builddir) && pwd` \
++	  && cd $(top_srcdir) \
++	  && gtags -i $(GTAGS_ARGS) $$here
++
++distclean-tags:
++	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH tags
++
++distdir: $(DISTFILES)
++	$(mkdir_p) $(distdir)/../../..
++	@srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`; \
++	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's|.|.|g'`; \
++	list='$(DISTFILES)'; for file in $$list; do \
++	  case $$file in \
++	    $(srcdir)/*) file=`echo "$$file" | sed "s|^$$srcdirstrip/||"`;; \
++	    $(top_srcdir)/*) file=`echo "$$file" | sed "s|^$$topsrcdirstrip/|$(top_builddir)/|"`;; \
++	  esac; \
++	  if test -f $$file || test -d $$file; then d=.; else d=$(srcdir); fi; \
++	  dir=`echo "$$file" | sed -e 's,/[^/]*$$,,'`; \
++	  if test "$$dir" != "$$file" && test "$$dir" != "."; then \
++	    dir="/$$dir"; \
++	    $(mkdir_p) "$(distdir)$$dir"; \
++	  else \
++	    dir=''; \
++	  fi; \
++	  if test -d $$d/$$file; then \
++	    if test -d $(srcdir)/$$file && test $$d != $(srcdir); then \
++	      cp -pR $(srcdir)/$$file $(distdir)$$dir || exit 1; \
++	    fi; \
++	    cp -pR $$d/$$file $(distdir)$$dir || exit 1; \
++	  else \
++	    test -f $(distdir)/$$file \
++	    || cp -p $$d/$$file $(distdir)/$$file \
++	    || exit 1; \
++	  fi; \
++	done
++check-am: all-am
++check: check-am
++all-am: Makefile $(PROGRAMS) $(DATA)
++installdirs:
++	for dir in "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(evlog_confdir)"; do \
++	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
++	done
++install: install-am
++install-exec: install-exec-am
++install-data: install-data-am
++uninstall: uninstall-am
++
++install-am: all-am
++	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
++
++installcheck: installcheck-am
++install-strip:
++	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
++	  install_sh_PROGRAM="$(INSTALL_STRIP_PROGRAM)" INSTALL_STRIP_FLAG=-s \
++	  `test -z '$(STRIP)' || \
++	    echo "INSTALL_PROGRAM_ENV=STRIPPROG='$(STRIP)'"` install
++mostlyclean-generic:
++	-test -z "$(MOSTLYCLEANFILES)" || rm -f $(MOSTLYCLEANFILES)
++
++clean-generic:
++
++distclean-generic:
++	-rm -f $(CONFIG_CLEAN_FILES)
++	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
++
++maintainer-clean-generic:
++	@echo "This command is intended for maintainers to use"
++	@echo "it deletes files that may require special tools to rebuild."
++	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
++clean: clean-am
++
++clean-am: clean-generic clean-libtool clean-sbinPROGRAMS \
++	mostlyclean-am
++
++distclean: distclean-am
++	-rm -rf ./$(DEPDIR)
++	-rm -f Makefile
++distclean-am: clean-am distclean-compile distclean-generic \
++	distclean-libtool distclean-tags
++
++dvi: dvi-am
++
++dvi-am:
++
++html: html-am
++
++info: info-am
++
++info-am:
++
++install-data-am: install-evlog_confDATA
++
++install-exec-am: install-sbinPROGRAMS
++
++install-info: install-info-am
++
++install-man:
++
++installcheck-am:
++
++maintainer-clean: maintainer-clean-am
++	-rm -rf ./$(DEPDIR)
++	-rm -f Makefile
++maintainer-clean-am: distclean-am maintainer-clean-generic
++
++mostlyclean: mostlyclean-am
++
++mostlyclean-am: mostlyclean-compile mostlyclean-generic \
++	mostlyclean-libtool
++
++pdf: pdf-am
++
++pdf-am:
++
++ps: ps-am
++
++ps-am:
++
++uninstall-am: uninstall-evlog_confDATA uninstall-info-am \
++	uninstall-sbinPROGRAMS
++
++.PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
++	clean-libtool clean-sbinPROGRAMS ctags distclean \
++	distclean-compile distclean-generic distclean-libtool \
++	distclean-tags distdir dvi dvi-am html html-am info info-am \
++	install install-am install-data install-data-am \
++	install-evlog_confDATA install-exec install-exec-am \
++	install-info install-info-am install-man install-sbinPROGRAMS \
++	install-strip installcheck installcheck-am installdirs \
++	maintainer-clean maintainer-clean-generic mostlyclean \
++	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
++	pdf pdf-am ps ps-am tags uninstall uninstall-am \
++	uninstall-evlog_confDATA uninstall-info-am \
++	uninstall-sbinPROGRAMS
++
++
++# Generate pre-parsed CC code.
++%.i: %.cc
++	$(COMPILE) -E -c $^ -o $@
++
++.PRECIOUS: %.ii
++%.cci: %.ii
++	-grep -v -e "^#" -e "^ *$$" $^ | indent > $@
++	mv -f $@ $^
++
++#
++# noinst_LTLIBRARIES = libevlginzu.la
++# libevlginzu_la_SOURCES := libeevlginzu.h libevlginzu.c evlevlginzu.c
++# libevlginzu_la_LIBADD := $(top_srcdir)/user/lib/libevl.la
++# libevlginzu_la_CFLAGS := -DLIBEVLCONFIG
++#
++# testlib_SOURCES := testlib.c
++# testlib_LDADD := $(top_srcdir)/user/cmd/evlginzu/libevlginzu.la
++#
++# Tell versions [3.59,3.63) of GNU make to not export all variables.
++# Otherwise a system limit (for SysV at least) may be exceeded.
++.NOEXPORT:
+Index: evlog-1.6.1/user/cmd/evlginzu/Makefile.mk
+===================================================================
+--- /dev/null
++++ evlog-1.6.1/user/cmd/evlginzu/Makefile.mk
+@@ -0,0 +1,27 @@
++KERN_VERSION=v2.4.4
++KERN_INC=../../../kernel/$(KERN_VERSION)/include
++EVL_LOG_H=$(KERN_INC)/linux/evl_log.h
++
++UROOT=../..
++INCLUDEDIRS=-I$(UROOT)/include -I$(UROOT)/include/linux -I$(KERN_INC)
++LIBDIRS = -L/usr/lib -L../../lib
++LIBS=$(UROOT)/lib/libevl.a -lpthread
++
++DEBUG=
++EVL_WRITE_DIRECT=-D_EVL_WRITE_DIRECT
++CFLAGS=$(DEBUG) $(EVL_WRITE_DIRECT) $(INCLUDEDIRS) $(LIBDIRS) -O
++DOTOS=evlginzu.o explosion.o merge-sources.o common.o
++PRODUCTS = evlginzu
++
++all: $(PRODUCTS)
++
++evlginzu: $(DOTOS) $(UROOT)/lib/libevl.a
++	$(CC) $(CFLAGS) $(DOTOS) $(LIBDIRS)  $(LIBS) -o evlginzu
++
++clean:
++	-rm -f *.o *~ \#*\#
++
++clobber: clean
++	-rm -f $(PRODUCTS)
++
++nothing:
+Index: evlog-1.6.1/user/cmd/evlginzu/merge-sources.c
+===================================================================
+--- /dev/null
++++ evlog-1.6.1/user/cmd/evlginzu/merge-sources.c
+@@ -0,0 +1,511 @@
++/*
++ * Linux Event Logging for the Enterprise
++ * Copyright (c) International Business Machines Corp., 2002
++ * Copyright (c) Monta Vista Software, Inc., 2006
++ *
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++ *
++ *  Please send e-mail to lkessler@users.sourceforge.net if you have
++ *  questions or comments.
++ *
++ *  Project Website:  http://evlog.sourceforge.net/
++ *
++ */
++
++#define _LARGEFILE64_SOURCE
++#include <stdio.h>
++#include <stdlib.h>
++#include <errno.h>
++#include <string.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <linux/limits.h>
++#include <unistd.h>
++#include <fcntl.h>
++#include <dirent.h>
++
++#include "config.h"
++#include "posix_evlog.h"
++#include "posix_evlsup.h"
++#include "evlog.h"
++#include "internal.h"
++
++extern char *ProgName;
++
++extern struct list_head Sources;
++
++int
++add_directory ( char *path )
++{
++	int		erc;
++	DIR		*dir;
++	struct dirent	*dirent;
++
++	/*
++	 * Open the directory.
++	 */
++
++	dir = opendir(path);
++
++	if ( dir == (DIR *) NULL )
++	{
++		(void) fprintf(stderr,
++				"%s: directory open error on %s: %s\n",
++				ProgName, path, strerror(errno));
++
++		return (-1);
++	}
++
++	/*
++	 * Check each directory entry and grab the regular files.
++	 */
++
++	erc = 0;
++
++	while ( (dirent = readdir(dir)) != (struct dirent *) NULL )
++	{
++		struct stat64	statbuf;
++		char		object_path[PATH_MAX];
++
++		(void) sprintf(object_path, "%s/%s", path, dirent -> d_name);
++
++		if ( lstat64(object_path, &statbuf) == -1 )
++		{
++			(void) fprintf(stderr, "%s: stat error on %s: %s\n",
++				ProgName, object_path, strerror(errno));
++
++			erc = -1;
++
++			break;
++		}
++
++		if ( S_ISREG(statbuf.st_mode) )
++		{
++			if ( add_source(object_path, &statbuf, 1) == -1 )
++			{
++				erc = -1;
++
++				break;
++			}
++		}
++	}
++
++	/*
++	 * Close the directory.
++	 */
++
++	(void) closedir(dir);
++
++	/*
++	 * Return the status.
++	 */
++
++	return (erc);
++}
++
++/*
++ * Use a simple optimization to improve efficiency. When a source hits
++ * EOF move it to the end of the list. When list processing hits a
++ * source that is at EOF it can stop evaluating - any source past
++ * this point is also at EOF.
++ */
++
++static int
++find_oldest_source( struct evlog_source	**selection )
++{
++	struct evlog_source	*p;
++	struct evlog_source	*temp;
++
++	LIST_HEAD(eof_list);
++
++	int			erc = 0;
++	struct evlog_source	*oldest = (struct evlog_source *) NULL;
++
++	list_for_each_entry_safe( p, temp, &Sources, e_link )
++	{
++		switch ( source_state(p) )
++		{
++		case SOURCE_HAS_DATA:
++			if ( (oldest == (struct evlog_source *) NULL) ||
++			     ((p -> e_entry.log_time.tv_sec <
++					oldest -> e_entry.log_time.tv_sec) ||
++			      ((p -> e_entry.log_time.tv_sec ==
++					oldest -> e_entry.log_time.tv_sec) &&
++			       (p -> e_entry.log_time.tv_nsec <
++					oldest -> e_entry.log_time.tv_nsec))) )
++			{
++				oldest = p;
++			}
++
++			break;
++
++		case SOURCE_AT_EOF:
++			goto done;
++			break;
++
++		case SOURCE_HIT_EOF:
++			list_del(&p -> e_link);
++			list_add(&p -> e_link, &eof_list);
++			break;
++
++		case SOURCE_IO_ERROR:
++			erc = -1;
++			goto done;
++			break;
++		}
++	}
++
++done:
++
++	if ( erc == 0 )
++	{
++		*selection = oldest;
++	}
++	else
++	{
++		*selection = (struct evlog_source *) NULL;
++	}
++
++	while ( !list_empty(&eof_list) )
++	{
++		list_move_tail(eof_list.next, &Sources);
++	}
++
++	return (erc);
++}
++
++static int
++simple_merge_process( int fd, char *path )
++{
++	struct evlog_source	*source;
++
++	while ( 1 )
++	{
++		int	status;
++
++		if ( find_oldest_source(&source) == -1 )
++		{
++			return (2);
++		}
++
++		if ( source == (struct evlog_source *) NULL )
++		{
++			break;
++		}
++
++		source -> e_flags |= EVS_NO_DATA;
++
++		status = write_entry(fd, &source -> e_entry,
++							source -> e_data);
++
++		if ( status != 0 )
++		{
++			return (2);
++		}
++	}
++
++	return (0);
++}
++
++struct evlog_fifo
++{
++	int			ev_fd;
++	struct timespec		ev_time;
++	struct list_head	ev_data;
++};
++
++struct evlog_fifo_entry
++{
++	struct list_head	efe_link;
++	struct posix_log_entry	efe_entry;
++	char			efe_data[POSIX_LOG_ENTRY_MAXLEN];
++};
++
++static struct evlog_fifo *
++fifo_prep( int fd )
++{
++	struct evlog_fifo	*fifo;
++
++	fifo = (struct evlog_fifo *) malloc(sizeof(*fifo));
++
++	if ( fifo == (struct evlog_fifo *) NULL )
++	{
++		(void) fprintf(stderr, "%s: memory allocation failure\n",
++								ProgName);
++	}
++	else
++	{
++		fifo -> ev_fd = fd;
++		INIT_LIST_HEAD(&fifo -> ev_data);
++	}
++
++	return (fifo);
++}
++
++static int
++fifo_flush( struct evlog_fifo *fifo )
++{
++	struct evlog_fifo_entry	*p;
++	struct list_head	*l;
++
++	while ( !list_empty(&fifo -> ev_data) )
++	{
++		int	status;
++
++		l = fifo -> ev_data.next;
++
++		list_del(l);
++
++		p = container_of(l, struct evlog_fifo_entry, efe_link);
++
++		status = write_entry(fifo -> ev_fd, &p -> efe_entry,
++							p -> efe_data);
++
++		if ( status != 0 )
++		{
++			return (status);
++		}
++
++		free((void *) p);
++	}
++
++	return (0);
++}
++
++static void
++fifo_add(	struct evlog_fifo	*fifo,
++		struct evlog_fifo_entry	*fifo_entry,
++		struct posix_log_entry	*log_entry,
++		char			*data )
++{
++	(void) memcpy((void *) &fifo_entry -> efe_entry, (void *) log_entry,
++							sizeof(*log_entry));
++	(void) memcpy((void *) fifo_entry -> efe_data, (void *) data,
++						POSIX_LOG_ENTRY_MAXLEN);
++
++	list_add_tail(&fifo_entry -> efe_link, &fifo -> ev_data);
++
++	return;
++}
++
++static int
++fifo_duplicate(	struct evlog_fifo	*fifo,
++		struct posix_log_entry	*log_entry,
++		char			*data )
++{
++	struct evlog_fifo_entry	*p;
++
++	list_for_each_entry( p, &fifo -> ev_data, efe_link )
++	{
++		posix_log_procid_t	new_nodeID;
++		posix_log_procid_t	fifo_nodeID;
++
++		new_nodeID = (log_entry -> log_processor >> 16) & 0xFFFF;
++		fifo_nodeID = (p -> efe_entry.log_processor >> 16) & 0xFFFF;
++
++		if ( (new_nodeID == fifo_nodeID) &&
++		     (log_entry -> log_uid == p -> efe_entry.log_uid) &&
++		     (log_entry -> log_facility ==
++					p -> efe_entry.log_facility) &&
++		     (log_entry -> log_severity ==
++					p -> efe_entry.log_severity) &&
++		     (log_entry -> log_size == p -> efe_entry.log_size) &&
++		     (memcmp((void *) data, (void *) p -> efe_data,
++					log_entry -> log_size) == 0) )
++		{
++			return (1);
++		}
++	}
++
++	return (0);
++}
++
++static int
++fifo_enter(	struct evlog_fifo	*fifo,
++		struct posix_log_entry	*log_entry,
++		char			*data )
++{
++	struct evlog_fifo_entry	*fifo_entry;
++
++	fifo_entry = (struct evlog_fifo_entry *) malloc(sizeof(*fifo_entry));
++
++	if ( fifo_entry == (struct evlog_fifo_entry *) NULL )
++	{
++		return (-1);
++	}
++
++	/*
++	 * Empty FIFO? Simply add the new entry.
++	 */
++
++	if ( list_empty(&fifo -> ev_data) )
++	{
++		fifo -> ev_time = log_entry -> log_time;
++
++		fifo_add(fifo, fifo_entry, log_entry, data);
++
++		return (0);
++	}
++
++	/*
++	 * The new entry was made at the time of the FIFO contents.
++	 * Ignore the new entry if it is a duplicate of an existing entry.
++	 */
++
++	if ( fifo -> ev_time.tv_sec == log_entry -> log_time.tv_sec )
++	{
++		if ( !fifo_duplicate(fifo, log_entry, data) )
++		{
++			fifo_add(fifo, fifo_entry, log_entry, data);
++		}
++
++		return (0);
++	}
++
++	/* data in FIFO and a new time has been entered */
++
++	if ( fifo_flush(fifo) != 0 )
++	{
++		return (-1);
++	}
++
++	/* ev_data is now empty */
++
++	fifo -> ev_time = log_entry -> log_time;
++	fifo_add(fifo, fifo_entry, log_entry, data);
++
++	return (0);
++}
++
++static int
++merge_dup_supression_process( int fd, char *path )
++{
++	struct evlog_fifo	*fifo;
++	struct evlog_source	*source;
++
++	fifo = fifo_prep(fd);
++
++	if ( fifo == (struct evlog_fifo *) NULL )
++	{
++		return (1);
++	}
++
++	while ( 1 )
++	{
++		if ( find_oldest_source(&source) == -1 )
++		{
++			return (2);
++		}
++
++		if ( source == (struct evlog_source *) NULL )
++		{
++			break;
++		}
++
++		source -> e_flags |= EVS_NO_DATA;
++
++		if ( fifo_enter(fifo, &source -> e_entry,
++						source -> e_data) != 0 )
++		{
++			return (2);
++		}
++	}
++
++	return ((fifo_flush(fifo) == 0) ? 0 : 2);
++}
++
++int
++merge_sources( char *target, char *dir, int remove, int suppress )
++{
++	int	fd;
++	int	erc;
++	char	path[PATH_MAX];
++
++	/*
++	 * Create a POSIX log file with a temp file name.
++	 */
++
++	(void) sprintf(path, "%s/%s-%d", dir, ProgName, getuid());
++
++	fd = create_logfile(path, 0644);
++
++	if ( fd == -1 )
++	{
++		return (1);
++	}
++
++	/*
++	 * Merge the data.
++	 */
++
++	if ( suppress )
++	{
++		erc = merge_dup_supression_process(fd, path);
++	}
++	else
++	{
++		erc = simple_merge_process(fd, path);
++	}
++
++	/*
++	 * Flush the data and close the file.
++	 */
++
++	(void) fsync(fd);	/* make sure data is saved */
++	(void) close(fd);
++
++	/*
++	 * Deal with the results of the merge...
++	 */
++
++	if ( erc == 0 )
++	{
++		/*
++		 * The merge succeeded. Rename the temporary file to the
++		 * target.
++		 */
++
++		(void) rename(path, target);
++
++		/*
++		 * Optionally delete all of the inputs. Make sure that the
++		 * target is not deleted if it was an input.
++		 */
++
++		if ( remove )
++		{
++			struct evlog_source	*s;
++
++			list_for_each_entry( s, &Sources, e_link )
++			{
++				if ( strcmp(target, s -> e_path) != 0 )
++				{
++					(void) unlink(s -> e_path);
++				}
++			}
++		}
++	}
++	else
++	{
++		/*
++		 * The merge failed - delete the temporary file.
++		 */
++
++		(void) unlink(path);
++	}
++
++	return (erc);
++}
+Index: evlog-1.6.1/user/cmd/Makefile.in
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/Makefile.in
++++ evlog-1.6.1/user/cmd/Makefile.in
+@@ -186,8 +186,8 @@ EXTRA_DIST = Makefile.mk
+ # bins or src products may be required to generate stuff in etc and or
+ # doc. Stuff in bin, intl and lib may be required to generate stuff in
+ # the rest (so, this is a possible dependency order).
+-SUBDIRS = evlogd evlsend evlview evlconfig evlnotifyd evlactiond evlnotify \
+-	evlfacility evltc evlogmgr evlgentmpls ela
++SUBDIRS = evlogd evlsend evlview evlginzu evlconfig evlnotifyd evlactiond \
++		evlnotify evlfacility evltc evlogmgr evlgentmpls ela
+ 
+ all: all-recursive
+ 
+Index: evlog-1.6.1/user/cmd/Makefile.mk
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/Makefile.mk
++++ evlog-1.6.1/user/cmd/Makefile.mk
+@@ -4,9 +4,9 @@ INCDIR=../../include
+ HEADERS=$(INCDIR)/posix_evlog.h $(INCDIR)/posix_evlsup.h $(INCDIR)/evlog.h $(INCDIR)/linux/evl_log.h
+ MAKE=make -f Makefile.mk
+ 
+-all: cmd/evlogd cmd/evlsend cmd/evlview cmd/evlconfig cmd/evlnotifyd \
+-	 cmd/evlactiond cmd/evlnotify cmd/evlfacility cmd/evltc cmd/evlogmgr \
+-	 cmd/evlgentmpls cmd/ela
++all: cmd/evlogd cmd/evlsend cmd/evlview cmd/evlginzu cmd/evlconfig \
++	cmd/evlnotifyd cmd/evlactiond cmd/evlnotify cmd/evlfacility \
++	cmd/evltc cmd/evlogmgr cmd/evlgentmpls cmd/ela
+ 	
+ cmd/evlogd: 
+ 	cd evlogd; $(MAKE) KERN_VERSION=$(KERN_VERSION) PPC_K64_U32=$(PPC_K64_U32)
+@@ -23,6 +23,9 @@ cmd/evlnotifyd: 
+ cmd/evlactiond: 
+ 	cd evlactiond; $(MAKE) KERN_VERSION=$(KERN_VERSION)
+ 
++cmd/evlginzu:
++	cd evlginzu; $(MAKE) KERN_VERSION=$(KERN_VERSION)
++
+ cmd/evlconfig:
+ 	cd evlconfig; $(MAKE) KERN_VERSION=$(KERN_VERSION)
+ 
+@@ -50,6 +53,7 @@ clean:
+ 	(cd evlogd; $(MAKE) clean)
+ 	(cd evlsend; $(MAKE) clean)
+ 	(cd evlview; $(MAKE) clean)
++	(cd evlginzu; $(MAKE) clean)
+ 	(cd evlconfig; $(MAKE) clean)
+ 	(cd evlnotifyd; $(MAKE) clean)
+ 	(cd evlactiond; $(MAKE) clean)	
+@@ -64,6 +68,7 @@ clobber:
+ 	(cd evlogd; $(MAKE) clobber)
+ 	(cd evlsend; $(MAKE) clobber)
+ 	(cd evlview; $(MAKE) clobber)
++	(cd evlginzu; $(MAKE) clobber)
+ 	(cd evlconfig; $(MAKE) clobber)
+ 	(cd evlnotifyd; $(MAKE) clobber)
+ 	(cd evlactiond; $(MAKE) clobber)
+Index: evlog-1.6.1/user/Makefile.mk
+===================================================================
+--- evlog-1.6.1.orig/user/Makefile.mk
++++ evlog-1.6.1/user/Makefile.mk
+@@ -126,6 +126,7 @@ install-package:
+ 	install -s -m 755 ./cmd/evlview/evlview $(SBINDIR)
+ 	install -s -m 755 ./cmd/evlsend/evlsend $(SBINDIR)
+ 	install -s -m 755 ./cmd/evlconfig/evlconfig $(SBINDIR)
++	install -s -m 755 ./cmd/evlginzu/evlginzu $(SBINDIR)
+ 	install -s -m 755 ./cmd/evlnotify/evlnotify $(SBINDIR)
+ 	install -s -m 755 ./cmd/evlfacility/evlfacility $(SBINDIR)
+ 	install -s -m 755 ./cmd/evltc/evltc $(SBINDIR)
+@@ -176,6 +177,7 @@ install-package:
+ 	install -m 644 ./man/evlog.1.gz $(MANDIR)/man1
+ 	install -m 644 ./man/evlsend.1.gz $(MANDIR)/man1
+ 	install -m 644 ./man/evlconfig.1.gz $(MANDIR)/man1
++	install -m 644 ./man/evlginzu.1.gz $(MANDIR)/man1
+ 	install -m 644 ./man/evlnotify.1.gz $(MANDIR)/man1
+ 	install -m 644 ./man/evlquery.1.gz $(MANDIR)/man1
+ 	install -m 644 ./man/evlfacility.1.gz $(MANDIR)/man1
+Index: evlog-1.6.1/user/man/evlginzu.1
+===================================================================
+--- /dev/null
++++ evlog-1.6.1/user/man/evlginzu.1
+@@ -0,0 +1,75 @@
++.\" This manpage has been modified by Dennis Grace
++.\" of IBM LTC Documentation Services from a document
++.\" that was automatically generated by docbook2man
++.\" from a DocBook document.  This tool can be found at:
++.\" <http://shell.ipoline.com/~elmert/comp/docbook2X/>
++.\" Please send any bug reports, improvements, comments, patches,
++.\" etc. to Steve Cheng <steve@ggi-project.org>.
++.\" For questions regarding the modifications from the
++.\" docbook2man output, contact Dennis Grace at
++.\" <dgrace@us.ibm.com>.
++.TH "EVLGINZU" "" "29 June 2006" "" ""
++.SH NAME
++evlginzu \- Slices! Dices! Juliennes POSIX log files
++.SH SYNOPSIS
++\fBevlginzu\fR \fB-h | --help\fR
++
++\fBevlginzu\fR \fB-e | --explode\fR [options] target
++
++\fBevlginzu\fR \fB-m | --merge\fR [options] target argument...
++.SH "DESCRIPTION"
++.PP
++The \fBevlginzu\fR command merges or explodes POSIX log files.
++.SH "COMMON OPTIONS"
++.TP
++\fB-h, --help\fR
++Display the command usage.
++.SH "EXPLODE OPTIONS"
++.TP
++\fB-e, --explode\fR
++Specifies that POSIX log file is to be exploded into daily log files.
++A POSIX log file will be created for each day that has one or more
++POSIX log entries.
++.TP
++\fB-d, --dir \fIdirectory\fB\fR
++Specifies that the resultant output files will be placed in the argument
++\fBdirectory\fR.
++The default is to create the resultant output files in the same location
++as the \fBtarget\fR.
++.TP
++\fB-p, --prefix \fIstring\fB\fR
++Specifies that each daily log file name is to prefixed with the
++\fBstring\fR rather than the default "posix_log".
++.TP
++\fB-r, --remove\fR
++Specifies that the \fBtarget\fR file is to be deleted after a successful
++explosive treatment.
++.SH "MERGE OPTIONS"
++.TP
++\fB-m, --merge\fR
++Specifies that \fBargument\fR POSIX log files are to merged with the
++\fBtarget\fR POSIX log file.
++If the \fBtarget\fR POSIX log file does not exist it will be created.
++
++An \fBargument\fR may be either a POSIX log file or a directory.
++In the later case the directory will be searched for POSIX log files and
++all such found in the directory will be involved in the merge operation.
++
++The event IDs for each event in the resultant \fBtarget\fR POSIX log will
++always start from one (1) - IDs will automatically be reassigned.
++
++The merge operation is temporal - the resultant \fBtarget\fR POSIX log
++file events will be in increasing time order.
++
++An active POSIX log file may not be involved in a merge operation either
++as source or as target.
++.TP
++\fB-r, --remove\fR
++Specifies that all \fBargument\fR files are to be deleted after a successful
++merge operation.
++.TP
++\fB-s, --suppress\fR
++Specifies that duplicate event entries are to be supressed during the merge
++operation.
++.SH "SEE ALSO"
++\fIevlconfig man page\fR    New log creation option
+Index: evlog-1.6.1/user/man/evlginzu.1.in
+===================================================================
+--- /dev/null
++++ evlog-1.6.1/user/man/evlginzu.1.in
+@@ -0,0 +1,75 @@
++.\" This manpage has been modified by Dennis Grace
++.\" of IBM LTC Documentation Services from a document
++.\" that was automatically generated by docbook2man
++.\" from a DocBook document.  This tool can be found at:
++.\" <http://shell.ipoline.com/~elmert/comp/docbook2X/>
++.\" Please send any bug reports, improvements, comments, patches,
++.\" etc. to Steve Cheng <steve@ggi-project.org>.
++.\" For questions regarding the modifications from the
++.\" docbook2man output, contact Dennis Grace at
++.\" <dgrace@us.ibm.com>.
++.TH "EVLGINZU" "" "29 June 2006" "" ""
++.SH NAME
++evlginzu \- Slices! Dices! Juliennes POSIX log files
++.SH SYNOPSIS
++\fBevlginzu\fR \fB-h | --help\fR
++
++\fBevlginzu\fR \fB-e | --explode\fR [options] target
++
++\fBevlginzu\fR \fB-m | --merge\fR [options] target argument...
++.SH "DESCRIPTION"
++.PP
++The \fBevlginzu\fR command merges or explodes POSIX log files.
++.SH "COMMON OPTIONS"
++.TP
++\fB-h, --help\fR
++Display the command usage.
++.SH "EXPLODE OPTIONS"
++.TP
++\fB-e, --explode\fR
++Specifies that POSIX log file is to be exploded into daily log files.
++A POSIX log file will be created for each day that has one or more
++POSIX log entries.
++.TP
++\fB-d, --dir \fIdirectory\fB\fR
++Specifies that the resultant output files will be placed in the argument
++\fBdirectory\fR.
++The default is to create the resultant output files in the same location
++as the \fBtarget\fR.
++.TP
++\fB-p, --prefix \fIstring\fB\fR
++Specifies that each daily log file name is to prefixed with the
++\fBstring\fR rather than the default "posix_log".
++.TP
++\fB-r, --remove\fR
++Specifies that the \fBtarget\fR file is to be deleted after a successful
++explosive treatment.
++.SH "MERGE OPTIONS"
++.TP
++\fB-m, --merge\fR
++Specifies that \fBargument\fR POSIX log files are to merged with the
++\fBtarget\fR POSIX log file.
++If the \fBtarget\fR POSIX log file does not exist it will be created.
++
++An \fBargument\fR may be either a POSIX log file or a directory.
++In the later case the directory will be searched for POSIX log files and
++all such found in the directory will be involved in the merge operation.
++
++The event IDs for each event in the resultant \fBtarget\fR POSIX log will
++always start from one (1) - IDs will automatically be reassigned.
++
++The merge operation is temporal - the resultant \fBtarget\fR POSIX log
++file events will be in increasing time order.
++
++An active POSIX log file may not be involved in a merge operation either
++as source or as target.
++.TP
++\fB-r, --remove\fR
++Specifies that all \fBargument\fR files are to be deleted after a successful
++merge operation.
++.TP
++\fB-s, --suppress\fR
++Specifies that duplicate event entries are to be supressed during the merge
++operation.
++.SH "SEE ALSO"
++\fIevlconfig man page\fR    New log creation option
+Index: evlog-1.6.1/user/man/Makefile.am
+===================================================================
+--- evlog-1.6.1.orig/user/man/Makefile.am
++++ evlog-1.6.1/user/man/Makefile.am
+@@ -1,6 +1,6 @@
+ MAINTAINERCLEANFILES    = Makefile.in
+ 
+-manpages = evlview.1 evlog.1 evlsend.1 evlconfig.1 evlnotify.1 evlquery.1 evlfacility.1 evltc.1 evlogmgr.1 evlremote.1 evlgentmpls.1
++manpages = evlview.1 evlog.1 evlsend.1 evlconfig.1 evlnotify.1 evlquery.1 evlfacility.1 evltc.1 evlogmgr.1 evlremote.1 evlgentmpls.1 evlginzu.1
+ EXTRA_DIST = $(manpages) Makefile.mk
+ 
+ MOSTLYCLEANFILES = *.gz
+Index: evlog-1.6.1/user/man/Makefile.in
+===================================================================
+--- evlog-1.6.1.orig/user/man/Makefile.in
++++ evlog-1.6.1/user/man/Makefile.in
+@@ -41,7 +41,7 @@ DIST_COMMON = $(srcdir)/Makefile.am $(sr
+ 	$(srcdir)/evlog.1.in $(srcdir)/evlogmgr.1.in \
+ 	$(srcdir)/evlquery.1.in $(srcdir)/evlremote.1.in \
+ 	$(srcdir)/evlsend.1.in $(srcdir)/evltc.1.in \
+-	$(srcdir)/evlview.1.in
++	$(srcdir)/evlview.1.in $(srcdir)/evlginzu.1.in
+ ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
+ am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
+@@ -50,7 +50,7 @@ mkinstalldirs = $(mkdir_p)
+ CONFIG_HEADER = $(top_builddir)/config.h
+ CONFIG_CLEAN_FILES = evlconfig.1 evlfacility.1 evlgentmpls.1 \
+ 	evlnotify.1 evlog.1 evlogmgr.1 evlquery.1 evlremote.1 \
+-	evlsend.1 evltc.1 evlview.1
++	evlsend.1 evltc.1 evlview.1 evlginzu.1
+ SOURCES =
+ DIST_SOURCES =
+ man1dir = $(mandir)/man1
+@@ -181,7 +181,7 @@ sharedstatedir = @sharedstatedir@
+ sysconfdir = @sysconfdir@
+ target_alias = @target_alias@
+ MAINTAINERCLEANFILES = Makefile.in
+-manpages = evlview.1 evlog.1 evlsend.1 evlconfig.1 evlnotify.1 evlquery.1 evlfacility.1 evltc.1 evlogmgr.1 evlremote.1 evlgentmpls.1
++manpages = evlview.1 evlog.1 evlsend.1 evlconfig.1 evlnotify.1 evlquery.1 evlfacility.1 evltc.1 evlogmgr.1 evlremote.1 evlgentmpls.1 evlginzu.1
+ EXTRA_DIST = $(manpages) Makefile.mk
+ MOSTLYCLEANFILES = *.gz
+ 
+@@ -247,6 +247,8 @@ evltc.1: $(top_builddir)/config.status $
+ 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
+ evlview.1: $(top_builddir)/config.status $(srcdir)/evlview.1.in
+ 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
++evlginzu.1: $(top_builddir)/config.status $(srcdir)/evlginzu.1.in
++	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
+ 
+ mostlyclean-libtool:
+ 	-rm -f *.lo
+Index: evlog-1.6.1/user/man/Makefile.mk
+===================================================================
+--- evlog-1.6.1.orig/user/man/Makefile.mk
++++ evlog-1.6.1/user/man/Makefile.mk
+@@ -1,6 +1,6 @@
+ all: 	evlview.1.gz evlsend.1.gz evlconfig.1.gz evlnotify.1.gz evlremote.1.gz\
+ 	evlquery.1.gz evlfacility.1.gz evltc.1.gz evlogmgr.1.gz evlog.1.gz \
+-	evlgentmpls.1.gz
++	evlgentmpls.1.gz evlginzu.1.gz
+ 
+ %.1.gz:           %.1
+ 	gzip -c $< > $@
+Index: evlog-1.6.1/user/cmd/Makefile.am
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/Makefile.am
++++ evlog-1.6.1/user/cmd/Makefile.am
+@@ -13,5 +13,5 @@ MOSTLYCLEANFILES += 
+ # bins or src products may be required to generate stuff in etc and or
+ # doc. Stuff in bin, intl and lib may be required to generate stuff in
+ # the rest (so, this is a possible dependency order).
+-SUBDIRS = evlogd evlsend evlview evlconfig evlnotifyd evlactiond evlnotify \
+-	evlfacility evltc evlogmgr evlgentmpls ela
++SUBDIRS = evlogd evlsend evlview evlginzu evlconfig evlnotifyd evlactiond \
++		evlnotify evlfacility evltc evlogmgr evlgentmpls ela

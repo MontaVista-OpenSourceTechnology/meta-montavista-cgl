@@ -1,0 +1,350 @@
+diff -Naur acpitool-0.5.1_org/src/ac_adapter.cpp acpitool-0.5.1/src/ac_adapter.cpp
+--- acpitool-0.5.1_org/src/ac_adapter.cpp	2012-11-21 12:59:14.565108709 +0530
++++ acpitool-0.5.1/src/ac_adapter.cpp	2012-11-21 13:01:15.393113414 +0530
+@@ -50,7 +50,8 @@
+ int Do_AC_Info(int verbose)            // wrapper around the other 2 functions //
+ {
+     ifstream file_in;
+-    char *dirname, filename[4][50], str[40];
++    const char *dirname;
++    char filename[4][50], str[40];
+     int ac_count = 0;
+     DIR *ac_dir;
+     struct dirent *ac_dirent;
+@@ -87,7 +88,8 @@
+ int Do_AC_Info_Proc(int verbose)
+ {
+     ifstream file_in;
+-    char *dirname, filename[4][50], str[40];
++    const char *dirname;
++    char filename[4][50], str[40];
+     int ac_count = 0;
+     DIR *ac_dir;
+     struct dirent *ac_dirent;
+@@ -152,7 +154,8 @@
+     char filename[2][65], str[100], temp[100];
+     int ac_count = 0, start = 0, findex = 0;
+     DIR *ac_dir;
+-    char *name, *dirname;
++    char *name;
++    const char *dirname;
+        
+     dirname = "/sys/class/power_supply/";        //find all entries in this dir 
+ 
+diff -Naur acpitool-0.5.1_org/src/acpitool.cpp acpitool-0.5.1/src/acpitool.cpp
+--- acpitool-0.5.1_org/src/acpitool.cpp	2012-11-21 12:59:14.565108709 +0530
++++ acpitool-0.5.1/src/acpitool.cpp	2012-11-21 13:06:13.681125029 +0530
+@@ -64,7 +64,8 @@
+ int Has_ACPI(char *c)
+ {
+     ifstream file_in, file2_in;
+-    char *filename, *filename2, str[50];
++    const char *filename, *filename2;
++    char str[50];
+     
+     filename = "/proc/acpi/info";
+     filename2 = "/sys/module/acpi/parameters/acpica_version";
+@@ -137,7 +138,8 @@
+ int Get_Kernel_Version(char *c, int verbose)
+ {
+     ifstream file_in;
+-    char *filename, str[20];
++    const char *filename;
++    char str[20];
+     
+     filename = "/proc/sys/kernel/osrelease";
+     
+@@ -185,7 +187,8 @@
+ int Set_Kernel_Version()
+ {
+     ifstream file_in;
+-    char *filename, str[10];
++    const char *filename;
++    char str[10];
+     
+     filename = "/proc/sys/kernel/osrelease";
+     
+@@ -219,7 +222,8 @@
+ int Do_Thermal_Info(const int show_trip, int verbose)
+ {
+     ifstream file_in, file_in2;
+-    char *dirname, str[120];
++    const char *dirname;
++    char str[120];
+     vector<string> filename;
+     
+     DIR *thermal_dir;
+@@ -342,7 +346,8 @@
+ int Do_Fan_Info(int verbose)
+ {
+ 	ifstream file_in;
+-	char *dirname, filename[4][50], str[40];
++	const char *dirname;
++	char filename[4][50], str[40];
+ 	int fan_count = 0;
+ 	DIR *fan_dir;
+ 	struct dirent *fan_dirent;
+@@ -417,7 +422,8 @@
+ int Show_WakeUp_Devices(int verbose)
+ {
+     ifstream file_in;
+-    char *filename, str[40];
++    const char *filename;
++    char str[40];
+     
+     filename = "/proc/acpi/wakeup";
+     
+@@ -462,7 +468,8 @@
+ {
+     ifstream file_in;
+     ofstream file_out;
+-    char *filename, str[50];
++    const char *filename;
++    char str[50];
+     int index = 1;
+     char Name[25][5];            // 25 should be enough I guess, I have only 9 so far //
+     
+@@ -528,7 +535,7 @@
+ int Do_Suspend(int State)                     //put system in sleep state 3 or 4 (standby) //
+ {
+     ofstream file_out;
+-    char *filename, *str;
++    const char *filename, *str;
+     
+     Set_Kernel_Version();
+     
+diff -Naur acpitool-0.5.1_org/src/asus.cpp acpitool-0.5.1/src/asus.cpp
+--- acpitool-0.5.1_org/src/asus.cpp	2012-11-21 12:59:14.565108709 +0530
++++ acpitool-0.5.1/src/asus.cpp	2012-11-21 13:07:47.761128692 +0530
+@@ -45,7 +45,7 @@
+ int Has_Asus_ACPI()
+ {
+     ifstream file_in;
+-    char *filename;
++    const char *filename;
+     
+     filename = "/proc/acpi/asus";
+     
+@@ -82,7 +82,8 @@
+ int Do_Asus_LCD_Info()
+ {
+     ifstream file_in;
+-    char *filename, lcdb[40];
++    const char *filename;
++    char lcdb[40];
+     
+     filename = "/proc/acpi/asus/brn";
+     
+@@ -116,7 +117,7 @@
+ int Set_Asus_LCD_Level(int z)
+ {
+     ofstream file_out;
+-    char *filename;
++    const char *filename;
+           
+     filename = "/proc/acpi/asus/brn";
+     
+@@ -144,7 +145,7 @@
+ int Do_Asus_Video_Info()
+ {
+     ifstream file_in;
+-    char *filename;
++    const char *filename;
+     int type;
+     filename = "/proc/acpi/asus/disp";
+     
+@@ -199,7 +200,8 @@
+ int Do_Asus_Info()
+ {
+     ifstream file_in;
+-    char *filename, info[255];
++    const char *filename;
++    char info[255];
+     
+     filename = "/proc/acpi/asus/info";
+     
+@@ -264,7 +266,7 @@
+ int Set_Asus_LCD_State(int o)
+ {
+     ofstream file_out;
+-    char *filename;
++    const char *filename;
+     filename = "/proc/acpi/asus/lcd";
+     
+     file_out.open(filename);
+@@ -289,7 +291,7 @@
+ int Set_MLed(int state)
+ {
+     ofstream file_out;
+-    char *filename;
++    const char *filename;
+     filename = "/proc/acpi/asus/mled";
+     
+     file_out.open(filename);
+@@ -314,7 +316,7 @@
+ int Set_WLed(int state)
+ {
+     ofstream file_out;
+-    char *filename;
++    const char *filename;
+     filename = "/proc/acpi/asus/wled";
+     
+     file_out.open(filename);
+diff -Naur acpitool-0.5.1_org/src/battery.cpp acpitool-0.5.1/src/battery.cpp
+--- acpitool-0.5.1_org/src/battery.cpp	2012-11-21 12:59:14.565108709 +0530
++++ acpitool-0.5.1/src/battery.cpp	2012-11-21 13:32:35.173186610 +0530
+@@ -333,7 +333,8 @@
+     char filename[4][65], str[100], temp[100];
+     int bat_count = 0, start = 0, findex = 0;
+     DIR *battery_dir;
+-    char *name, *dirname;
++    char *name;
++    const char *dirname;
+        
+     dirname = "/proc/acpi/battery/";    //find all entries in this dir 
+     // dirname = "/home/david/dropzone/data/devel/acpi/battery/";    // keep this for testing //    
+@@ -516,7 +517,8 @@
+     char filename[6][65], str[100], temp[100];
+     int bat_count = 0, start = 0, findex = 0;
+     DIR *battery_dir;
+-    char *name, *dirname;
++    char *name;
++    const char *dirname;
+        
+     dirname = "/sys/class/power_supply/";        //find all entries in this dir 
+ 
+@@ -782,7 +784,8 @@
+ int Count_Batteries_ProcFS()
+ {
+     DIR *battery_dir;
+-    char *name, *dirname;
++    char *name;
++    const char *dirname;
+     int t = 0;
+        
+     dirname = "/proc/acpi/battery/";    
+@@ -828,7 +831,8 @@
+ {
+     DIR *battery_dir;
+     char filename[4][65], str[100];
+-    char *name, *dirname;
++    char *name;
++    const char *dirname;
+     int findex = 0, batcount = 0;
+     
+     /* Since kernel 2.6.24, the acpi interface is gradually being moved from /proc/acpi/... to the sys filesystem. */
+diff -Naur acpitool-0.5.1_org/src/cpu.cpp acpitool-0.5.1/src/cpu.cpp
+--- acpitool-0.5.1_org/src/cpu.cpp	2012-11-21 12:59:14.565108709 +0530
++++ acpitool-0.5.1/src/cpu.cpp	2012-11-21 13:33:21.397188409 +0530
+@@ -48,7 +48,8 @@
+ int Show_CPU_Info()
+ {
+ 	ifstream file_in, file2_in;
+-	char *dirname, filename[25][70], str[300], temp[130];
++	const char *dirname;
++	char filename[25][70], str[300], temp[130];
+ 	int cpu_count = 0, findex = 0, thrott = 0;
+ 	long int max_cstate = 0, cst_cnt = 0, cst_usage_abs[8],
+ 		 cst_usage_notC0 = 0;
+diff -Naur acpitool-0.5.1_org/src/thinkpad.cpp acpitool-0.5.1/src/thinkpad.cpp
+--- acpitool-0.5.1_org/src/thinkpad.cpp	2012-11-21 12:59:14.565108709 +0530
++++ acpitool-0.5.1/src/thinkpad.cpp	2012-11-21 13:37:13.413197444 +0530
+@@ -12,7 +12,7 @@
+ int Has_Thinkpad_ACPI()
+ {
+  ifstream file_in;
+- char *filename;
++ const char *filename;
+ 
+  filename = "/proc/acpi/ibm";
+ 
+@@ -27,7 +27,7 @@
+ int Eject_Thinkpad_Bay()
+ {
+  ofstream bay;
+- char *filename;
++ const char *filename;
+ 
+  if (!Has_Thinkpad_ACPI())
+    {
+@@ -54,7 +54,7 @@
+ int Set_Thinkpad_LCD_Level(int z)
+ {
+  ofstream bright;
+- char *filename;
++ const char *filename;
+ 
+  filename = "/proc/acpi/ibm/brightness";
+ 
+@@ -78,7 +78,8 @@
+ int Do_Thinkpad_Fan_Info()
+ {
+  ifstream fan;
+- char *filename, *status, *speed;
++ const char *filename;
++ char *status, *speed;
+  char line[32];
+  int i;
+ 
+diff -Naur acpitool-0.5.1_org/src/toshiba.cpp acpitool-0.5.1/src/toshiba.cpp
+--- acpitool-0.5.1_org/src/toshiba.cpp	2012-11-21 12:59:14.565108709 +0530
++++ acpitool-0.5.1/src/toshiba.cpp	2012-11-21 13:40:34.929205290 +0530
+@@ -45,7 +45,7 @@
+ int Has_Toshiba_ACPI()
+ {
+     ifstream file_in;
+-    char *filename;
++    const char *filename;
+     
+     filename = "/proc/acpi/toshiba";
+     
+@@ -82,7 +82,8 @@
+ int Do_Toshiba_Fan_Info()
+ {
+     ifstream file_in;
+-    char *filename, str[40];
++    const char *filename;
++    char str[40];
+     
+     filename = "/proc/acpi/toshiba/fan";
+     
+@@ -132,7 +133,8 @@
+ int Do_LCD_Info()
+ {
+     ifstream file_in;
+-    char *filename, str[40];
++    const char *filename;
++    char str[40];
+     
+     filename = "/proc/acpi/toshiba/lcd";
+     
+@@ -166,7 +168,8 @@
+ int Force_Fan(int s)
+ {
+     ofstream file_out;
+-    char *filename, str[15];
++    const char *filename;
++    char str[15];
+     
+     filename = "/proc/acpi/toshiba/fan";
+     
+@@ -200,7 +203,8 @@
+ int Set_LCD_Level(int l)
+ {
+     ofstream file_out;
+-    char *filename, str[15];
++    const char *filename;
++    char str[15];
+     
+     filename = "/proc/acpi/toshiba/lcd";
+     
+@@ -230,7 +234,8 @@
+ int Do_Video_Info()
+ {
+     ifstream file_in;
+-    char *filename, str[40];
++    const char *filename;
++    char str[40];
+     int lcd, crt;
+     
+     filename = "/proc/acpi/toshiba/video";

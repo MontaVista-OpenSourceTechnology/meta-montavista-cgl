@@ -1,0 +1,16 @@
+Don't put tests in /var/evlog, as nothing can be put there
+because it's a tmpramfs.  Instead put them in /usr/share/evlog.
+
+Signed-off-by: Corey Minyard <cminyard@mvista.com>
+
+Index: evlog-1.6.1/user/cmd/evlnotify/test/Makefile.am
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlnotify/test/Makefile.am
++++ evlog-1.6.1/user/cmd/evlnotify/test/Makefile.am
+@@ -36,5 +36,5 @@ notify_test_files := runacttests.sh \
+ 		     actions.nfy \
+ 		     loadactions.sh 
+ 
+-notify_testdir := $(localstatedir)/test
++notify_testdir := $(pkgdatadir)/test
+ notify_test_SCRIPTS := $(notify_test_files)

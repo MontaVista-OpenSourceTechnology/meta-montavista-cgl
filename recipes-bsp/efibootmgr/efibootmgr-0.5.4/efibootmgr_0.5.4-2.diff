@@ -1,0 +1,302 @@
+--- efibootmgr-0.5.4.orig/Makefile
++++ efibootmgr-0.5.4/Makefile
+@@ -11,6 +11,8 @@
+   CFLAGS = $(EXTRA_CFLAGS) -DEFIBOOTMGR_VERSION=\"$(RELEASE_MAJOR).$(RELEASE_MINOR).$(RELEASE_SUBLEVEL)$(RELEASE_EXTRALEVEL)\" \
+ 	    -Wall -g -D_FILE_OFFSET_BITS=64
+ 
++  LDFLAGS += -lz
++
+   MODULES := src
+ 
+   BINDIR := /usr/sbin
+--- efibootmgr-0.5.4.orig/debian/changelog
++++ efibootmgr-0.5.4/debian/changelog
+@@ -0,0 +1,172 @@
++efibootmgr (0.5.4-2) unstable; urgency=low
++
++  * build depend on libpci-dev instead of pcituils-dev, closes: #478374
++
++ -- Bdale Garbee <bdale@gag.com>  Mon, 28 Apr 2008 18:12:40 -0700
++
++efibootmgr (0.5.4-1) unstable; urgency=low
++
++  * new upstream version
++
++ -- Bdale Garbee <bdale@gag.com>  Sun, 24 Feb 2008 17:30:01 -0700
++
++efibootmgr (0.5.3-3) unstable; urgency=low
++
++  * fix FTBFS, closes: #450448
++  * clean up a couple lintian warnings
++
++ -- Bdale Garbee <bdale@gag.com>  Tue, 11 Dec 2007 23:04:09 -0700
++
++efibootmgr (0.5.3-2) unstable; urgency=low
++
++  * merge patch from Sam Hocevar (thanks!), closes: #389923
++
++ -- Bdale Garbee <bdale@gag.com>  Fri, 20 Oct 2006 07:36:12 -0600
++
++efibootmgr (0.5.3-1.1) unstable; urgency=medium
++
++  * Non-maintainer upload.
++  * src/include/gpt.h:
++    + Fix GPT_HEADER_SIGNATURE declaration on 32bit architectures.
++  * src/lib/efi.c:
++    + Remove questionable "hack to allow include of ethtool.h".
++    + Include asm/types.h so that proper types are defined (Closes: #389923).
++  * debian/control:
++    + Set policy to 3.7.2.
++    + Uncapitalised short description.
++
++ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Sun,  8 Oct 2006 14:21:38 +0200
++
++efibootmgr (0.5.3-1) unstable; urgency=low
++
++  * new upstream version, closes: #357884
++
++ -- Bdale Garbee <bdale@gag.com>  Sat,  1 Apr 2006 22:00:02 -0800
++
++efibootmgr (0.5.1-1) unstable; urgency=low
++
++  * new upstream version. 
++
++ -- Bdale Garbee <bdale@gag.com>  Thu, 10 Mar 2005 11:27:00 -0700
++
++efibootmgr (0.5.0-1) unstable; urgency=low
++
++  * new upstream version.  No code changes from 0.5.0-test4, which I called
++    0.4.9 to avoid an epoch roll at this release... this upload just gets us
++    back in version sync with the official release from upstream.
++
++ -- Bdale Garbee <bdale@gag.com>  Sat, 28 Aug 2004 11:51:02 -0600
++
++efibootmgr (0.4.9-0.sarge.2) testing; urgency=high
++
++  * Base dependencies are frozen; this release reverts the portion of the
++    test4 changes that added a dependency on pciutils.  Thanks to Dann Frazier
++    for figuring this out and providing a suitable patch.  Closes: #268490
++
++ -- Bdale Garbee <bdale@gag.com>  Fri, 27 Aug 2004 23:12:38 -0600
++
++efibootmgr (0.4.9-0.sarge.1) testing; urgency=high
++
++  * build 0.4.9-1 in testing chroot for sarge
++  * new upstream version.  This is actually 0.5.0-test4, renumbered to avoid
++    nastiness when 0.5.0 is released.  Upstream says 0.5.0 will be this code
++    with a documentation change.  Closes: #258838, #235227
++  * add pciutils-dev to build dependencies since we need libpci now
++  * hack in a typedef to get a u64 definition for ethtool.h
++  * urgency high because previous version fails with current 2.6 kernels
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 18 Aug 2004 09:47:21 -0600
++
++efibootmgr (0.4.9-1) unstable; urgency=high
++
++  * new upstream version.  This is actually 0.5.0-test4, renumbered to avoid
++    nastiness when 0.5.0 is released.  Upstream says 0.5.0 will be this code
++    with a documentation change.  Closes: #258838, #235227
++  * add pciutils-dev to build dependencies since we need libpci now
++  * hack in a typedef to get a u64 definition for ethtool.h
++  * urgency high because previous version fails with current 2.6 kernels
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 18 Aug 2004 08:59:03 -0600
++
++efibootmgr (0.4.2-4) unstable; urgency=low
++
++  * add amd64 to the list of architectures to build on, closes: #249988
++
++ -- Bdale Garbee <bdale@gag.com>  Sat, 22 May 2004 23:50:58 -0600
++
++efibootmgr (0.4.2-3) unstable; urgency=low
++
++  * patch from upstream to solve compilation problem, closes: #223146
++
++ -- Bdale Garbee <bdale@gag.com>  Tue, 13 Jan 2004 11:20:20 +1030
++
++efibootmgr (0.4.2-2) unstable; urgency=low
++
++  * add i386 to list of supported architectures, since elilo depends on this
++    package to support various options of the elilo shell script.  note that
++    efibootmgr requires associated kernel support which probably isn't in 
++    standard Debian kernels yet, but we'll deal with that when we get access
++    to a real i386 system using EFI firmware...
++
++ -- Bdale Garbee <bdale@gag.com>  Sat, 25 Oct 2003 15:23:59 -0600
++
++efibootmgr (0.4.2-1) unstable; urgency=low
++
++  * new upstream version
++
++ -- Bdale Garbee <bdale@gag.com>  Thu,  4 Sep 2003 15:38:46 -0600
++
++efibootmgr (0.4.1-1) unstable; urgency=low
++
++  * new upstream version, closes: #165956
++  *   this version can run non-root, closes: #163447
++  *   this version checks if boot option was specified, closes: #163450
++  * remove local copy of man page source and related processing now that
++    man page is integrated with upstream release
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 23 Oct 2002 16:05:53 -0600
++
++efibootmgr (0.4.0-1) unstable; urgency=low
++
++  * new upstream version, closes: #146544
++  * updated man page from Dann Frazier <dannf@debian.org>, closes: #157213
++
++ -- Bdale Garbee <bdale@gag.com>  Sun, 18 Aug 2002 20:40:48 -0600
++
++efibootmgr (0.3.4-3) unstable; urgency=low
++
++  * add man page from Dann Frazier <dannf@debian.org>, closes: #140514
++
++ -- Bdale Garbee <bdale@gag.com>  Sat, 30 Mar 2002 13:53:32 -0700
++
++efibootmgr (0.3.4-2) unstable; urgency=medium
++
++  * apply patch from Alex Williamson so we work with EFI 1.1 too
++  * cosmetic cleanups to packaging
++
++ -- Bdale Garbee <bdale@gag.com>  Wed, 30 Jan 2002 10:45:42 -0700
++
++efibootmgr (0.3.4-1) unstable; urgency=low
++
++  * new upstream version
++
++ -- Bdale Garbee <bdale@gag.com>  Fri, 10 Aug 2001 13:15:19 -0600
++
++efibootmgr (0.3.3-2) unstable; urgency=medium
++
++  * patch from Richard Hirst to fix a buffer size problem 
++
++ -- Bdale Garbee <bdale@gag.com>  Wed,  8 Aug 2001 01:21:03 -0600
++
++efibootmgr (0.3.3-1) unstable; urgency=low
++
++  * new upstream release
++  * fix lintian complaint about naming of upstream changelog
++
++ -- Bdale Garbee <bdale@gag.com>  Fri,  3 Aug 2001 17:08:24 -0600
++
++efibootmgr (0.3.2-1) unstable; urgency=low
++
++  * Initial Release.
++
++ -- Bdale Garbee <bdale@gag.com>  Tue, 10 Jul 2001 15:37:11 -0600
+--- efibootmgr-0.5.4.orig/debian/rules
++++ efibootmgr-0.5.4/debian/rules
+@@ -0,0 +1,57 @@
++#!/usr/bin/make -f
++
++configure: configure-stamp
++configure-stamp:
++	dh_testdir
++
++	touch configure-stamp
++
++build: configure-stamp build-stamp
++build-stamp:
++	dh_testdir
++	$(MAKE)
++	touch build-stamp
++
++clean:
++	dh_testdir
++	dh_testroot
++	rm -f build-stamp configure-stamp
++	$(MAKE) clean
++	dh_clean
++
++install: build
++	dh_testdir
++	dh_testroot
++	dh_clean -k
++	dh_installdirs
++
++	cp src/efibootmgr/efibootmgr debian/efibootmgr/bin/efibootmgr
++	chown root:root debian/efibootmgr/bin/efibootmgr
++	chmod 0755 debian/efibootmgr/bin/efibootmgr
++
++# Build architecture-independent files here.
++binary-indep: build install
++
++# Build architecture-dependent files here.
++binary-arch: build install
++	dh_testdir
++	dh_testroot
++	dh_installdocs
++	dh_installexamples
++	dh_installmenu
++	dh_installcron
++	dh_installman src/man/man8/efibootmgr.8
++	dh_installinfo
++	dh_installchangelogs doc/ChangeLog
++	dh_link
++	dh_strip
++	dh_compress
++	dh_fixperms
++	dh_installdeb
++	dh_shlibdeps
++	dh_gencontrol
++	dh_md5sums
++	dh_builddeb
++
++binary: binary-indep binary-arch
++.PHONY: build clean binary-indep binary-arch binary install configure
+--- efibootmgr-0.5.4.orig/debian/copyright
++++ efibootmgr-0.5.4/debian/copyright
+@@ -0,0 +1,16 @@
++This package was constructed by Bdale Garbee <bdale@gag.com>, using source
++downloaded from
++
++	http://domsch.com/linux/ia64/
++
++Upstream Author: Matt Domsch <Matt_Domsch@Dell.com>
++
++Copyright:
++
++  Copyright (C) 2001-2005 Dell Computer Corporation <Matt_Domsch@dell.com>
++
++  efibootmgr is distributed under the GPL.
++
++On Debian GNU/Linux systems, the complete text of the GNU General
++Public License can be found in `/usr/share/common-licenses/GPL'.
++
+--- efibootmgr-0.5.4.orig/debian/docs
++++ efibootmgr-0.5.4/debian/docs
+@@ -0,0 +1,2 @@
++README
++doc/TODO
+--- efibootmgr-0.5.4.orig/debian/dirs
++++ efibootmgr-0.5.4/debian/dirs
+@@ -0,0 +1 @@
++bin
+--- efibootmgr-0.5.4.orig/debian/compat
++++ efibootmgr-0.5.4/debian/compat
+@@ -0,0 +1 @@
++5
+--- efibootmgr-0.5.4.orig/debian/control
++++ efibootmgr-0.5.4/debian/control
+@@ -0,0 +1,21 @@
++Source: efibootmgr
++Section: admin
++Priority: optional
++Maintainer: Bdale Garbee <bdale@gag.com>
++Build-Depends: debhelper (>> 5), docbook-to-man, libpci-dev, zlib1g-dev
++Standards-Version: 3.7.3
++
++Package: efibootmgr
++Architecture: amd64 i386 ia64
++Depends: ${shlibs:Depends}
++Description: Interact with the EFI Boot Manager 
++ This is a Linux user-space application to modify the Intel Extensible 
++ Firmware Interface (EFI) Boot Manager configuration.  This application can 
++ create and destroy boot entries, change the boot order, change the next 
++ running boot option, and more.
++ .
++ Details on the EFI Boot Manager are available from the EFI Specification, 
++ v1.02 or above, available from http://developer.intel.com.
++ .
++ Note: efibootmgr requires that the kernel module efivars be loaded prior 
++ to use.  'modprobe efivars' should do the trick.

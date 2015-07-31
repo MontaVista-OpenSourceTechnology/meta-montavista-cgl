@@ -1,0 +1,3080 @@
+Index: evlog-telco-1.5.1/evlforward/evlforward.1
+===================================================================
+--- evlog-telco-1.5.1.orig/evlforward/evlforward.1
++++ evlog-telco-1.5.1/evlforward/evlforward.1
+@@ -3,7 +3,7 @@
+ evlforward \- POSIX log forwarding services
+ .SH SYNOPSIS
+ \fBevlforward\fR
+-[\fB-c -n \fIsync-time\fB -r \fIresponse-time\fB] \fR[mode-specific-options]\fR
++[\fBmode-common-options\fR] [\fBmode-specific-options\fR]
+ .SH "DESCRIPTION"
+ .PP
+ The \fBevlforward\fR program performs the daemon responsibilities of
+@@ -101,3 +101,5 @@ Standard Event log file
+ .TP
+ \fB\fI/var/log/messages\fB\fR
+ Standard syslog log file
++.SH "SEE ALSO"
++\fBevlsyslog\fR(1)
+Index: evlog-telco-1.5.1/evlforward/evlforward.c
+===================================================================
+--- evlog-telco-1.5.1.orig/evlforward/evlforward.c
++++ evlog-telco-1.5.1/evlforward/evlforward.c
+@@ -12,7 +12,7 @@
+    100msec will lead to a noticable increase in CPU usage by this daemon.
+    The syslog to POSIX forwarding can be disabled with the -s option.
+ 
+-   This program also performs the job of forwarding POSIX events (generated
++   This program also performs the job of forwarding POSIX events (generate
+    by the POSIX event generation calls) to syslog(). Since forwarding
+    occurs in both directions, filters are used to prevent duplicate
+    events (and endless loops). The POSIX to syslog forwarding can be disabled 
+@@ -56,6 +56,7 @@
+  *
+ */
+ 
++#define _LARGEFILE64_SOURCE
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <sys/types.h>
+@@ -64,7 +65,6 @@
+ #include <sys/signal.h>
+ #include <unistd.h>
+ #include <sys/evl_log.h>
+-#include "pidfile.h"
+ #include <posix_evlog.h>
+ #include <sys/uio.h>
+ #include <sys/wait.h>
+@@ -80,30 +80,20 @@
+ #include <evlog.h>
+ #include <sys/syslog.h>
+ 
+-#define	MAXBUF		1024
+-#define	MAXRETRY	5
+-#define SYSLOG		"/var/log/messages"
+-#define EVENT_TYPE	5555
+-#define DEFAULT_RESPONSE_TIME	200000
+-
+-char			*Prog_name;
+-
+-int			Gflag = 0;
+-int			Facility = LOG_SYSLOG;
+-int			Level = LOG_NOTICE;
+-
+-int			Iflag = 0;
+-int			Pflag = 1;
+-int			Pflag_entered = 0;
+-int			Sflag = 1;
+-int			Sflag_entered = 0;
+-int 			Cflag = 0;
+-posix_log_notify_t	Myhandle = -1;
+-posix_log_query_t	*Query = (posix_log_query_t *) NULL;
+-int			Notify_retries = 60;	/* seconds */
+-char			*PidFile = "/var/run/evlforward.pid";
++#include "internal.h"
+ 
+-static void
++#define DEFAULT_RESPONSE_TIME	200000	/* usec */
++#define SYSLOG			"/var/log/messages"
++
++
++char			*progName;
++
++static char		*PidFile = (char *) NULL;
++
++static pthread_t	Posix_to_syslog_thread;
++static pthread_t	Syslog_to_posix_thread;
++
++void
+ msg( char *fmt, ... )
+ {
+ 	va_list	ap;
+@@ -120,643 +110,300 @@ msg( char *fmt, ... )
+ static void
+ cleanup( int sig )
+ {
+-	msg("\nDe-register Event logging and Exiting %s...", Prog_name);
++	msg("\nkilling threads and exiting %s...", progName);
+ 
+-	if ( Query != (posix_log_query_t *) NULL )
++	if ( PidFile != (char *) NULL )
+ 	{
+-		(void) posix_log_query_destroy(Query);
++		(void) unlink(PidFile);
+ 	}
+ 
+-	if ( Myhandle != -1 )
+-	{
+-		int	erc;
+-
+-		erc = posix_log_notify_remove(Myhandle);
+-
+-		if ( erc != 0 )
+-		{
+-			msg(
+-			"WARNING: %s: posix_log_notify_remove() failure: %d\n",
+-			Prog_name, erc);
+-		}
+-	}
+-
+-	if ( !Iflag )
+-	{
+-		(void) remove_pid(PidFile);
+-	}
++	(void) pthread_cancel(Posix_to_syslog_thread);
++	(void) pthread_cancel(Syslog_to_posix_thread);
+ 
+ 	exit(0);
+ }
+ 
++/*
++ * If the PID present in the file is running, return 0. Otherwise return 1.
++ */
++
+ static int
+-query_action( posix_log_query_t *recid_query, int noisy )
++_evlValidate_pid( char *pfile )
+ {
+-	int			ret;
+-	int			len1;
+-	int			len2;
+-	posix_logd_t		logdes;
+-	struct posix_log_entry	myentry;
+-	char			log_buf[MAXBUF + 128];
+-	char			fmt_msg[MAXBUF + 128];
++	FILE	*f;
++	int	f_pid;
+ 
+-	/*
+-	 * Attempt to open the log. Deal with busy.
+-	 */
++	f = fopen(pfile, "r");
+ 
+-	while ( 1 )
++	if ( f == (FILE *) NULL )
+ 	{
+-		ret = posix_log_open(&logdes, NULL);
+-
+-		if ( ret != EBUSY )
+-		{
+-			break;
+-		}
+-
+-		sleep(1);
++		return (0);
+ 	}
+ 
+-	if ( ret != 0 )
+-	{
+-		if ( noisy )
+-		{
+-			msg("\nERROR: %s: event log open failure: %d\n",
+-							Prog_name, ret);
+-		}
++	(void) fscanf(f, "%d", &f_pid);
++	(void) fclose(f);
+ 
+-		return (ret);
+-	} 
+-
+-	/*
+-	 * Attempt to seek to the end of the log.
+-	 */
+-
+-	ret = posix_log_seek(logdes, NULL, POSIX_LOG_SEEK_END);
+-
+-	if ( ret != 0 )
++	if ( kill(f_pid, 0) && (errno == ESRCH) )
+ 	{
+-		if ( noisy )
+-		{
+-			msg("\nERROR: %s: log end seek failure: %d\n",
+-							Prog_name, ret);
+-		}
+-
+-		goto bail;
++		return (0);
+ 	}
+ 
+-	/*
+-	 * Attempt to run the query searching backwards.
+-	 */
+-
+-	ret = posix_log_seek(logdes, recid_query, POSIX_LOG_SEEK_BACKWARD);
+-
+-	if ( ret != 0 )
+-	{
+-		if ( noisy )
+-		{
+-			msg("\nERROR: %s: backwards log seek failure: %d\n",
+-							Prog_name, ret);
+-		}
+-
+-		goto bail;
+-	}
++	return (1);
++}
+ 
+-	/*
+-	 * Attempt to read the entry.
+-	 */
++/*
++ * Update it's PID in the 'pfile'.
++ */
+ 
+-	ret = posix_log_read(logdes, &myentry, log_buf, MAXBUF - 1);
++static int
++_evlUpdate_pid(char *pfile)
++{
++	FILE	*f;
++	int	fd;
++	int	pid;
+ 
+-	/*
+-	 * Format and syslog it if all went well.
+-	 */
++	fd = open(pfile, O_RDWR|O_CREAT, 0644);
+ 
+-	if ( ret == 0 )
++	if ( fd == -1 )
+ 	{
+-		/*
+-		 * We're added to the message size so lets make sure the
+-		 * total size is less than syslog max.
+-		 */
+-
+-		(void) sprintf(fmt_msg,
+-	"|event_type=%d|facility=%d|severity=%d|uid=%d|gid=%d|pid=%d|pgrp=%d|",
+-		myentry.log_event_type, myentry.log_facility,
+-		myentry.log_severity, myentry.log_uid, myentry.log_gid,
+-		myentry.log_pid, myentry.log_pgrp);
+-
+-		len1 = strlen(log_buf);
+-		len2 = strlen(fmt_msg) + len1;
+-
+-		if ( (len2 >= MAXBUF) && (len1 > (len2 - MAXBUF)) )
+-		{
+-			log_buf[len1 - len2 + MAXBUF] = 0;
+-		}
+-
+-		(void) syslog(myentry.log_severity, "%s%s", fmt_msg, log_buf);
++		return (0);
+ 	}
+ 
+-bail:
++   	f = fdopen(fd, "r+");
+ 
+-	(void) posix_log_close(logdes);
+-
+-	return (ret);
+-}
+-
+-static void
+-send2syslog( int signo, siginfo_t *info, void *ignored )
+-{
+-	int			erc;
+-	posix_log_recid_t	recid;
+-	char			query_definition[16];
+-	char			error_string[MAXBUF];
+-	char			posix_query_buffer[MAXBUF + 128];
+-
+-	/*
+-	 * Attempt to get the recid of the event that caused this
+-	 * function call.
+-	 */
+-
+-	erc = posix_log_siginfo_getrecid(info, ignored, &recid);
+-
+-	if ( erc != 0 )
++	if ( f == (FILE *) NULL )
+ 	{
+-		msg("\nERROR: %s: posix_log_siginfo_getrecid failure: %d\n",
+-			Prog_name, erc);
++		(void) close(fd);
+ 
+-		return;
++		return (0);
+ 	}
+ 
+-	/*
+-	 * Attempt to build a POSIX log query for the specified recid.
+-	 */
+-
+-	(void) sprintf(query_definition, "recid=%d", recid);
++	pid = getpid();
++	(void) flock(fd, LOCK_EX);
++	(void) fprintf(f, "%d\n", pid);
++	(void) fclose(f);	/* closes fd; releases locks */
+ 
+-	erc = posix_log_query_create(query_definition, POSIX_LOG_PRPS_SEEK,
+-				(posix_log_query_t *) posix_query_buffer,
+-				error_string, MAXBUF);
++   	return (1);
++}
+ 
+-	if ( erc != 0 )
+-	{
+-		msg("\nERROR: %s: posix_log_query_create failure: %s.\n",
+-						Prog_name, error_string);
++/*
++ * Daemonize evlforward
++ */
+ 
+-		return;
+-	}
++void
++_daemonize(void)
++{
++	int	i;
++	pid_t	pid;
++	int	devnull;
+ 
+ 	/*
+-	 * Attempt to query silently and if that fails, try it again
+-	 * allowing errors to be output.
++	 * Fork a child and let the parent exit. This guarentees that
++	 * the first child is not a process group leader.
+ 	 */
+ 
+-	erc = query_action((posix_log_query_t *) posix_query_buffer, 0);
++	pid = fork();
+ 
+-	if ( erc != 0 )
++	if ( pid == -1 )
+ 	{
+-		(void) query_action((posix_log_query_t *) posix_query_buffer,
+-									1);
++		msg("%s: Cannot fork child process.\n", progName);
++		exit(1);
+ 	}
++	else if ( pid > 0 )
++		exit (0);
+ 
+ 	/*
+-	 * Destroy what has been created.
++	 * First child process.
++	 *
++	 * Disassociate from controlling terminal and process group.
++	 * Ensure the process can't reacquire a new controlling terminal
+ 	 */
+ 
+-	(void) posix_log_query_destroy(
+-				(posix_log_query_t *) posix_query_buffer);
++	(void) setpgrp();
+ 
+ 	/*
+-	 * Done!
++	 * Immunize from process group leader death.
+ 	 */
+ 
+-	return;
+-}
++	(void) signal(SIGHUP, SIG_IGN);
+ 
+-static void
+-evlog_listen( void (*function)(int, siginfo_t *, void *) )
+-{
+-	int			erc;
+-	unsigned int		count;
+-	static struct sigaction	SigRTAction;
+-	char			qsbuf[MAXBUF];
+-	struct sigevent		mynotification;
+-	char			error_string[MAXBUF];
+-	char			query_definition[256];
++	pid = fork();
+ 
+-	/*
+-	 * Set up a signal handler.
+-	 */
+-
+-	(void) memset(&SigRTAction, 0, sizeof(SigRTAction));
+-	SigRTAction.sa_sigaction = function;
+-	SigRTAction.sa_flags = SA_SIGINFO;			
+-
+-	if ( sigaction(SIGRTMIN + 1, &SigRTAction, NULL) < 0 )
++	if ( pid == -1 )
+ 	{
+-		msg("ERROR: %s: sigaction failure: %s\n", Prog_name,
+-							strerror(errno));
+-
++		msg("%s: Cannot fork child process.\n", progName);
+ 		exit(1);
+ 	}
++	else if ( pid > 0 )
++		exit(0);
+ 
+-	/*
+-	 * Register the query string and check it for basic syntax req.
+-	 */
+-
+-	Query = (posix_log_query_t *) &qsbuf; 
+-
+-	(void) strcpy(query_definition, "(format = STRING && (facility != KERN || event_type != 2) && (facility != SYSLOG || event_type != \"5555\"))"); 
+-
+-	if ( posix_log_query_create(query_definition, POSIX_LOG_PRPS_NOTIFY,
+-					Query, error_string, MAXBUF) != 0 )
+-	{
+-		msg("ERROR: %s: query creation failure: %s\n",
+-						Prog_name, error_string);
++	/* treasure away my PID away */
++	if ( (PidFile != (char *) NULL) && !_evlUpdate_pid(PidFile) ) {
++		msg("%s: Cannot write PID to '%s' file\n", progName, PidFile);
+ 
+ 		exit(1);
+ 	}
+ 
+ 	/*
+-	 * Initialize mynotification with the local function name which is
+-	 * to be the callback function and set the desired POSIX signal
+-	 * value. If your application only needs one callback registration
+-	 * then use SIGRTMIN+1. For each additional callback function, you
+-	 * should use different signal values between SIGRTMIN to SIGRTMAX
+-	 * (a range of 32 values).
+-	 */
+-
+-	mynotification.sigev_notify = SIGEV_SIGNAL;
+-	mynotification.sigev_signo = SIGRTMIN + 1;
+-	mynotification.sigev_value.sival_int = 101;	
+-
+-	/*
+-	 * Attempt to attach ourselves to EVLOG. Retry as necessary.
++	 * Second child process.
++	 *
++	 * redirect fd 0 1 2 to /dev/null.
+ 	 */
++#if !defined(DEBUG)
++	devnull = open("/dev/null", O_WRONLY);
+ 
+-	count = Notify_retries;
+-
+-	do
++	if ( devnull != -1 )
+ 	{
+-		Myhandle = -1;
+-
+-		erc = posix_log_notify_add(Query, &mynotification, 
+-					POSIX_LOG_SEND_RECID, &Myhandle);
+-
+-		if ( erc != EAGAIN )
++		for (i = 0; i <= 2; i++)
+ 		{
+-			break;
++			(void) close(i);
++			(void) dup2(devnull, i);
+ 		}
+-
+-		sleep(1);
+-	}
+-	while ( count-- );
+-
+-	if ( erc != 0 )
+-	{
+-		msg("\nERROR: %s: posix_log_notify_add failure: %d\n",
+-							Prog_name, erc);
+-
+-		exit(1);
++		(void) close(devnull);
+ 	}
++#endif
+ 
+ 	/*
+-	 * Done!
++	 * Clear any inherited file mode creation mask.
+ 	 */
+ 
+-	return;
++	(void) umask(0);
+ }
+ 
++
+ static void
+-log_filter( char str[] )
++traditional_mode( int response, int do_posix, int do_syslog, int catch_up )
+ {
+-	int	i;
+-	int	len;
+-
+-	/* Remove bad chars from message */
++	struct syslog_to_posix_parameters	stpp;
+ 
+-	len = strlen(str);
++	PidFile = "/var/run/evlforward.pid";
+ 
+-	for ( i = 0; i < len; i++ )
++	if ( _evlValidate_pid(PidFile) )
+ 	{
+-		if ( (str[i] == '`') || (str[i] == '@') ||
+-			(str[i] == '\n') || (str[i] == '\r') )
+-		{
+-			str[i] = ' ';
+-		}
++		(void) fprintf(stderr, "%s: Already running.\n", progName);
++		exit(1);
+ 	}
+ 
+-	return;
+-}
++	_daemonize();
+ 
+-static int
+-process_entry( char line[] )
+-{
+-	struct posix_log_entry	new_entry;
++	(void) signal(SIGINT, cleanup);
++	(void) signal(SIGTERM, cleanup);
++	(void) signal(SIGHUP, cleanup);
+ 
+-	if ( Gflag )
+-	{
+-		char	buf[MAXBUF];
+-		char	str[MAXBUF];
++	/*
++  	 * Carry out the assigned operations.
++  	 */
+ 
++	if ( do_posix )
++  	{
+ 		/*
+-		 * Grok the input as a syslog entry. If a valid entry and
+-		 * not kernel, then we need to forward
++		 * Forward POSIX to syslog
+ 		 */
+ 
+-		buf[0] = '\0';
++		extern void posix_to_syslog_thread( void * );
+ 
+-		if ( (sscanf(line, "%s%s%s%s%s",
+-					str, str, str, str, buf) != 5) ||
+-		     !strcmp(buf, "kernel:") || !strcmp(buf, "evlforward:") )
++		if ( pthread_create(&Posix_to_syslog_thread,
++				(pthread_attr_t *) NULL,
++				(void *(*)(void *)) posix_to_syslog_thread,
++				(void *) NULL) != 0 )
+ 		{
+-			return (0);
+-		}
+-	}
+-
+-	log_filter(line);
+-
+-	new_entry.log_event_type = EVENT_TYPE;
+-	new_entry.log_facility = Facility;
+-	new_entry.log_severity = Level;
+-	new_entry.log_flags = 0;/* Not using PXLOG_TRUNCATE */
+-
+-	/*
+-	 * Blind write to log.
+-	 */
+-
+-	(void) posix_log_printf(new_entry.log_facility,
+-			new_entry.log_event_type, new_entry.log_severity,
+-			(unsigned int) &new_entry.log_flags, "%s", line);
+-
+-	return (0);
+-}
+-
+-static void
+-reset_log( int sig )
+-{
+-	msg("WARNING: %s: discarding old syslog entries\n", Prog_name);
+-
+-        Cflag = 0;
+-
+-	(void) signal(SIGHUP, reset_log);
+-}
+-
+-static void
+-log_listen( char *input_file, int response )
+-{
+-	int	i;
+-	int	j;
+-	int	fd;
+-	int	len;
+-	char	buf[MAXBUF];
+-	char	line[MAXBUF + 3];
++			msg("%s: thread creation failure\n", progName);
+ 
+-	/*
+-	 * Main daemon code. Open log file. If Cflag is zero then forward
+-	 * all entries in syslog file. If Cflag is one read to the end of
+-	 * log file and only forward new entries.
+-	 */
+-
+-	fd = open(input_file, O_RDONLY | O_NDELAY);
++			exit(1);
++		}
++  	}
+ 
+-	if ( fd == -1 )
++	if ( do_syslog )
+ 	{
+-		msg("ERROR: %s: Could not open log (%s): %s\n",
+-				Prog_name, input_file, strerror(errno));
++		/*
++		 * Forward syslog to POSIX.
++		 */
+ 
+-		exit(1);
+-    	}
++		extern void syslog_to_posix_thread( void * );
+ 
+-	(void) signal(SIGHUP, reset_log);
++		stpp.response = response;
++		stpp.catch_up = catch_up;
++		stpp.grok = 1;
++		stpp.facility = LOG_SYSLOG;
++		stpp.level = LOG_NOTICE;
++		stpp.listen_path = SYSLOG;
++
++		if ( pthread_create(&Syslog_to_posix_thread,
++				(pthread_attr_t *) NULL,
++				(void *(*)(void *)) syslog_to_posix_thread,
++				(void *) &stpp) != 0 )
++		{
++			msg("%s: thread creation failure\n", progName);
+ 
+-	i = 0;
++			exit(1);
++  		}
++  	}
+ 
+ 	while ( 1 )
+ 	{
+-		while ( (len = read(fd, buf, sizeof(buf))) > 0 )
+-		{
+-			for ( j = 0; j < len; j++ )
+-			{
+-				line[i] = buf[j];
+-
+-				if ( line[i++] == '\n' )
+-				{
+-					line[i] = '\0';
+-
+-					if ( Cflag == 1 )
+-					{
+-					  	process_entry(line); 
+-					}
+-
+-					i = 0;
+-				}
+-
+-				/*
+-				 * Truncate lines that are too long.
+-				 */
+-
+-				if ( i > MAXBUF )
+-				{
+-					i--;
+-				}
+-			}
+-		}
+-
+-		if ( len == 0 )			/* no more data */
+-		{
+-			if ( Cflag == 0 )
+-			{
+-				Cflag = 1;
+-			}
+-		}
+-		else				/* error */
+-		{
+-			msg(
+-			"ERROR: %s: log file (%s) read error (%d): catch up\n",
+-					Prog_name, input_file, errno);
+-
+-			Cflag = 1;
+-
+-			i = 0;
+-		}
+-
+-		usleep(response);
++		(void) sleep(10000);
+ 	}
+ 
+ 	return;
+ }
+ 
+ /*
+- * End the parent process.
++ * Eventually allow multiple files with options... one thread per file
+  */
+ 
+ static void
+-evlexit( int sig )
++file_follow_mode(	char	*input_file,
++			int	response,
++			int	facility,
++			int	level,
++			int	catch_up,
++			int	grok )
+ {
+-	exit(0);
+-}
+-
+-static void
+-syslog_mode( char *input_file, int response )
+-{
+-	int	c;
+-	pid_t	ppid = getpid();
+-
+-	/*
+-	 * Use old syslog code to check if daemon is already running
+-	 * and do necessary forking and signal stuff
+-	 */
+-
+-	if ( check_pid(PidFile) )
+-	{
+-		msg("ERROR: %s: Already running.\n", Prog_name);
+-		exit(1);
+-	}
+-	else
+-	{
+-		(void) signal(SIGTERM, evlexit);
+-
+-		c = fork();
+-
+-		if ( c == -1 )
+-		{
+-			msg("ERROR: %s: fork failure: %s\n", Prog_name,
+-							strerror(errno));
++	struct syslog_to_posix_parameters	stpp;
+ 
+-			exit(1);
+-		}
++	extern void syslog_to_posix_thread( void * );
+ 
+-		if ( c != 0 )
+-		{
+-			/* parent process */
+-			sleep(60);
+-			exit(1);
+-		}
+-
+-		(void) setsid();
+-	}
+-
+-	if ( check_pid(PidFile) )
+-	{ 
+-		msg("ERROR: %s: Pidfile (and pid) already exist.\n", Prog_name);
+-
+-		exit(1);
+-	}
+-	else
+-	{
+-		if ( !write_pid(PidFile) )
+-		{
+-			msg("ERROR: %s: Can't write pid.\n", Prog_name);
++	PidFile = (char *) NULL;
+ 
+-			exit(1);
+-		}
+-	}
++	_daemonize();
+ 
+ 	(void) signal(SIGINT, cleanup);
+ 	(void) signal(SIGTERM, cleanup);
++	(void) signal(SIGHUP, cleanup);
+ 
+ 	/*
+-	 * Kill the parent process.
++	 * Forward specified file to POSIX.
+ 	 */
+ 
+-	(void) kill(ppid, SIGTERM);
+-
+-	/*
+-	 * Carry out the assigned operations.
+-	 */
++	stpp.response = response;
++	stpp.catch_up = catch_up;
++	stpp.grok = 1;
++	stpp.facility = facility;
++	stpp.level = level;
++	stpp.listen_path = input_file;
+ 
+-	if ( Pflag == 1 )
++	if ( pthread_create(&Syslog_to_posix_thread,
++				(pthread_attr_t *) NULL,
++				(void *(*)(void *)) syslog_to_posix_thread,
++				(void *) &stpp) != 0 )
+ 	{
+-		evlog_listen(send2syslog);
+-	}
+-
+-	if ( Sflag == 1 )
+-	{
+-		log_listen(input_file, response);
+-	}
+-	else
+-	{
+-		/* Just wait for POSIX event notification */
+-
+-		while ( 1 )
+-		{
+-	    		sleep(10000);
+-		}
+-	}
+-
+-	return;
+-}
+-
+-static void
+-send_to_nowhere( int signo, siginfo_t *info, void *ignored )
+-{
+-	return;
+-}
+-
+-static void
+-file_follow_mode( char *input_file, int response )
+-{
+-	int	c;
+-	pid_t	ppid = getpid();
+-
+-	(void) signal(SIGTERM, evlexit);
+-
+-	c = fork();
+-
+-	if ( c == -1 )
+-	{
+-		msg("ERROR: %s: fork failure: %s\n", Prog_name,
+-						strerror(errno));
++		msg("%s: thread creation failure\n", progName);
+ 
+ 		exit(1);
+-	}
++  	}
+ 
+-	if ( c != 0 )
++	while ( 1 )
+ 	{
+-		/* parent process */
+-		sleep(60);
+-		exit(1);
++		(void) sleep(10000);
+ 	}
+ 
+-	(void) setsid();
+-
+-	(void) signal(SIGINT, cleanup);
+-	(void) signal(SIGTERM, cleanup);
+-
+-	/*
+-	 * Kill the parent process.
+-	 */
+-
+-	(void) kill(ppid, SIGTERM);
+-
+-	/*
+-	 * Connect with EVLOG or die trying.
+-	 */
+-
+-	evlog_listen(send_to_nowhere);
+-
+-	/*
+-	 * Deregister everything. Connection established.
+-	 */
+-
+-	(void) posix_log_query_destroy(Query);
+-	Query = NULL;
+-
+-	(void) posix_log_notify_remove(Myhandle);
+-	Myhandle = -1;
+-
+-	/*
+-	 * Follow the file.
+-	 */
+-
+-	log_listen(input_file, response);
+-
+ 	return;
+ }
+ 
+ static int
+ usage( void )
+ {
+-	msg("Usage: %s [common-options] [mode-options]\n", Prog_name);
++	msg("Usage: %s [common-options] [mode-options]\n", progName);
+ 
+ 	msg("	OPTIONS COMMON TO ALL MODES\n");
+ 	msg("	[-c] [-n wait-time] [-r response-time]\n");
+@@ -832,101 +479,107 @@ int
+ main( int argc, char *argv[] )
+ {
+ 	int	c;
++	char	*p;
++	int	level;
++	int	facility;
++
++	int	gflag = 0;
++	int 	cflag = 0;
++	int	pflag = 1;
++	int	pflag_entered = 0;
++	int	sflag = 1;
++	int	sflag_entered = 0;
++
++	char	*input_file = (char *) NULL;
++	char	*level_string = (char *) NULL;
++	char	*facility_string = (char *) NULL;
+ 
+-	int	fflag = 0;
+-	int	lflag = 0;
+-	int	nflag = 0;
+-	char	*input_file = NULL;
+-	char	*level_string = NULL;
+-	char	*facility_string = NULL;
+ 	int	response = DEFAULT_RESPONSE_TIME;
+ 
+-	Prog_name = argv[0];
++	p = strchr(argv[0], '/');
+ 
+-	while ((c = getopt(argc, argv, "cgf:i:l:n:pr:s")) != EOF)
++	if ( p == (char *) NULL )
++	{
++		progName = argv[0];
++	}
++	else
++	{
++		progName = p + 1;
++	}
++
++	while ((c = getopt(argc, argv, "cgf:i:l:pr:s")) != EOF)
+ 	{
+ 		switch (c)
+ 		{
+ 		case 'c':
+-			Cflag = 1;
+-			break;
+-
+-		case 'g':
+-			Gflag = 1;
+-			break;
+-
+-		case 'f':
+-			if ( fflag )
++			if ( cflag++ )
+ 			{
+-				msg("ERROR: %s: Invalid facility %s\n",
+-							Prog_name, optarg);
++				msg("%s: catchup already specified\n",
++								progName);
+ 
+ 				exit(1);
+ 			}
+ 
+-			fflag = 1;
+-			facility_string = optarg;
+ 			break;
+ 
+-		case 'i':
+-			if ( Iflag )
++		case 'g':
++			if ( gflag++ )
+ 			{
+-				msg("ERROR: %s: Invalid input file %s\n",
+-							Prog_name, optarg);
++				msg("%s: grok already specified\n",
++								progName);
+ 
+ 				exit(1);
+ 			}
+ 
+-			Iflag = 1;
+-			input_file = optarg;
+ 			break;
+ 
+-		case 'l':
+-			if ( lflag )
++		case 'f':
++			if ( facility_string != (char *) NULL )
+ 			{
+-				msg("ERROR: %s: Invalid level %s.\n",
+-							Prog_name, optarg);
++				msg("%s: facility already specified\n",
++								progName);
+ 
+ 				exit(1);
+ 			}
+ 
+-			lflag = 1;
+-			level_string = optarg;
++			facility_string = optarg;
+ 			break;
+ 
+-		case 'n':
+-			if ( nflag )
++		case 'i':
++			if ( input_file != (char *) NULL )
+ 			{
+-				msg("ERROR: %s: Invalid wait time %s.\n",
+-							Prog_name, optarg);
++				msg("%s: input file already specified\n",
++								progName);
+ 
+ 				exit(1);
+ 			}
+ 
+-			if ( (sscanf(optarg, "%d",
+-						&Notify_retries) != 1) ||
+-						(Notify_retries < 1) )
++			input_file = optarg;
++			break;
++
++		case 'l':
++			if ( level_string != (char *) NULL )
+ 			{
+-				msg("ERROR: %s: Invalid wait time.\n",
+-								Prog_name);
++				msg("%s: level already specified\n",
++								progName);
+ 
+ 				exit(1);
+ 			}
+ 
+-			nflag = 1;
++			level_string = optarg;
+ 			break;
+ 
+ 		case 'p':
+-			Pflag = 0;
+-			Pflag_entered = 1;
++			pflag = 0;
++			pflag_entered = 1;
+ 			break;
+ 
+ 		case 'r':
+ 			if ( (sscanf(optarg, "%d", &response) != 1) ||
+ 			     (response < 1) || (response > 2000) )
+ 			{
+-				msg("ERROR: %s: Invalid response time.\n",
+-								Prog_name);
++				msg("%s: Invalid response time.\n",
++								progName);
+ 
+ 				exit(1);
+ 			}
+@@ -935,70 +588,69 @@ main( int argc, char *argv[] )
+ 			break;
+ 
+ 		case 's':
+-			Sflag = 0;
+-			Sflag_entered = 1;
++			sflag = 0;
++			sflag_entered = 1;
+ 			break;
+ 		}
+ 	}
+ 
+-	if ( Iflag )
++	if ( input_file != (char *) NULL )
+ 	{
+-		if ( Pflag_entered || Sflag_entered)
++		if ( pflag_entered || sflag_entered )
+ 		{
+ 			usage();
+ 		}
+ 
+-		if ( fflag )
++		if ( facility_string == (char *) NULL )
++		{
++			facility = LOG_USER;
++		}
++		else
+ 		{
+-			Facility = validate_string(Facilities, facility_string);
++			facility = validate_string(Facilities,
++							facility_string);
+ 
+-			if ( Facility == -1 )
++			if ( facility == -1 )
+ 			{
+-				msg("ERROR: %s: Invalid facility %s.\n",
+-						Prog_name, facility_string);
++				msg("%s: Invalid facility %s.\n",
++						progName, facility_string);
+ 
+ 				exit(1);
+ 			}
+ 		}
+-		else
++
++		if ( level_string == (char *) NULL )
+ 		{
+-			Facility = LOG_USER;
++			level = LOG_NOTICE;
+ 		}
+-
+-		if ( lflag )
++		else
+ 		{
+-			Level = validate_string(Levels, level_string);
++			level = validate_string(Levels, level_string);
+ 
+-			if ( Level == -1 )
++			if ( level == -1 )
+ 			{
+-				msg("ERROR: %s: Invalid level %s.\n",
+-						Prog_name, level_string);
++				msg("%s: Invalid level %s.\n",
++						progName, level_string);
+ 
+ 				exit(1);
+ 			}
+ 		}
+-		else
+-		{
+-			Level = LOG_NOTICE;
+-		}
+ 
+-		file_follow_mode(input_file, response);
++		file_follow_mode(input_file, response, facility, level,
++							cflag, gflag);
+ 	}
+ 	else
+ 	{
+-		if ( ((Sflag == 0) && (Pflag == 0)) ||
+-		     ((Cflag == 1) && (Sflag == 0)) ||
+-		     ((Pflag == 0) && nflag) ||
+-		     (fflag || Gflag || Iflag || lflag) )
++		if ( ((sflag == 0) && (pflag == 0)) ||
++		     ((sflag == 0) && (cflag == 1)) ||
++		     (gflag) ||
++		     (facility_string != (char *) NULL) ||
++		     (level_string != (char *) NULL) )
+ 		{
+ 			usage();
+ 		}
+ 
+-		Gflag = 1;	/* grok as syslog entries */
+-		Facility = LOG_SYSLOG;
+-		Level = LOG_NOTICE;
+-
+-		syslog_mode(SYSLOG, response);
++		traditional_mode(response, pflag, sflag, cflag);
+ 	}
+ 
+ 	exit(0);
+Index: evlog-telco-1.5.1/evlforward/internal.h
+===================================================================
+--- /dev/null
++++ evlog-telco-1.5.1/evlforward/internal.h
+@@ -0,0 +1,60 @@
++/* POSIX 1003.25 Event Logging forwarding Daemon
++   Intel Corporation
++
++   This program performs the daemon responsibilities of forwarding
++   syslog() messages from the syslog log file to the IBM POSIX 1003.25
++   Event Logger. This used in place of glibc updates to syslog.c.
++
++   The -s can be used to disable this feature. The -r option can be
++   used to control the response time of syslog forwarding. By default,
++   the response time may be as high as 200msec. This can be set (with -r)
++   to be anything between 1msec to 2000msec. Setting response times below
++   100msec will lead to a noticable increase in CPU usage by this daemon.
++   The syslog to POSIX forwarding can be disabled with the -s option.
++
++   This program also performs the job of forwarding POSIX events (generated
++   by the POSIX event generation calls) to syslog(). Since forwarding
++   occurs in both directions, filters are used to prevent duplicate
++   events (and endless loops). The POSIX to syslog forwarding can be disabled
++   with the -p option.
++
++   The end result of all this forwarding is that both the syslog and
++   POSIX event will be in sync and have the same log entries. This may
++   be desired until the POSIX solution becomes the standard (and only)
++   logging mechanism.
++
++   Since this code re-uses existing GPL code, it also is GPL.
++*/
++
++/*
++ * Copyright (c) 2004, 2006 MontaVista Software, Inc.
++ * All rights reserved.
++ */
++
++/*
++ * Copyright (c) 1983, 1988 Regents of the University of California.
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms are permitted
++ * provided that the above copyright notice and this paragraph are
++ * duplicated in all such forms and that any documentation,
++ * advertising materials, and other materials related to such
++ * distribution and use acknowledge that the software was developed
++ * by the University of California, Berkeley.  The name of the
++ * University may not be used to endorse or promote products derived
++ * from this software without specific prior written permission.
++ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
++ * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
++ * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
++ */
++
++struct syslog_to_posix_parameters
++{
++	int	response;
++	int	catch_up;
++	int	grok;
++	int	facility;
++	int	level;
++	char	*listen_path;
++};
++
+Index: evlog-telco-1.5.1/evlforward/logevents.h
+===================================================================
+--- evlog-telco-1.5.1.orig/evlforward/logevents.h
++++ /dev/null
+@@ -1,67 +0,0 @@
+-/* POSIX 1003.25 Event Logging basics
+- * 
+-*/
+-#include <signal.h>
+-#include <time.h>
+-#include <sys/types.h>
+-
+-typedef int	posix_log_recid_t;
+-typedef int	posix_log_facility_t;
+-typedef int	posix_log_severity_t;
+-typedef int	posix_log_notify_t;
+-typedef int	posix_logd_t;
+-typedef char	*posix_log_query_t;
+-
+-struct posix_log_entry
+-{
+-	posix_log_recid_t	log_recid;
+-	size_t			log_size;
+-	int			log_format;
+-	int			log_event_type;
+-	posix_log_facility_t	log_facility;
+-	posix_log_severity_t	log_severity;
+-	uid_t			log_uid;
+-	gid_t			log_gid;
+-	pid_t			log_pid;
+-	pid_t			log_pgrp;
+-	struct timespec		*log_time;
+-	unsigned int		log_flags;
+-	char			log_thread[256];
+-	int			log_cpu;
+-	char			log_nodeid[68];
+-	char			log_mesg[1024];
+-};
+-
+-int posix_log_printf(posix_log_facility_t facility, int event_type,
+-        posix_log_severity_t severity, unsigned int flags,
+-	const char *format, ...);
+-
+-/* read_pid
+- *
+- * Reads the specified pidfile and returns the read pid.
+- * 0 is returned if either there's no pidfile, it's empty
+- * or no pid can be read.
+- */
+-int read_pid (char *pidfile);
+-
+-/* check_pid
+- *
+- * Reads the pid using read_pid and looks up the pid in the process
+- * table (using /proc) to determine if the process already exists. If
+- * so 1 is returned, otherwise 0.
+- */
+-int check_pid (char *pidfile);
+-
+-/* write_pid
+- *
+- * Writes the pid to the specified file. If that fails 0 is
+- * returned, otherwise the pid.
+- */
+-int write_pid (char *pidfile);
+-
+-/* remove_pid
+- *
+- * Remove the the specified file. The result from unlink(2)
+- * is returned
+- */
+-int remove_pid (char *pidfile);
+Index: evlog-telco-1.5.1/evlforward/Makefile
+===================================================================
+--- evlog-telco-1.5.1.orig/evlforward/Makefile
++++ evlog-telco-1.5.1/evlforward/Makefile
+@@ -7,24 +7,24 @@ SYSLOG_FLAGS= -DALLOW_KERNEL_LOGGING
+ CFLAGS=$(CDEBUG_FLAGS) -O2 -DSYSV -fomit-frame-pointer -Wall -fno-strength-reduce
+ LIBS= -levl -lnsl -lfl -lpthread
+ 
+-MAIN=\
+-	evlforward evlforward.1.gz
++MAIN= evlforward evlforward.1.gz
+ 
+-SRC=\
+-	evlforward.c
++SRC= evlforward.c
+ 
+-MKFILE=Makefile
++MKFILE= Makefile
+ 
+ .c.o:
+ 	${CC} ${CFLAGS} -c $*.c
+ 
+ all: clobber $(MAIN) $(POSTMAIN)
+ 
+-evlforward.o: logevents.h pidfile.h
+-pidfile.o: pidfile.h
+-
+-evlforward: evlforward.o pidfile.o
+-	$(CC) -D_POSIX_THREADS $(LDFLAGS) -o evlforward evlforward.o pidfile.o $(LIBS)
++evlforward.o: internal.h
++posix-to-syslog.o: internal.h
++syslog-to-posix.o: internal.h
++
++evlforward: evlforward.o posix-to-syslog.o syslog-to-posix.o
++	$(CC) -D_POSIX_THREADS $(LDFLAGS) -o evlforward evlforward.o \
++		posix-to-syslog.o syslog-to-posix.o $(LIBS)
+ 
+ evlforward.1.gz: evlforward.1
+ 	gzip -c evlforward.1 > evlforward.1.gz
+@@ -35,10 +35,10 @@ install:
+ 	test -e $(BUILDROOT)/usr/man/man1  || mkdir -p $(BUILDROOT)/usr/man/man1 
+ 	test -e $(BUILDROOT)/sbin  || mkdir -p $(BUILDROOT)/sbin 
+ 	chmod 755 $(BUILDROOT)/etc/rc.d/init.d 
+-	cp ./evlforward $(BUILDROOT)/sbin
++	cp evlforward $(BUILDROOT)/sbin
+ 	# chmod 744 $(BUILDROOT)/sbin/evlforward
+-	cp ./evlforward.init $(BUILDROOT)/etc/rc.d/init.d/evlforward
+-	cp ./evlforward.1.gz $(BUILDROOT)/usr/man/man1/.
++	cp evlforward.init $(BUILDROOT)/etc/rc.d/init.d/evlforward
++	cp evlforward.1.gz $(BUILDROOT)/usr/man/man1
+ 	
+ clean:
+ 	rm -f evlforward *.o *.gz
+Index: evlog-telco-1.5.1/evlforward/pidfile.c
+===================================================================
+--- evlog-telco-1.5.1.orig/evlforward/pidfile.c
++++ /dev/null
+@@ -1,164 +0,0 @@
+-/*
+-    pidfile.c - interact with pidfiles
+-    Copyright (c) 1995  Martin Schulze <Martin.Schulze@Linux.DE>
+-
+-    This file is part of the sysklogd package, a kernel and system log daemon.
+-
+-    This program is free software; you can redistribute it and/or modify
+-    it under the terms of the GNU General Public License as published by
+-    the Free Software Foundation; either version 2 of the License, or
+-    (at your option) any later version.
+-
+-    This program is distributed in the hope that it will be useful,
+-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-    GNU General Public License for more details.
+-
+-    You should have received a copy of the GNU General Public License
+-    along with this program; if not, write to the Free Software
+-    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111, USA
+-*/
+-
+-/*
+- * Copyright (c) 2004 MontaVista Software, Inc.
+- * All rights reserved.
+- */
+-
+-/*
+- * Sat Aug 19 13:24:33 MET DST 1995: Martin Schulze
+- *	First version (v0.2) released
+- */
+-
+-#include <stdio.h>
+-#include <unistd.h>
+-#include <sys/stat.h>
+-#include <sys/file.h>
+-#include <string.h>
+-#include <errno.h>
+-#include <signal.h>
+-
+-/* read_pid
+- *
+- * Reads the specified pidfile and returns the read pid.
+- * 0 is returned if either there's no pidfile, it's empty
+- * or no pid can be read.
+- */
+-int
+-read_pid ( char *pidfile )
+-{
+-	FILE	*f;
+-	int	pid;
+-
+-	if ( !(f = fopen(pidfile, "r")) )
+-	{
+-		return (0);
+-	}
+-
+-	(void) fscanf(f,"%d", &pid);
+-	(void) fclose(f);
+-	return (pid);
+-}
+-
+-/* check_pid
+- *
+- * Reads the pid using read_pid and looks up the pid in the process
+- * table (using /proc) to determine if the process already exists. If
+- * so 1 is returned, otherwise 0.
+- */
+-
+-int
+-check_pid ( char *pidfile )
+-{
+-	int	pid = read_pid(pidfile);
+-
+-	/* Amazing ! _I_ am already holding the pid file... */
+-	if ( (!pid) || (pid == getpid()) )
+-	{
+-		return (0);
+-	}
+-
+-	/*
+-	 * The 'standard' method of doing this is to try and do a 'fake' kill
+-	 * of the process.  If an ESRCH error is returned the process cannot
+-	 * be found -- GW
+-	 */
+-
+-	/* But... errno is usually changed only on error.. */
+-
+-	if ( kill(pid, 0) && errno == ESRCH )
+-	{
+-		return (0);
+-	}
+-
+-	return (pid);
+-}
+-
+-/* write_pid
+- *
+- * Writes the pid to the specified file. If that fails 0 is
+- * returned, otherwise the pid.
+- */
+-
+-int
+-write_pid ( char *pidfile )
+-{
+-	FILE	*f;
+-	int	fd;
+-	int	pid;
+-
+-	if ( ((fd = open(pidfile, O_RDWR|O_CREAT, 0644)) == -1) ||
+-	      ((f = fdopen(fd, "r+")) == NULL) )
+-	{
+-		(void) fprintf(stderr, "Can't open or create %s.\n", pidfile);
+-
+-		return (0);
+-	}
+-
+-	if ( flock(fd, LOCK_EX | LOCK_NB) == -1 )
+-	{
+-		(void) fscanf(f, "%d", &pid);
+-		(void) fclose(f);
+-
+-		(void) printf("Can't lock, lock is held by pid %d.\n", pid);
+-
+-		return (0);
+-	}
+-
+-	pid = getpid();
+-
+-	if ( !fprintf(f,"%d\n", pid) )
+-	{
+-		(void) printf("Can't write pid , %s.\n", strerror(errno));
+-		(void) close(fd);
+-
+-		return (0);
+-	}
+-
+-	(void) fflush(f);
+-
+-	if ( flock(fd, LOCK_UN) == -1 )
+-	{
+-		(void) printf("Can't unlock pidfile %s, %s.\n", pidfile,
+-							strerror(errno));
+-		(void) close(fd);
+-
+-		return (0);
+-	}
+-
+-	(void) close(fd);
+-
+-	return (pid);
+-}
+-
+-/* remove_pid
+- *
+- * Remove the the specified file. The result from unlink(2)
+- * is returned
+- */
+-
+-int
+-remove_pid ( char *pidfile )
+-{
+-	return (unlink(pidfile));
+-}
+-
+Index: evlog-telco-1.5.1/evlforward/pidfile.h
+===================================================================
+--- evlog-telco-1.5.1.orig/evlforward/pidfile.h
++++ /dev/null
+@@ -1,30 +0,0 @@
+-
+-/* read_pid
+- *
+- * Reads the specified pidfile and returns the read pid.
+- * 0 is returned if either there's no pidfile, it's empty
+- * or no pid can be read.
+- */
+-int read_pid (char *pidfile);
+-
+-/* check_pid
+- *
+- * Reads the pid using read_pid and looks up the pid in the process
+- * table (using /proc) to determine if the process already exists. If
+- * so 1 is returned, otherwise 0.
+- */
+-int check_pid (char *pidfile);
+-
+-/* write_pid
+- *
+- * Writes the pid to the specified file. If that fails 0 is
+- * returned, otherwise the pid.
+- */
+-int write_pid (char *pidfile);
+-
+-/* remove_pid
+- *
+- * Remove the the specified file. The result from unlink(2)
+- * is returned
+- */
+-int remove_pid (char *pidfile);
+Index: evlog-telco-1.5.1/evlforward/posix-to-syslog.c
+===================================================================
+--- /dev/null
++++ evlog-telco-1.5.1/evlforward/posix-to-syslog.c
+@@ -0,0 +1,355 @@
++/* POSIX 1003.25 Event Logging forwarding Daemon
++   Intel Corporation
++
++   This program performs the daemon responsibilities of forwarding
++   syslog() messages from the syslog log file to the IBM POSIX 1003.25
++   Event Logger. This used in place of glibc updates to syslog.c.
++
++   The -s can be used to disable this feature. The -r option can be
++   used to control the response time of syslog forwarding. By default,
++   the response time may be as high as 200msec. This can be set (with -r)
++   to be anything between 1msec to 2000msec. Setting response times below
++   100msec will lead to a noticable increase in CPU usage by this daemon.
++   The syslog to POSIX forwarding can be disabled with the -s option.
++
++   This program also performs the job of forwarding POSIX events (generated
++   by the POSIX event generation calls) to syslog(). Since forwarding
++   occurs in both directions, filters are used to prevent duplicate
++   events (and endless loops). The POSIX to syslog forwarding can be disabled
++   with the -p option.
++
++   The end result of all this forwarding is that both the syslog and
++   POSIX event will be in sync and have the same log entries. This may
++   be desired until the POSIX solution becomes the standard (and only)
++   logging mechanism.
++
++   Since this code re-uses existing GPL code, it also is GPL.
++*/
++
++/*
++ * Copyright (c) 2004, 2006 MontaVista Software, Inc.
++ * All rights reserved.
++ */
++
++/*
++ * Copyright (c) 1983, 1988 Regents of the University of California.
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms are permitted
++ * provided that the above copyright notice and this paragraph are
++ * duplicated in all such forms and that any documentation,
++ * advertising materials, and other materials related to such
++ * distribution and use acknowledge that the software was developed
++ * by the University of California, Berkeley.  The name of the
++ * University may not be used to endorse or promote products derived
++ * from this software without specific prior written permission.
++ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
++ * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
++ * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
++ */
++
++#define _LARGEFILE64_SOURCE
++#include	<stdio.h>
++#include	<stdlib.h>
++#include	<sys/types.h>
++#include	<sys/socket.h>
++#include	<sys/file.h>
++#include	<sys/signal.h>
++#include	<sys/stat.h>
++#include	<unistd.h>
++#include	<sys/evl_log.h>
++#include	<posix_evlog.h>
++#include	<sys/uio.h>
++#include	<sys/wait.h>
++#include	<netdb.h>
++#include	<string.h>
++#include	<time.h>
++#include	<errno.h>
++#include	<stdarg.h>
++#include	<paths.h>
++#include	<sys/time.h> /* for TIME data */
++#include	<getopt.h>
++#include	<posix_evlsup.h>
++#include	<evlog.h>
++#include	<sys/syslog.h>
++
++extern char		*progName;
++extern void		msg(char *, ...);
++
++#define	MAXBUF		1024
++#define EVENTLOG	"/var/evlog/eventlog"
++
++static posix_logd_t	logDesc;
++static char		QueryBuf[MAXBUF];
++char			ErrorString[MAXBUF];
++static char		QueryDefinition[256];
++
++static void
++scanEvents( void )
++{
++	while ( 1 )
++	{
++		struct posix_log_entry	entry;
++		int			status;
++		char                    fmt_msg[MAXBUF + 128];
++		char			data[POSIX_LOG_ENTRY_MAXLEN];
++
++		status = posix_log_seek(logDesc, NULL,
++						POSIX_LOG_SEEK_FORWARD);
++
++		if ( status != 0 )
++		{
++			if ( status == ENOENT )	/* EOF */
++			{
++				break;
++			}
++
++			msg("%s: seek error: %s\n", progName,
++							strerror(status));
++
++			exit(1);
++		}
++
++		status = posix_log_read(logDesc, &entry, data,
++						POSIX_LOG_ENTRY_MAXLEN);
++
++		if ( status != 0 )
++		{
++			msg("%s: read error: %d\n", progName,
++							strerror(status));
++
++			exit(1);
++		}
++
++		if ( _evlEvaluateQuery((posix_log_query_t *) QueryBuf,
++						&entry, (char *) data) )
++		{
++			int	len1;
++			int	len2;
++
++			/*
++			 * We're added to the message size so lets make sure
++			 * the total size is less than syslog max.
++			 */
++
++			(void) sprintf(fmt_msg,
++        "|event_type=%d|facility=%d|severity=%d|uid=%d|gid=%d|pid=%d|pgrp=%d|",
++			entry.log_event_type, entry.log_facility,
++			entry.log_severity, entry.log_uid, entry.log_gid,
++			entry.log_pid, entry.log_pgrp);
++
++			len1 = strlen(data);
++			len2 = strlen(fmt_msg) + len1;
++
++			if ( (len2 >= MAXBUF) && (len1 > (len2 - MAXBUF)) )
++			{
++				data[len1 - len2 + MAXBUF] = '\0';
++			}
++
++			(void) syslog(entry.log_severity, "%s%s",
++							fmt_msg, data);
++		}
++	}
++
++	return;
++}
++
++static void
++open_log_file( char *path )
++{
++	int	i;
++	int	status;
++
++	for ( i = 0; i < 5; i++ )
++	{
++		status = posix_log_open(&logDesc, path);
++
++		if ( status == 0 )
++		{
++			break;
++		}
++		else
++		{
++			(void) sleep(1);
++		}
++	}
++
++	if ( status != 0 )
++	{
++		msg("%s: Could not open log (%s): %s\n", progName,
++						path, strerror(status));
++
++		exit(1);
++	}
++
++	return;
++}
++
++#define	STAT_RETRIES	5
++
++static int
++stat_with_retries( char *path, struct stat64 *statbuf )
++{
++	unsigned int	retries = STAT_RETRIES;
++
++	while ( 1 )
++	{
++		(void) memset((void *) statbuf, 0, sizeof(*statbuf));
++
++		if ( stat64(path, statbuf) == -1 )
++		{
++			if ( retries-- == 0 )
++			{
++				break;
++			}
++			else
++			{
++				(void) sleep(1);
++			}
++		}
++		else
++		{
++			errno = 0;
++			break;
++		}
++	}
++
++	return errno;
++}
++
++#define	LOG_CHANGE_NEW		0
++#define	LOG_CHANGE_GREW		1
++
++static int
++log_monitor( struct stat64 *old )
++{
++	int erc;
++
++	int toSleep = 1;
++	int maxSleep = 5;
++
++	while ( 1 )
++	{
++		struct stat64	newStatBuf;
++
++		/* sleep for a bit */
++		(void) sleep(toSleep);
++
++		erc = stat_with_retries(EVENTLOG, &newStatBuf);
++
++		if ( erc != 0 )
++		{
++			msg("%s: fstat on %s failed: %s\n", progName,
++						EVENTLOG, strerror(erc));
++
++			exit(1);
++		}
++
++		if ( old->st_ino == newStatBuf.st_ino )
++		{
++			if ( (newStatBuf.st_mtime == old->st_mtime) &&
++			     (newStatBuf.st_size == old->st_size) )
++			{
++				if (toSleep < maxSleep)
++				{
++					toSleep++;
++				}
++			}
++			else
++			{
++				/* modified log files only grow */
++				erc = LOG_CHANGE_GREW;
++				break;
++			}
++		}
++		else
++		{
++			erc = LOG_CHANGE_NEW;
++			break;
++		}
++	}
++
++	return (erc);
++}
++
++/*
++ * Someday allow multiple queries to run concurrently.
++ */
++
++void
++posix_to_syslog_thread( void *arg )
++{
++	int	status;
++
++        /*
++         * Register the query string and check it for basic syntax req.
++         */
++
++	(void) strcpy(QueryDefinition, "(format = STRING && (facility != KERN || event_type != 2) && (facility != SYSLOG || event_type != \"5555\"))");
++
++	if ( posix_log_query_create(QueryDefinition, POSIX_LOG_PRPS_NOTIFY,
++		(posix_log_query_t *) QueryBuf, ErrorString, MAXBUF) != 0 )
++	{
++		msg("%s: query creation failure: %s\n", progName, ErrorString);
++
++		exit(1);
++	}
++
++	/* open the POSIX log */
++	open_log_file(EVENTLOG);
++
++	/* seek to the end of the log */
++	status = posix_log_seek(logDesc, NULL, POSIX_LOG_SEEK_END);
++
++	if ( status != 0 )
++	{
++		msg("%s: seek error: %d\n", progName, status);
++
++		exit(1);
++	}
++
++	/*
++	 * Process the log data.
++	 */
++
++	while ( 1 )
++	{
++		int		erc;
++		struct stat64	oldStatBuf;
++
++		(void) memset((void *) &oldStatBuf, 0, sizeof(oldStatBuf));
++
++		erc = _evlFstatLog(logDesc, &oldStatBuf);
++
++		if ( erc != 0 )
++		{
++			msg("%s: Active log file fstat failed: %s\n",
++					progName, strerror(erc));
++
++			exit(1);
++		}
++
++		/* process all events until EOF */
++		scanEvents();
++
++		/* wait for a change or a timeout */
++		erc = log_monitor(&oldStatBuf);
++
++		/* Changes! Handle them accordingly */
++		if ( erc == LOG_CHANGE_NEW )
++		{
++			/*
++			 * Some events may have dribbled in during
++			 * the last sleep. Deal with them...
++			 */
++
++			scanEvents();
++
++			/* close the log file */
++			(void) posix_log_close(logDesc);
++
++			/* open the new log file */
++			open_log_file(EVENTLOG);
++		}
++	}
++}
+Index: evlog-telco-1.5.1/evlforward/syslog-to-posix.c
+===================================================================
+--- /dev/null
++++ evlog-telco-1.5.1/evlforward/syslog-to-posix.c
+@@ -0,0 +1,236 @@
++/* POSIX 1003.25 Event Logging forwarding Daemon
++   Intel Corporation
++
++   This program performs the daemon responsibilities of forwarding
++   syslog() messages from the syslog log file to the IBM POSIX 1003.25
++   Event Logger. This used in place of glibc updates to syslog.c.
++
++   The -s can be used to disable this feature. The -r option can be
++   used to control the response time of syslog forwarding. By default,
++   the response time may be as high as 200msec. This can be set (with -r)
++   to be anything between 1msec to 2000msec. Setting response times below
++   100msec will lead to a noticable increase in CPU usage by this daemon.
++   The syslog to POSIX forwarding can be disabled with the -s option.
++
++   This program also performs the job of forwarding POSIX events (generated
++   by the POSIX event generation calls) to syslog(). Since forwarding
++   occurs in both directions, filters are used to prevent duplicate
++   events (and endless loops). The POSIX to syslog forwarding can be disabled
++   with the -p option.
++
++   The end result of all this forwarding is that both the syslog and
++   POSIX event will be in sync and have the same log entries. This may
++   be desired until the POSIX solution becomes the standard (and only)
++   logging mechanism.
++
++   Since this code re-uses existing GPL code, it also is GPL.
++*/
++
++/*
++ * Copyright (c) 2004, 2006 MontaVista Software, Inc.
++ * All rights reserved.
++ */
++
++/*
++ * Copyright (c) 1983, 1988 Regents of the University of California.
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms are permitted
++ * provided that the above copyright notice and this paragraph are
++ * duplicated in all such forms and that any documentation,
++ * advertising materials, and other materials related to such
++ * distribution and use acknowledge that the software was developed
++ * by the University of California, Berkeley.  The name of the
++ * University may not be used to endorse or promote products derived
++ * from this software without specific prior written permission.
++ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
++ * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
++ * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
++ */
++
++#define _LARGEFILE64_SOURCE
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <sys/file.h>
++#include <sys/signal.h>
++#include <unistd.h>
++#include <sys/evl_log.h>
++#include <posix_evlog.h>
++#include <sys/uio.h>
++#include <sys/wait.h>
++#include <netdb.h>
++#include <string.h>
++#include <time.h>
++#include <errno.h>
++#include <stdarg.h>
++#include <paths.h>
++#include <sys/time.h> /* for TIME data */
++#include <getopt.h>
++#include <posix_evlsup.h>
++#include <evlog.h>
++#include <sys/syslog.h>
++
++#include "internal.h"
++
++#define	MAXBUF			1024
++#define EVENT_TYPE		5555
++
++extern char	*progName;
++extern void	msg(char *, ...);
++
++static void
++log_filter( char str[] )
++{
++	int	i;
++	int	len;
++
++	/* Remove bad chars from message */
++
++	len = strlen(str);
++
++	for ( i = 0; i < len; i++ )
++	{
++		if ( (str[i] == '`') || (str[i] == '@') ||
++			(str[i] == '\n') || (str[i] == '\r') )
++		{
++			str[i] = ' ';
++		}
++	}
++
++	return;
++}
++
++static void
++process_entry( int grok, int facility, int level, char line[] )
++{
++	struct posix_log_entry	new_entry;
++
++	if ( grok )
++	{
++		char	buf[MAXBUF];
++		char	str[MAXBUF];
++
++		/*
++		 * Grok the input as a syslog entry. If a valid entry and
++		 * not kernel, then we need to forward
++		 */
++
++		buf[0] = '\0';
++
++		if ( (sscanf(line, "%s%s%s%s%s",
++					str, str, str, str, buf) != 5) ||
++		     !strcmp(buf, "kernel:") || !strcmp(buf, "evlforward:") )
++		{
++			return;
++		}
++	}
++
++	log_filter(line);
++
++	new_entry.log_event_type = EVENT_TYPE;
++	new_entry.log_facility = facility;
++	new_entry.log_severity = level;
++	new_entry.log_flags = 0; /* Not using PXLOG_TRUNCATE */
++
++	/*
++	 * Blind write to log.
++	 */
++
++	(void) posix_log_printf(new_entry.log_facility,
++			new_entry.log_event_type, new_entry.log_severity,
++			(unsigned int) &new_entry.log_flags, "%s", line);
++
++	return;
++}
++
++void
++syslog_to_posix_thread( void *arg )
++{
++	int	i;
++	int	j;
++	int	fd;
++	int	len;
++	char	buf[MAXBUF];
++	char	line[MAXBUF + 3];
++
++	struct syslog_to_posix_parameters *stpp = arg;
++
++	/*
++	 * Main daemon code. Open log file. If catch_up is zero then forward
++	 * all entries in syslog file. If catch_up is one read to the end of
++	 * log file and only forward new entries.
++	 */
++
++	fd = open(stpp -> listen_path, O_RDONLY | O_NDELAY);
++
++	if ( fd == -1 )
++	{
++		msg("%s: Could not open log (%s): %s\n",
++					progName, stpp -> listen_path,
++					strerror(errno));
++
++		exit(1);
++    	}
++
++	i = 0;
++
++	while ( 1 )
++	{
++		while ( (len = read(fd, buf, sizeof(buf))) > 0 )
++		{
++			for ( j = 0; j < len; j++ )
++			{
++				line[i] = buf[j];
++
++				if ( line[i++] == '\n' )
++				{
++					line[i] = '\0';
++
++					if ( stpp -> catch_up == 1 )
++					{
++					  	process_entry(stpp -> grok,
++							stpp -> facility,
++							stpp -> level,
++							line);
++					}
++
++					i = 0;
++				}
++
++				/*
++				 * Truncate lines that are too long.
++				 */
++
++				if ( i > MAXBUF )
++				{
++					i--;
++				}
++			}
++		}
++
++		if ( len == 0 )			/* no more data */
++		{
++			if ( stpp -> catch_up == 0 )
++			{
++				stpp -> catch_up = 1;
++			}
++		}
++		else				/* error */
++		{
++			msg(
++			"%s: log file (%s) read error (%s): catch up\n",
++					progName, stpp -> listen_path,
++					strerror(errno));
++
++			stpp -> catch_up = 1;
++
++			i = 0;
++		}
++
++		usleep(stpp -> response);
++	}
++
++	return;
++}
+Index: evlog-telco-1.5.1/evlforward/version.h
+===================================================================
+--- evlog-telco-1.5.1.orig/evlforward/version.h
++++ /dev/null
+@@ -1,2 +0,0 @@
+-#define VERSION "1.0"
+-#define PATCHLEVEL "0"
+Index: evlog-telco-1.5.1/evlog-examples/README
+===================================================================
+--- evlog-telco-1.5.1.orig/evlog-examples/README
++++ evlog-telco-1.5.1/evlog-examples/README
+@@ -1 +1,2 @@
+-This test suite will test some aspect of the event notification feature in the event logging package. To run test do the following
++This test suite will test some aspect of the event notification feature in
++the event logging package. To run test do the following
+Index: evlog-telco-1.5.1/evlsyslog/evlsyslog.1
+===================================================================
+--- /dev/null
++++ evlog-telco-1.5.1/evlsyslog/evlsyslog.1
+@@ -0,0 +1,61 @@
++.TH "EVLSYSLOG" "" "12 July 2006" "" ""
++.SH NAME
++evlsyslog \- POSIX log forwarding agent for syslogd
++.SH SYNOPSIS
++\fBevlsyslog\fR [\fB-f facility\fR] [\fB-i pipe-path\fR] [\fB-s severity\fR]
++.SH "DESCRIPTION"
++.PP
++The \fBevlsyslog\fR program performs daemon responsibilities of
++POSIX 1003.25 Event Logger (EVLOG) forwarding.
++.PP
++The \fBevlsyslog\fR program listens to a named pipe and forwards all of
++messages that arrive there to the POSIX log.
++.PP
++As each line arrives an attempt is made to extract its logging facility
++and system message level.
++If this is successful this information is mapped into the associated
++POSIX designations (i.e. facility and severity).
++If unsuccessful, default values will be provided.
++Finally the text and its facility and severity are written to the POSIX
++log.
++.PP
++The \fBevlsyslog\fR program is designed to operated in conjuction with
++a version of \fBsyslogd\fR that has been modified to allow raw event
++data to be written to a named pipe (i.e. "$" output).
++.SH "OPTIONS"
++The valid command options are:
++.TP
++\fB-f \fIfacility\fB\fR
++Specify the POSIX facility that each forwarded line will be assigned if
++the facility cannot be determined from the information contained within
++the line.
++
++The valid choices are: LOG_KERN, LOG_USER, LOG_MAIL, LOG_DAEMON, LOG_AUTH,
++LOG_SYSLOG, LOG_LPR, LOG_NEWS, LOG_UUCP, LOG_CRON, LOG_AUTHPRIV,
++LOG_LOCAL0, LOG_LOCAL1, LOG_LOCAL2, LOG_LOCAL3, LOG_LOCAL4, LOG_LOCAL5,
++LOG_LOCAL6 or LOG_LOCAL7.
++.sp
++The default is LOG_USER.
++.TP
++\fB-i \fIpipe-path\fB\fR
++Specify the named pipe that \fBevlforward\fR will read lines from and
++forward them as events to the POSIX log.
++
++The default is \fI/var/evlog/evlsyslog-pipe\fB\fR.
++.TP
++\fB-s \fIseverity\fB\fR
++Specify the POSIX logging severity (system message level) that each
++forwarded line will be assigned if the severity cannot be determined from
++the information contained within the line.
++
++The valid choices are: LOG_EMERG, LOG_ALERT, LOG_CRIT, LOG_ERR,
++LOG_WARNING, LOG_NOTICE, LOG_INFO or LOG_DEBUG.
++.sp
++The default is LOG_NOTICE.
++.SH "FILES"
++.TP
++\fB\fI/var/evlog/evlsyslog-pipe\fB\fR
++Default listening pipe
++.SH "SEE ALSO"
++.TP
++\fBevlforward\fR(1), \fBsyslogd\fR(8), \fBsyslog.conf\fR(5)
+Index: evlog-telco-1.5.1/evlsyslog/evlsyslog.c
+===================================================================
+--- /dev/null
++++ evlog-telco-1.5.1/evlsyslog/evlsyslog.c
+@@ -0,0 +1,762 @@
++/* POSIX 1003.25 Event Logging forwarding Daemon
++
++   This program performs the daemon responsibilities of forwarding
++   syslog() messages from the syslog log file to the IBM POSIX 1003.25
++   Event Logger.
++
++   Since this code re-uses existing GPL code, it also is GPL.
++*/
++
++/*
++ * Copyright (c) 2004, 2006 MontaVista Software, Inc.
++ * All rights reserved.
++ */
++
++/*
++ * Copyright (c) 1983, 1988 Regents of the University of California.
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms are permitted
++ * provided that the above copyright notice and this paragraph are
++ * duplicated in all such forms and that any documentation,
++ * advertising materials, and other materials related to such
++ * distribution and use acknowledge that the software was developed
++ * by the University of California, Berkeley.  The name of the
++ * University may not be used to endorse or promote products derived
++ * from this software without specific prior written permission.
++ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
++ * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
++ * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
++ */
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <sys/file.h>
++#include <sys/signal.h>
++#include <unistd.h>
++#include <sys/evl_log.h>
++#include <posix_evlog.h>
++#include <sys/uio.h>
++#include <sys/wait.h>
++#include <netdb.h>
++#include <string.h>
++#include <time.h>
++#include <errno.h>
++#include <stdarg.h>
++#include <paths.h>
++#include <sys/time.h> /* for TIME data */
++#include <getopt.h>
++#include <posix_evlsup.h>
++#include <evlog.h>
++#include <sys/syslog.h>
++
++#define	MAXBUF		1024
++#define	EVENT_TYPE	5555
++#define	DEFAULT_PIPE	"/var/evlog/evlsyslog-pipe"
++
++int	Debug = 0;
++char	*Prog_name;
++
++char	*PidFile = "/var/run/evlsyslog.pid";
++
++static void
++msg( char *fmt, ... )
++{
++	va_list	ap;
++
++	va_start(ap, fmt);
++	(void) vfprintf(stderr, fmt, ap);
++	va_end(ap);
++
++	(void) fflush(stderr);
++
++	return;
++}
++
++static void
++cleanup( int sig )
++{
++	msg("\nExiting %s...", Prog_name);
++
++	(void) unlink(PidFile);
++
++	exit(0);
++}
++
++static void
++log_filter( char *s )
++{
++	while ( *s )
++	{
++		if ( (*s == '`') || (*s == '@') || (*s == '\r') )
++		{
++			*s = ' ';
++		}
++
++		s++;
++	}
++
++	return;
++}
++
++struct pair {
++	char	*name;
++	int	value;
++};
++
++static struct pair Kern_levels[] = {
++	{ "LOG_EMERG",		LOG_EMERG },	/* 0 */
++	{ "LOG_ALERT",		LOG_ALERT },	/* 1 */
++	{ "LOG_CRIT",		LOG_CRIT },	/* 2 */
++	{ "LOG_ERR",		LOG_ERR },	/* 3 */
++	{ "LOG_WARNING",	LOG_WARNING },	/* 4 */
++	{ "LOG_NOTICE",		LOG_NOTICE },	/* 5 */
++	{ "LOG_INFO",		LOG_INFO },	/* 6 */
++	{ "LOG_DEBUG",		LOG_DEBUG },	/* 7 */
++	{ (char *) NULL,	0 },		/* must be last */
++};
++
++static struct pair Facilities[] = {
++	{ "LOG_KERN",		LOG_KERN },	/* 0 */
++	{ "LOG_USER",		LOG_USER },	/* 1 */
++	{ "LOG_MAIL",		LOG_MAIL },	/* 2 */
++	{ "LOG_DAEMON",		LOG_DAEMON },	/* 3 */
++	{ "LOG_AUTH",		LOG_AUTH },	/* 4 */
++	{ "LOG_SYSLOG",		LOG_SYSLOG },	/* 5 */
++	{ "LOG_LPR",		LOG_LPR },	/* 6 */
++	{ "LOG_NEWS",		LOG_NEWS },	/* 7 */
++	{ "LOG_UUCP",		LOG_UUCP },	/* 8 */
++	{ "LOG_CRON",		LOG_CRON },	/* 9 */
++	{ "LOG_AUTHPRIV",	LOG_AUTHPRIV },	/* 10 */
++	{ "LOG_FTP",		LOG_FTP },	/* 11 */
++	{ "LOG_LOCAL0",		LOG_LOCAL0 },	/* 16 */
++	{ "LOG_LOCAL1",		LOG_LOCAL1 },	/* 17 */
++	{ "LOG_LOCAL2",		LOG_LOCAL2 },	/* 18 */
++	{ "LOG_LOCAL3",		LOG_LOCAL3 },	/* 19 */
++	{ "LOG_LOCAL4",		LOG_LOCAL4 },	/* 20 */
++	{ "LOG_LOCAL5",		LOG_LOCAL5 },	/* 21 */
++	{ "LOG_LOCAL6",		LOG_LOCAL6 },	/* 22 */
++	{ "LOG_LOCAL7",		LOG_LOCAL7 },	/* 23 */
++	{ (char *) NULL,	0 },		/* must be last */
++};
++
++static int
++validate_pair_by_string( struct pair *table, char *string )
++{
++	while ( table -> name != (char *) NULL )
++	{
++		if ( strcmp(table -> name, string) == 0 )
++		{
++			return (table -> value);
++		}
++
++		table++;
++	}
++
++	return (-1);
++}
++
++static char *
++validate_pair_by_value( struct pair *table, int value )
++{
++	while ( table -> name != (char *) NULL )
++	{
++		if ( table -> value == value )
++		{
++			return (table -> name);
++		}
++
++		table++;
++	}
++
++	return ((char *) NULL);
++}
++
++static int
++process_line(	char			line[],
++		posix_log_facility_t	def_facility,
++		posix_log_facility_t	def_severity )
++{
++	char			*p;
++	int			bits;
++	int			flags;
++	int			length;
++	posix_log_severity_t	severity;
++	posix_log_facility_t	facility;
++	posix_log_procid_t	processor;
++	char			*hostname;
++
++	extern int _EvlLogWrite(	posix_log_facility_t	facility,
++					int			event_type,
++					posix_log_severity_t	severity,
++					posix_log_procid_t	processor,
++					const void		*buf,
++					size_t			len,
++					int			format,
++					unsigned int		flags);
++
++	extern posix_log_procid_t _evlGetNodeId(const char *name);
++
++	/* remove any nasty things */
++	log_filter(line);
++
++	if ( Debug )
++	{
++		msg("raw line (%s)\n", line);
++	}
++
++	/*
++	 * The structure of a line is as follows:
++	 *
++	 * <%d>data[hostname]\n
++	 *
++	 * Set up the logging processor field. The field contains two
++	 * pieces of information - the lower 16 bits encode the reporting
++	 * CPU ID and the upper 16 bits encode the EVLOG remote system ID.
++	 *
++	 * The CPU ID, given that this is a forwarding operation, will
++	 * always be set to zero. The EVLOG remote system ID is 0 for the
++	 * local system (the one this daemon is running on) and non-zero
++	 * otherwise.
++	 */
++
++	p = line;
++
++	while ( *p )
++	{
++		p++;
++	}
++
++	p--; /* last character in string */
++
++	if ( *p == ']' )
++	{
++		/*
++		 * A host name is appended to the data. Extract it.
++		 */
++
++		*p-- = '\0';
++
++		while ( p >= line )
++		{
++			if ( *p == '[' )
++			{
++				break;
++			}
++
++			p--;
++		}
++
++		if ( *p == '[' )
++		{
++			posix_log_procid_t	id;
++
++			/* Have a host name! */
++			*p++ = '\0';
++
++			hostname = p;
++
++			id = _evlGetNodeId(hostname);
++
++			if ( id == -1 )
++			{
++				id = 0;
++			}
++
++			processor = id << 16;
++		}
++		else
++		{
++			/* The host name encoding is somehow invalid */
++			processor = 0;
++			hostname = "unknown";
++		}
++	}
++	else
++	{
++		 /* No host name is appended to the data. */
++		processor = 0;
++		hostname = "unknown";
++	}
++
++	/*
++	 * There should be a facility/severity identifier at the beginning
++	 * of each line. If things aren't as they should be use the
++	 * specified defaults.
++	 */
++
++	if ( sscanf(line, "<%d>", &bits) == 1 )
++	{
++		severity = LOG_PRI(bits);
++		facility = LOG_MAKEPRI(LOG_FAC(bits), 0);
++	}
++	else
++	{
++		severity = def_severity;
++		facility = def_facility;
++	}
++
++	if ( Debug )
++	{
++		char	*p;
++		char	*q;
++
++		p = validate_pair_by_value(Kern_levels, severity);
++		q = validate_pair_by_value(Facilities, facility);
++
++		if ( p == (char *) NULL )
++		{
++			p = "UNKNOWN";
++		}
++
++		if ( q == (char *) NULL )
++		{
++			q = "UNKNOWN";
++		}
++
++		msg("****** BEGIN ******\n");
++
++		msg(
++	"line (%s) hostname (%s, %d) severity (%d, %s) facility (%d, %s)\n",
++			line, hostname, processor, severity, p, facility, q);
++	}
++
++	/*
++	 * Build the logging buffer and set the flags.
++	 */
++
++	length = strlen(line);
++
++	if ((length < 0) || (length > POSIX_LOG_ENTRY_MAXLEN - 1))
++	{
++		line[POSIX_LOG_ENTRY_MAXLEN - 1] = '\0';
++
++		flags = POSIX_LOG_TRUNCATE;
++	}
++	else
++	{
++		flags = 0;
++	}
++
++	/*
++	 * Blind write to POSIX log.
++	 */
++
++	bits = _EvlLogWrite(facility, EVENT_TYPE, severity, processor,
++			line, strlen(line) + 1, POSIX_LOG_STRING, flags);
++
++	if ( Debug )
++	{
++		msg("_EvlLogWrite status %d\n", bits);
++		msg("****** END ******\n");
++	}
++
++	return (0);
++}
++
++static void
++stream_listen( char *input_pipe, int def_facility, int def_level )
++{
++	unsigned int	i;
++	int		fd;
++	struct stat	statbuf;
++
++	/*
++	 * Make sure this is a named pipe and, if so, open it.
++	 */
++
++	if ( stat(input_pipe, &statbuf) == -1 )
++	{
++		msg("%s: cannot stat input pipe (%s): %s\n", Prog_name,
++						input_pipe, strerror(errno));
++
++		exit(1);
++	}
++
++	if ( !S_ISFIFO(statbuf.st_mode) )
++	{
++		msg("%s: input (%s) is not a named pipe\n", Prog_name,
++								input_pipe);
++
++		exit(1);
++	}
++
++	fd = open(input_pipe, O_RDONLY);
++
++	if ( fd == -1 )
++	{
++		msg("%s: Could not open pipe (%s): %s\n",
++				Prog_name, input_pipe, strerror(errno));
++
++		exit(1);
++    	}
++
++	i = 0;
++
++	while ( 1 )
++	{
++		unsigned int	j;
++		int		len;
++		char		raw[MAXBUF];
++		char		line[MAXBUF + 1];
++
++		while ( (len = read(fd, raw, sizeof(raw))) == 0 )
++		{
++			sleep(1);
++		}
++
++		if ( len == -1 )
++		{
++			msg("%s: pipe read error: %s\n",
++						Prog_name, strerror(errno));
++
++			exit(1);
++		}
++
++		for ( j = 0; j < len; j++ )
++		{
++			line[i] = raw[j];
++
++			if ( line[i] == '\n' )
++			{
++				line[i] = '\0';
++
++				process_line(line, def_facility, def_level);
++
++				i = 0;
++			}
++			else
++			{
++				i++;
++			}
++
++			if ( i > MAXBUF )
++			{
++				i--;
++			}
++		}
++	}
++
++	return;
++}
++
++/*
++ * If the PID present in the file is running, return 0. Otherwise return 1.
++ */
++
++static int
++_evlValidate_pid( char *pfile )
++{
++	FILE	*f;
++	int	f_pid;
++
++	f = fopen(pfile, "r");
++
++	if ( f == (FILE *) NULL )
++	{
++		return (0);
++	}
++
++	(void) fscanf(f, "%d", &f_pid);
++	(void) fclose(f);
++
++	if ( kill(f_pid, 0) && (errno == ESRCH) )
++	{
++		return (0);
++	}
++
++	return (1);
++}
++
++/*
++ * Update it's PID in the 'pfile'.
++ */
++
++static int
++_evlUpdate_pid( char *pfile )
++{
++	FILE	*f;
++	int	fd;
++	int	pid;
++
++	fd = open(pfile, O_RDWR | O_CREAT, 0644);
++
++	if ( fd == -1 )
++	{
++		return (0);
++	}
++
++   	f = fdopen(fd, "r+");
++
++	if ( f == NULL )
++	{
++		(void) close(fd);
++
++		return (0);
++	}
++
++	pid = getpid();
++	(void) flock(fd, LOCK_EX);
++	(void) fprintf(f, "%d\n", pid);
++	(void) fclose(f);	/* closes fd; releases locks */
++
++   	return (1);
++}
++
++/*
++ * Daemonize evlsyslog
++ */
++
++void
++_daemonize( void )
++{
++	int	i;
++	pid_t	pid;
++	int	devnull;
++
++	/*
++	 * Fork a child and let the parent exit. This guarentees that
++	 * the first child is not a process group leader.
++	 */
++
++	pid = fork();
++
++	if ( pid == -1 )
++	{
++		msg("%s: Cannot fork child process.\n", Prog_name);
++		exit(1);
++	}
++	else if ( pid > 0 )
++	{
++		exit (0);
++	}
++
++	/*
++	 * First child process.
++	 *
++	 * Disassociate from controlling terminal and process group.
++	 * Ensure the process can't reacquire a new controlling terminal
++	 */
++
++	(void) setpgrp();
++
++	/*
++	 * Immunize from process group leader death.
++	 */
++
++	(void) signal(SIGHUP, SIG_IGN);
++
++	pid = fork();
++
++	if ( pid == -1 )
++	{
++		msg("%s: Cannot fork child process.\n", Prog_name);
++		exit(1);
++	}
++	else if ( pid > 0 )
++	{
++		exit(0);
++	}
++
++	/* treasure away my PID away */
++	if ( !_evlUpdate_pid(PidFile) ) {
++		msg("%s: Cannot write PID to '%s' file\n", Prog_name, PidFile);
++
++		exit(1);
++	}
++
++	/*
++	 * Second child process.
++	 *
++	 * redirect fd 0 1 2 to /dev/null.
++	 */
++#if !defined(DEBUG)
++	devnull = open("/dev/null", O_WRONLY);
++
++	if ( devnull != -1 )
++	{
++		for ( i = 0; i <= 2; i++ )
++		{
++			(void) close(i);
++			(void) dup2(devnull, i);
++		}
++
++		(void) close(devnull);
++	}
++#endif
++
++	/*
++	 * Clear any inherited file mode creation mask.
++	 */
++
++	(void) umask(0);
++}
++
++static int
++usage( void )
++{
++	msg("Usage: %s [options]\n", Prog_name);
++
++	msg("	OPTIONS\n");
++	msg("	[-d] [-f facility] [-i file] [-s severity]\n");
++	msg("	-d debug - do back background\n");
++	msg("	-f Specify facility for unclassified entries\n");
++	msg("	-i Specify alternative input (named pipe)\n");
++	msg("	-s Specify severity for unclassified entries\n");
++	msg("\n");
++
++	exit(0);
++}
++
++int
++main( int argc, char *argv[] )
++{
++	int			c;
++	char			*p;
++	posix_log_facility_t	def_facility;
++	posix_log_facility_t	def_severity;
++
++	char	*input_pipe = NULL;
++	char	*facility_string = NULL;
++	char	*severity_string = NULL;
++
++	p = strrchr(argv[0], '/');
++
++	if ( p == (char *) NULL )
++	{
++		Prog_name = argv[0];
++	}
++	else
++	{
++		Prog_name = p + 1;
++	}
++
++	while ( (c = getopt(argc, argv, "df:hi:s:?")) != EOF )
++	{
++		switch ( c )
++		{
++		case 'd':
++			if ( Debug )
++			{
++				msg("%s: Debugging already specified \n",
++							Prog_name);
++
++				exit(1);
++			}
++
++			Debug = 1;
++			break;
++
++		case 'f':
++			if ( facility_string != (char *) NULL )
++			{
++				msg("%s: Facility already specified \n",
++							Prog_name);
++
++				exit(1);
++			}
++
++			facility_string = optarg;
++			break;
++
++		case 'h':
++		case '?':
++			usage();
++			break;
++
++		case 'i':
++			if ( input_pipe != (char *) NULL )
++			{
++				msg("%s: Input pipe already specified\n",
++							Prog_name);
++
++				exit(1);
++			}
++
++			input_pipe = optarg;
++			break;
++
++		case 's':
++			if ( severity_string != (char *) NULL )
++			{
++				msg("%s: Severity already specified \n",
++							Prog_name);
++
++				exit(1);
++			}
++
++			severity_string = optarg;
++			break;
++		}
++	}
++
++	argc -= optind;
++	argv += optind;
++
++	if ( argc != 0 )
++	{
++		usage();
++	}
++
++	if ( facility_string == (char *) NULL )
++	{
++		def_facility = LOG_USER;
++	}
++	else
++	{
++		def_facility = validate_pair_by_string(Facilities,
++							facility_string);
++
++		if ( def_facility == -1 )
++		{
++			msg("%s: Invalid facility %s.\n",
++						Prog_name, facility_string);
++
++			exit(1);
++		}
++	}
++
++	if ( severity_string == (char *) NULL )
++	{
++		def_severity = LOG_NOTICE;
++	}
++	else
++	{
++		def_severity = validate_pair_by_string(Kern_levels,
++							severity_string);
++
++		if ( def_severity == -1 )
++		{
++			msg("%s: Invalid severity %s.\n",
++						Prog_name, severity_string);
++
++			exit(1);
++		}
++	}
++
++	if ( input_pipe == (char *) NULL )
++	{
++		input_pipe = DEFAULT_PIPE;
++	}
++
++	if ( _evlValidate_pid(PidFile) )
++	{
++		(void) fprintf(stderr, "%s: Already running.\n", Prog_name);
++		exit(1);
++	}
++
++	if ( !Debug )
++	{
++		_daemonize();
++	}
++
++	(void) signal(SIGTERM, cleanup);
++	(void) signal(SIGINT, cleanup);
++	(void) signal(SIGHUP, cleanup);
++
++	stream_listen(input_pipe, def_facility, def_severity);
++
++	exit(0);
++}
+Index: evlog-telco-1.5.1/evlsyslog/Makefile
+===================================================================
+--- /dev/null
++++ evlog-telco-1.5.1/evlsyslog/Makefile
+@@ -0,0 +1,42 @@
++# evlsyslog (POSIX Event Logging Telco Extensions)
++BUILDROOT=/var/tmp/evlog-telco-buildroot
++CC= gcc
++FSSTND = -DFSSTND
++SYSLOGD_FLAGS= -DSYSLOG_INET -DSYSLOG_UNIXAF -DNO_SCCS ${FSSTND}
++SYSLOG_FLAGS= -DALLOW_KERNEL_LOGGING
++CFLAGS=$(CDEBUG_FLAGS) -O2 -DSYSV -fomit-frame-pointer -Wall -fno-strength-reduce
++LIBS= -levl -lnsl -lfl -lpthread
++
++MAIN=\
++	evlsyslog evlsyslog.1.gz
++
++SRC=\
++	evlsyslog.c
++
++MKFILE=Makefile
++
++.c.o:
++	${CC} ${CFLAGS} -c $*.c
++
++all: clobber $(MAIN) $(POSTMAIN)
++
++evlsyslog: evlsyslog.o
++	$(CC) -D_POSIX_THREADS $(LDFLAGS) -o evlsyslog evlsyslog.o $(LIBS)
++
++evlsyslog.1.gz: evlsyslog.1
++	gzip -c evlsyslog.1 > evlsyslog.1.gz
++
++install:
++	# really here
++	test -e  $(BUILDROOT) || mkdir -p $(BUILDROOT)
++	test -e $(BUILDROOT)/usr/man/man1  || mkdir -p $(BUILDROOT)/usr/man/man1
++	test -e $(BUILDROOT)/sbin  || mkdir -p $(BUILDROOT)/sbin
++	cp evlsyslog $(BUILDROOT)/sbin
++	# chmod 744 $(BUILDROOT)/sbin/evlsyslog
++	cp evlsyslog.1.gz $(BUILDROOT)/usr/man/man1
++
++clean:
++	rm -f evlsyslog *.o *.gz
++
++clobber:	clean
++	rm -f $(MAIN)
+Index: evlog-telco-1.5.1/Makefile
+===================================================================
+--- evlog-telco-1.5.1.orig/Makefile
++++ evlog-telco-1.5.1/Makefile
+@@ -8,22 +8,28 @@ CFLAGS=$(CDEBUG_FLAGS) -I$(ROOT)/usr/inc
+ 
+ MKFILE=Makefile
+ 
+-all: evlog-telco/evlforward evlog-telco/evlog-examples
++all: evlog-telco/evlforward evlog-telco/evlog-examples evlog-telco/evlsyslog
+ 
+ evlog-telco/evlforward:
+ 	cd evlforward;make
+ 
++evlog-telco/evlsyslog:
++	cd evlsyslog;make
++
+ evlog-telco/evlog-examples:
+ 	cd evlog-examples;make
+ 
+ install:
+ 	cd evlforward;make install
++	cd evlsyslog;make install
+ 	cd evlog-examples;make install
+ 
+ clean:
+ 	cd evlforward;make clean
++	cd evlsyslog;make clean
+ 	cd evlog-examples;make clean
+ 
+ clobber:	clean
+ 	cd evlforward;make clobber
++	cd evlsyslog;make clobber
+ 	cd evlog-examples;make clobber

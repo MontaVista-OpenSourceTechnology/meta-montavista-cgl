@@ -1,0 +1,38 @@
+diff -ruN evlog-1.6.1_org/user/cmd/evlginzu/common.c evlog-1.6.1/user/cmd/evlginzu/common.c
+--- evlog-1.6.1_org/user/cmd/evlginzu/common.c	2007-03-26 10:05:10.000000000 -1000
++++ evlog-1.6.1/user/cmd/evlginzu/common.c	2007-03-29 12:48:00.000000000 -1000
+@@ -259,7 +259,7 @@
+ 		}
+ 
+ 		(void) fprintf(stderr,
+-				"%s: Cannot seek POSIX log file %s: %s",
++				"%s: Cannot seek POSIX log file %s: %s\n",
+ 				ProgName, source -> e_path, strerror(errno));
+ 
+ 		return (SOURCE_IO_ERROR);
+@@ -271,7 +271,7 @@
+ 	if ( status != 0 )
+ 	{
+ 		(void) fprintf(stderr,
+-				"%s: Cannot read POSIX log file %s: %s",
++				"%s: Cannot read POSIX log file %s: %s\n",
+ 				ProgName, source -> e_path, strerror(errno));
+ 
+ 		return (SOURCE_IO_ERROR);
+diff -ruN evlog-1.6.1_org/user/lib/posix1.c evlog-1.6.1/user/lib/posix1.c
+--- evlog-1.6.1_org/user/lib/posix1.c	2007-03-26 10:05:10.000000000 -1000
++++ evlog-1.6.1/user/lib/posix1.c	2007-03-29 12:46:21.000000000 -1000
+@@ -539,10 +539,10 @@
+ 		if ((status = _evlRewind(logdes)) < 0) {
+ 			return status;
+ 		}
+-		if (query) {
++		/* no need for a "query" check here
++		 * it is checked in by _evlSeekFwd
++		 */
+ 			return _evlSeekFwd(logdes, query);
+-		}
+-		return 0;
+ 	case POSIX_LOG_SEEK_LAST:
+ 		if ((status = _evlSeekEnd(logdes)) < 0) {
+ 			return status;

@@ -1,0 +1,57 @@
+#!/bin/sh
+#
+# /etc/init.d/evforward: Starts evlforward.
+#
+# chkconfig: 2345 85 45
+#
+
+. /etc/init.d/init-functions
+
+[ -f /sbin/evlforward ] || exit 0
+
+print_status()
+{
+    if test "$?" -eq 0
+    then
+        log_success_msg "success"
+    else
+        log_failure_msg "failed"
+    fi
+}
+
+start() {
+    echo -n "Starting enterprise event log forwarding daemon: "
+    start_daemon /sbin/evlforward
+    RETVAL=$?
+    print_status
+    if test "$RETVAL" -eq 0; then
+        mkdir -p /var/lock/subsys
+        touch /var/lock/subsys/evlforward
+    fi
+}
+
+stop() {
+    echo -n "Stopping enterprise event log forwarding daemon: "
+    killproc evlforward
+    RETVAL=$?
+    print_status
+    if test "$RETVAL" -eq 0; then
+        rm -f /var/lock/subsys/evlforward
+    fi
+}
+
+case "$1" in
+  start)  
+        start
+        ;;
+  stop)
+        stop
+        ;;
+  restart|reload|force-reload)
+        stop
+        start
+        ;;
+  *)
+        echo "Usage: /etc/init.d/evlforward {start|stop|reload|restart|force-reload}"
+        exit 1
+esac

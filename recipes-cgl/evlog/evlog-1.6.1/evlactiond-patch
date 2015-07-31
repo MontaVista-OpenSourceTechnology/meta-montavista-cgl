@@ -1,0 +1,19 @@
+Index: evlog-1.6.1/user/cmd/evlactiond/evlactiond.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlactiond/evlactiond.c
++++ evlog-1.6.1/user/cmd/evlactiond/evlactiond.c
+@@ -193,14 +193,6 @@ main(int argc, char *argv[]) 
+    		fprintf(stderr, "Failed to load action registry.\n");
+    	}
+ 
+-   	/* read the action registry file */
+-
+-	TRACE("Loading action registry.. \n");
+-
+-	if (loadActionsFromFile() != 0) {
+-   		fprintf(stderr, "Failed to load action registry.\n");
+-   	}
+-
+ 	/* install signal handlers */
+ 
+ 	(void) memset(&SigTERMAction, 0, sizeof(SigTERMAction));

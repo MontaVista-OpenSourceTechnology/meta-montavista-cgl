@@ -1,0 +1,45 @@
+Fix the lun vs id mess (the /sys/class/scsi_device entry is host:chan:id:lun,
+not host:chan:lun:id), and improve error reporting.
+
+diff -Nupr a/scsihotswap-3.1/libscsihotswap/libscsihotswap.c b/scsihotswap-3.1/libscsihotswap/libscsihotswap.c
+--- a/scsihotswap-3.1/libscsihotswap/libscsihotswap.c	2010-06-08 21:40:32.000000000 +0400
++++ b/scsihotswap-3.1/libscsihotswap/libscsihotswap.c	2010-12-16 13:11:12.868691949 +0300
+@@ -176,7 +176,7 @@ int scsi_blkdevremove_by_id(unsigned int
+ 		unsigned int id)
+ {
+ 	struct dirent **namelist;
+-	int n, sysfd;
++	int n, sysfd, retval;
+ 	char path_to_remove[256];
+ 
+ 	path_to_remove[255] = '\0';
+@@ -192,14 +192,15 @@ int scsi_blkdevremove_by_id(unsigned int
+ 		fprintf(stderr,
+ 			"Disk (host:%u|bus:%u:lun:%u|id:%u) does not exist\n",
+ 			host, channel, lun, id);
+-		return 0;
++		return -1;
+ 	}
+ 
++	retval = -1;
+ 	while (n--)
+ 	{
+ 		snprintf(path_to_remove, 256,
+ 			"/sys/class/scsi_device/%u:%u:%u:%u/device/block/%s/remove",
+-			host, channel, lun, id, namelist[n]->d_name);
++			host, channel, id, lun, namelist[n]->d_name);
+ 		free(namelist[n]);
+ 
+ 		sysfd = open(path_to_remove, O_WRONLY);
+@@ -210,9 +211,10 @@ int scsi_blkdevremove_by_id(unsigned int
+ 		}
+ 		write(sysfd, "1", 1);
+ 		close(sysfd);
++		retval = 0;	/* success if at least one dev is removed ok */
+ 	}
+ 
+-	return 0;
++	return retval;
+ }
+ 
+ /*

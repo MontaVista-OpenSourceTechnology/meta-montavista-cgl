@@ -1,0 +1,33 @@
+--- cpuspeed-1.5/Makefile	2008-10-08 15:00:12.000000000 -0400
++++ cpuspeed-1.5/Makefile.rh	2008-10-08 18:54:03.000000000 -0400
+@@ -1,5 +1,8 @@
+-CC=gcc -Wall -fno-exceptions
++CC=gcc
++CFLAGS=-Wall -fno-exceptions
+ COPTS=-Os
++LDFLAGS=
++SBINDIR=/usr/sbin
+ 
+ TARGET=cpuspeed
+ DEBUG_TARGET=cpuspeed-debug
+@@ -9,16 +12,16 @@ debug: $(DEBUG_TARGET)
+ fake: $(FAKE_TARGET)
+ 
+ $(TARGET): cpuspeed.cc
+-	$(CC) -c $(COPTS) cpuspeed.cc
+-	$(CC) cpuspeed.o -o $(TARGET)
+-	strip $(TARGET)
++	$(CC) $(CFLAGS) -c $(COPTS) cpuspeed.cc
++	$(CC) $(CFLAGS) $(LDFLAGS) cpuspeed.o -o $(TARGET)
+ 
+ # Debug target
+ $(DEBUG_TARGET): cpuspeed.cc
+ 	$(CC) -c -g -DDEBUG -o cpuspeed_debug.o cpuspeed.cc
+ 	$(CC) cpuspeed_debug.o -o $(DEBUG_TARGET)
+ 
+-install: install_redhat
++install: $(TARGET)
++	install -m755 $(TARGET) $(DESTDIR)/$(SBINDIR)/
+ 
+ install_redhat: $(TARGET)
+ 	cp -f $(TARGET) /sbin

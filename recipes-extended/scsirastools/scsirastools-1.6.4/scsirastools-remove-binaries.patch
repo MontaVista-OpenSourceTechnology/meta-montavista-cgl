@@ -1,0 +1,60 @@
+diff -Nuarp scsirastools-1.6.4_org/configure scsirastools-1.6.4/configure
+--- scsirastools-1.6.4_org/configure	2011-08-23 18:56:05.000000000 +0530
++++ scsirastools-1.6.4/configure	2012-10-08 19:29:29.120356193 +0530
+@@ -3864,7 +3864,7 @@ done
+     CFLAGS="$CFLAGS -Wall"
+   fi
+ 
+-                                                  ac_config_files="$ac_config_files Makefile src/Makefile doc/Makefile files/Makefile mdadm.d/Makefile"
++                                                  ac_config_files="$ac_config_files Makefile src/Makefile doc/Makefile files/Makefile"
+ cat >confcache <<\_ACEOF
+ # This file is a shell script that caches the results of configure
+ # tests run on this system so they can be shared between configure
+@@ -4418,7 +4418,6 @@ do
+   "src/Makefile" ) CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
+   "doc/Makefile" ) CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
+   "files/Makefile" ) CONFIG_FILES="$CONFIG_FILES files/Makefile" ;;
+-  "mdadm.d/Makefile" ) CONFIG_FILES="$CONFIG_FILES mdadm.d/Makefile" ;;
+   "depfiles" ) CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
+   "config.h" ) CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
+   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
+diff -Nuarp scsirastools-1.6.4_org/configure.in scsirastools-1.6.4/configure.in
+--- scsirastools-1.6.4_org/configure.in	2011-08-23 18:56:05.000000000 +0530
++++ scsirastools-1.6.4/configure.in	2012-10-08 19:29:53.680356315 +0530
+@@ -28,4 +28,4 @@ AC_CHECK_FUNCS(strcspn strspn uname)
+     CFLAGS="$CFLAGS -Wall"
+   fi]
+ 
+-AC_OUTPUT(Makefile src/Makefile doc/Makefile files/Makefile mdadm.d/Makefile)
++AC_OUTPUT(Makefile src/Makefile doc/Makefile files/Makefile)
+diff -Nuarp scsirastools-1.6.4_org/files/Makefile.old scsirastools-1.6.4/files/Makefile.old
+--- scsirastools-1.6.4_org/files/Makefile.old	2011-08-23 18:56:05.000000000 +0530
++++ scsirastools-1.6.4/files/Makefile.old	2012-10-08 19:32:27.296357060 +0530
+@@ -46,5 +46,4 @@ install:
+ 	${INSTALL_DATA} st373405.mdf  ${datato}
+ 	${INSTALL_DATA} st39173l.mdf  ${datato}
+ 	${INSTALL_DATA} st39173w.mdf  ${datato}
+-	${INSTALL_SCRIPT} alarms    ${datato}
+ 	
+diff -Nuarp scsirastools-1.6.4_org/Makefile.am scsirastools-1.6.4/Makefile.am
+--- scsirastools-1.6.4_org/Makefile.am	2011-08-23 18:56:05.000000000 +0530
++++ scsirastools-1.6.4/Makefile.am	2012-10-08 19:32:45.856357149 +0530
+@@ -1,5 +1,5 @@
+ 
+-SUBDIRS = mdadm.d src files doc 
++SUBDIRS = src files doc 
+ PKGDIR = /usr/src/redhat
+ SOURCEDIR = $(PKGDIR)/SOURCES
+ BUILDDIR = $(PKGDIR)/BUILD
+diff -Nuarp scsirastools-1.6.4_org/Makefile.in scsirastools-1.6.4/Makefile.in
+--- scsirastools-1.6.4_org/Makefile.in	2011-08-23 18:56:05.000000000 +0530
++++ scsirastools-1.6.4/Makefile.in	2012-10-08 19:33:09.696357265 +0530
+@@ -140,7 +140,7 @@ sbindir = @sbindir@
+ sharedstatedir = @sharedstatedir@
+ sysconfdir = @sysconfdir@
+ target_alias = @target_alias@
+-SUBDIRS = mdadm.d src files doc 
++SUBDIRS = src files doc 
+ PKGDIR = /usr/src/redhat
+ SOURCEDIR = $(PKGDIR)/SOURCES
+ BUILDDIR = $(PKGDIR)/BUILD

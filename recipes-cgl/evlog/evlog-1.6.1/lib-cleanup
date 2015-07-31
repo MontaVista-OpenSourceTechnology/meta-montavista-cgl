@@ -1,0 +1,3710 @@
+Index: evlog-1.6.1/user/lib/posix1.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/posix1.c
++++ evlog-1.6.1/user/lib/posix1.c
+@@ -62,8 +62,10 @@ const char *evl_time_format = "%c";
+ 
+ static int nOpens = 0;
+ 
+-static posix_log_query_t screenQuery;		/* Screening query specify in the evlog.conf */
+-static time_t evlConfLastMod;				/* time stamp fro evlog.conf */
++/* Screening query specified in evlog.conf */
++static posix_log_query_t screenQuery;
++
++static time_t evlConfLastMod;		/* time stamp fro evlog.conf */
+ static char *confPath = LOG_EVLOG_CONF_DIR "/evlog.conf";
+ 
+ #ifdef _POSIX_THREADS
+@@ -75,18 +77,20 @@ static pthread_mutex_t nfyApiMutex =  PT
+ 
+ /*************** entry end exit point for shared lib ******************/
+ #ifdef _SHARED_LIB
+-void _init() 
++void
++_init(void)
+ {
+ }
+ 
+-void _fini()
++void
++_fini(void)
+ {
+ }
+ #endif
+ /********************** auxiliary functions ***************************/
+ 
+ static void
+-lockNOpens()
++lockNOpens(void)
+ {
+ #ifdef _POSIX_THREADS
+ 	(void) pthread_mutex_lock(&nOpensMutex);
+@@ -94,7 +98,7 @@ lockNOpens()
+ }
+ 
+ static void
+-unlockNOpens()
++unlockNOpens(void)
+ {
+ #ifdef _POSIX_THREADS
+ 	(void) pthread_mutex_unlock(&nOpensMutex);
+@@ -102,7 +106,7 @@ unlockNOpens()
+ }
+ 
+ static void
+-lockNfyApi()
++lockNfyApi(void)
+ {
+ #ifdef _POSIX_THREADS
+ 	(void) pthread_mutex_lock(&nfyApiMutex);
+@@ -110,7 +114,7 @@ lockNfyApi()
+ }
+ 
+ static void
+-unlockNfyApi()
++unlockNfyApi(void)
+ {
+ #ifdef _POSIX_THREADS
+ 	(void) pthread_mutex_unlock(&nfyApiMutex);
+@@ -119,33 +123,38 @@ unlockNfyApi()
+ 
+ /* Used for building strings like "0x3 (TRUNCATE|STRING)". */
+ static int
+-addFlag(char *s, unsigned int flags, unsigned int flag, const char *flagName,
+-	int anyPrevFlags)
++addFlag(	char		*s,
++		unsigned int	flags,
++		unsigned int	flag,
++		const char	*flagName,
++		int		anyPrevFlags)
+ {
+-	if ((flags & flag) != 0) {
++	if ((flags & flag) == 0) {
++		return anyPrevFlags;
++	} else {
+ 		if (anyPrevFlags) {
+ 			(void) strcat(s, "|");
+ 		} else {
+ 			(void) strcat(s, " (");
+ 		}
+ 		(void) strcat(s, flagName);
++
+ 		return 1;
+-	} else {
+-		return anyPrevFlags;
+ 	}
+ }
+ 
+ /********************** query functions *************************/
+ int
+-_evlEvaluateQuery(const posix_log_query_t *query,
+-	const struct posix_log_entry *entry, const void *buf)
++_evlEvaluateQuery(	const posix_log_query_t		*query,
++			const struct posix_log_entry	*entry,
++			const void			*buf)
+ {
+-	return _evlQEvaluateTree((const pnode_t *)(query->qu_tree),
++	return _evlQEvaluateTree((const pnode_t *) (query->qu_tree),
+ 		query->qu_nonStdAtts, entry, buf);
+ }	
+ 
+ static void
+-lockQueryParser()
++lockQueryParser(void)
+ {
+ #ifdef _POSIX_THREADS
+ 	(void) pthread_mutex_lock(&qParserMutex);
+@@ -153,14 +162,15 @@ lockQueryParser()
+ }
+ 
+ static void
+-unlockQueryParser()
++unlockQueryParser(void)
+ {
+ #ifdef _POSIX_THREADS
+ 	(void) pthread_mutex_unlock(&qParserMutex);
+ #endif
+ }
+ 
+-int tryLockQueryParser()
++int
++tryLockQueryParser(void)
+ {
+ #ifdef _POSIX_THREADS
+ 	return pthread_mutex_trylock(&qParserMutex);
+@@ -177,13 +187,14 @@ static void
+ queryError(const char *errString, char *errBuf, size_t bufsz)
+ {
+ 	size_t eslen = strlen(errString);
+-	if (errBuf && bufsz != 0) {
++
++	if (errBuf && (bufsz != 0)) {
+ 		/* Copy as much as possible of errString into errBuf. */
+-		if (eslen+1 <= bufsz) {
++		if ((eslen + 1) <= bufsz) {
+ 			(void) strcpy(errBuf, errString);
+ 		} else {	
+ 			(void) strncpy(errBuf, errString, bufsz);
+-			errBuf[bufsz-1] = '\0';
++			errBuf[bufsz - 1] = '\0';
+ 		}
+ 	}
+ 
+@@ -198,22 +209,21 @@ queryError(const char *errString, char *
+ 	unlockQueryParser();
+ }
+ 
+-
+ /********************** API functions ***************************/
+ 
+ /* Log an event */
+ int
+-posix_log_write(posix_log_facility_t facility,
+-	int event_type, posix_log_severity_t severity,
+-	const void *buf, size_t len, int format, unsigned int flags)
++posix_log_write(	posix_log_facility_t	facility,
++			int			event_type,
++			posix_log_severity_t	severity,
++			const void		*buf,
++			size_t			len,
++			int			format,
++			unsigned int		flags)
+ {
+ 	struct posix_log_entry entry;
+-	posix_log_query_t *restrictedQuery;
+-	int accFlags;
+ 	int gotTimeStamp = 0;
+ 	int writeStatus;
+-	char facName[POSIX_LOG_MEMSTR_MAXLEN];
+-	struct stat st;
+ 
+ 	/* Capture the time stamp ASAP. */
+ #ifdef _POSIX_TIMERS_1
+@@ -225,8 +235,9 @@ posix_log_write(posix_log_facility_t fac
+ 		entry.log_time.tv_sec = (long) time(0);
+ 		entry.log_time.tv_nsec = 0;
+ 	}
++
+ 	/* Temporary mark the log_magic with the architecture info */
+-#ifdef __i386__
++#if defined(__i386__)
+ 	entry.log_magic = LOGREC_ARCH_I386;
+ #elif defined(__s390__)
+ 	entry.log_magic = LOGREC_ARCH_S390;
+@@ -247,14 +258,10 @@ posix_log_write(posix_log_facility_t fac
+ #else
+ 	entry.log_magic = LOGREC_ARCH_NO_ARCH;
+ #endif
+-	
++
+ 	/*
+ 	 * Also get the processor ID ASAP, before this process migrates
+ 	 * to another processor.
+-	 *
+-	 * Linux, at least, doesn't appear to have a user-mode function
+-	 * for getting the ID of the current CPU.  In the kernel, there's
+-	 * the smp_processor_id macro. Therefore, we invent our own.
+ 	 */
+ 	entry.log_processor = _evlGetProcId();
+ 
+@@ -264,13 +271,13 @@ posix_log_write(posix_log_facility_t fac
+ 	 * fussing later.
+ 	 */
+ 	if (format == POSIX_LOG_STRING) {
+-		if (strlen((const char*)buf) != len-1) {
++		if (strlen((const char *) buf) != len - 1) {
+ 			return EBADMSG;
+ 		}
+ 	}
+ 
+ 	/* Lowest number (0) = highest severity (LOG_EMERG) */
+-	if (severity < LOG_EMERG || severity > LOG_DEBUG) {
++	if ((severity < LOG_EMERG) || (severity > LOG_DEBUG)) {
+ 		return EINVAL;
+ 	}
+ 
+@@ -292,12 +299,12 @@ posix_log_write(posix_log_facility_t fac
+ 
+ 	/* Verify that the specified format is appropriate. */
+ 	if (len == 0) {
+-		/* No data.  Format is NODATA, no matter what caller says. */
++		/* No data. Format is NODATA, no matter what caller says. */
+ 		entry.log_format = POSIX_LOG_NODATA;
+ 	} else {
+-		if (format == POSIX_LOG_BINARY
+-		    || format == POSIX_LOG_STRING
+-		    || format == POSIX_LOG_PRINTF) {
++		if ((format == POSIX_LOG_BINARY) ||
++		    (format == POSIX_LOG_STRING) ||
++		    (format == POSIX_LOG_PRINTF)) {
+ 			entry.log_format = format;
+ 		} else {
+ 			return EINVAL;
+@@ -324,18 +331,20 @@ posix_log_write(posix_log_facility_t fac
+ 	/* entry.log_recid is set later by somebody else. */
+ 	writeStatus = _evlWriteEx(&entry, buf);
+ 
+-	if (writeStatus == ENOSPC) {
+-		return ENOSPC;
+-	} else if (writeStatus != 0) {
+-		return EIO;
++	if (writeStatus != 0) {
++		return ((writeStatus == ENOSPC) ? ENOSPC : EIO);
+ 	}
++
+ 	return 0;
+ }
+ 
+ int
+-posix_log_vprintf(posix_log_facility_t facility,
+-	int event_type, posix_log_severity_t severity, unsigned int flags,
+-	const char *format, va_list args)
++posix_log_vprintf(	posix_log_facility_t	facility,
++			int			event_type,
++			posix_log_severity_t	severity,
++			unsigned int		flags,
++			const char		*format,
++			va_list			args)
+ {
+ 	char buf[POSIX_LOG_ENTRY_MAXLEN];
+ 	int slen;
+@@ -343,24 +352,28 @@ posix_log_vprintf(posix_log_facility_t f
+ 	if (!format) {
+ 		return EINVAL;
+ 	}
++
+ 	slen = vsnprintf(buf, POSIX_LOG_ENTRY_MAXLEN, format, args);
+ 
+-	if (slen < 0 || slen > POSIX_LOG_ENTRY_MAXLEN-1) {
++	if ((slen < 0) || (slen > POSIX_LOG_ENTRY_MAXLEN - 1)) {
+ 		/* String would exceed POSIX_LOG_ENTRY_MAXLEN; truncate it. */
+-		buf[POSIX_LOG_ENTRY_MAXLEN-1] = '\0';
++		buf[POSIX_LOG_ENTRY_MAXLEN - 1] = '\0';
+ #ifdef POSIX_LOG_TRUNCATE
+ 		flags |= POSIX_LOG_TRUNCATE;
+ #endif
+ 	}
+ 
+-	return posix_log_write(facility, event_type, severity,
+-		buf, strlen(buf)+1, POSIX_LOG_STRING, flags);
++	return posix_log_write(facility, event_type, severity, buf,
++				strlen(buf) + 1, POSIX_LOG_STRING, flags);
+ }
+ 
+ int
+-posix_log_printf(posix_log_facility_t facility,
+-	int event_type, posix_log_severity_t severity, unsigned int flags,
+-	const char *format, ...)
++posix_log_printf(	posix_log_facility_t	facility,
++			int			event_type,
++			posix_log_severity_t	severity,
++			unsigned int		flags,
++			const char		*format,
++			...)
+ {
+ 	int status;
+ 	va_list args;
+@@ -369,13 +382,17 @@ posix_log_printf(posix_log_facility_t fa
+ 	status = posix_log_vprintf(facility, event_type, severity, flags,
+ 		format, args);
+ 	va_end(args);
++
+ 	return status;
+ }
+ 
+ int
+-posix_log_vprintb(posix_log_facility_t facility,
+-	int event_type, posix_log_severity_t severity, unsigned int flags,
+-	const char *format, va_list args)
++posix_log_vprintb(	posix_log_facility_t	facility,
++			int			event_type,
++			posix_log_severity_t	severity,
++			unsigned int		flags,
++			const char		*format,
++			va_list			args)
+ {
+ 	char buf[POSIX_LOG_ENTRY_MAXLEN];
+ 	size_t datasz = 0;
+@@ -384,7 +401,9 @@ posix_log_vprintb(posix_log_facility_t f
+ 	if (!format) {
+ 		return EINVAL;
+ 	}
++
+ 	status = evl_pack_format_and_args(format, args, buf, &datasz);
++
+ 	if (status != 0) {
+ 		return status;
+ 	}
+@@ -394,9 +413,12 @@ posix_log_vprintb(posix_log_facility_t f
+ }
+ 
+ int
+-posix_log_printb(posix_log_facility_t facility,
+-	int event_type, posix_log_severity_t severity, unsigned int flags,
+-	const char *format, ...)
++posix_log_printb(	posix_log_facility_t	facility,
++			int			event_type,
++			posix_log_severity_t	severity,
++			unsigned int		flags,
++			const char		*format,
++			...)
+ {
+ 	int status;
+ 	va_list args;
+@@ -405,6 +427,7 @@ posix_log_printb(posix_log_facility_t fa
+ 	status = posix_log_vprintb(facility, event_type, severity, flags,
+ 		format, args);
+ 	va_end(args);
++
+ 	return status;
+ }
+ 
+@@ -415,11 +438,14 @@ posix_log_open(posix_logd_t *logdes, con
+ 	int status = 0;
+ 
+ 	lockNOpens();
++
+ 	if (nOpens >= POSIX_LOG_OPEN_MAX) {
+ 		unlockNOpens();
+ 		return EMFILE;
+ 	}
++
+ 	nOpens++;
++
+ 	unlockNOpens();
+ 
+ 	if ((status = _evlOpen(logdes, path)) != 0) {
+@@ -428,13 +454,16 @@ posix_log_open(posix_logd_t *logdes, con
+ 		nOpens--;
+ 		unlockNOpens();
+ 	}
++
+ 	return status;
+ }
+ 
+ /* Read from event log */
+ int
+-posix_log_read(posix_logd_t logdes, struct posix_log_entry *entry,
+-	void *log_buf, size_t log_len)
++posix_log_read(	posix_logd_t		logdes,
++		struct posix_log_entry	*entry,
++		void			*log_buf,
++		size_t			log_len)
+ {
+ 	if (_evlValidateLogdes(logdes, 1) < 0) {
+ 		return EBADF;
+@@ -462,13 +491,15 @@ posix_log_close(posix_logd_t logdes)
+ 		nOpens--;
+ 		unlockNOpens();
+ 	}
++
+ 	return status;
+ }
+ 
+ /* Reposition the read pointer */
+ int
+-posix_log_seek(posix_logd_t logdes, const posix_log_query_t *query,
+-	int direction)
++posix_log_seek(	posix_logd_t		logdes,
++		const posix_log_query_t	*query,
++		int			direction)
+ {
+ 	int status;
+ 
+@@ -517,8 +548,9 @@ posix_log_seek(posix_logd_t logdes, cons
+ 
+ /* Compare severities */
+ int
+-posix_log_severity_compare(int *order, posix_log_severity_t s1,
+-	posix_log_severity_t s2)
++posix_log_severity_compare(	int			*order,
++				posix_log_severity_t	s1,
++				posix_log_severity_t	s2)
+ {
+ 	if (!order) {
+ 		return EINVAL;
+@@ -526,13 +558,17 @@ posix_log_severity_compare(int *order, p
+ 
+ 	/* Lowest number (0) = highest severity (LOG_EMERG) */
+ 	*order = s2 - s1;
++
+ 	return 0;
+ } 
+ 
+ /* Create log query */
+ int
+-posix_log_query_create(const char *query_string, int purpose,
+-	posix_log_query_t *query, char *errbuf, size_t errlen)
++posix_log_query_create(	const char		*query_string,
++			int			purpose,
++			posix_log_query_t	*query,
++			char			*errbuf,
++			size_t			errlen)
+ {
+ 	int status = 0;
+ 
+@@ -540,10 +576,10 @@ posix_log_query_create(const char *query
+ 		status = EINVAL;
+ 	}
+ 
+-	if (purpose == 0 ||
+-	    (purpose & ~POSIX_LOG_PRPS_MASK) != 0) {
++	if (purpose == 0 || (purpose & ~POSIX_LOG_PRPS_MASK) != 0) {
+ 		status = EINVAL;
+ 	}
++
+ 	if ((purpose & EVL_PRPS_TEMPLATE) != 0) {
+ 		/*
+ 		 * Can't refer to non-standard attributes in a query used
+@@ -568,6 +604,7 @@ posix_log_query_create(const char *query
+ 		if (errbuf && errlen > 0) {
+ 			errbuf[0] = '\0';
+ 		}
++
+ 		return status;
+ 	}
+ 
+@@ -581,6 +618,7 @@ posix_log_query_create(const char *query
+ 		 */
+ 		return EBUSY;
+ 	}
++
+ 	_evlQReinitLex(query_string);	
+ 	_evlQParseTree = NULL;
+ 	_evlQueryErrmsg[0] = '\0';
+@@ -588,11 +626,14 @@ posix_log_query_create(const char *query
+ 	_evlQNonStdAtts = NULL;
+ 	status = qqparse();
+ 	_evlQEndLex();
++
+ 	if (status != 0) {
+ 		/* Syntax error(s) */
+ 		queryError(_evlQueryErrmsg, errbuf, errlen);
+ 		return EINVAL;
+-	} else if (_evlQNormalizeTree(_evlQParseTree) != 0) {
++	}
++
++	if (_evlQNormalizeTree(_evlQParseTree) != 0) {
+ 		/* Semantic error(s) */
+ 		queryError(_evlQueryErrmsg, errbuf, errlen);
+ 		return EINVAL;
+@@ -607,14 +648,19 @@ posix_log_query_create(const char *query
+ 	unlockQueryParser();
+ 	query->qu_expr = strdup(query_string);
+ 	query->qu_purpose = purpose;
++
+ 	return 0;
+ }
+ 
+ int
+-posix_log_query_get(const posix_log_query_t *query, int *purpose,
+-	char *qsbuf, size_t qslen, size_t *reqlen)
++posix_log_query_get(	const posix_log_query_t	*query,
++			int			*purpose,
++			char			*qsbuf,
++			size_t			qslen,
++			size_t			*reqlen)
+ {
+ 	size_t qelen;
++
+ 	if (_evlValidateQuery(query, 0 /* NULL not OK */) < 0) {
+ 		return EINVAL;
+ 	}	
+@@ -623,6 +669,7 @@ posix_log_query_get(const posix_log_quer
+ 	 * room to store it.
+ 	 */
+ 	qelen = strlen(query->qu_expr) + 1;
++
+ 	if (reqlen) {
+ 		*reqlen = qelen;
+ 	}
+@@ -632,10 +679,13 @@ posix_log_query_get(const posix_log_quer
+ 	if (qslen < qelen) {
+ 		return EMSGSIZE;
+ 	}
++
+ 	(void) strcpy(qsbuf, query->qu_expr);
++
+ 	if (purpose) {
+ 		*purpose = query->qu_purpose;
+ 	}
++
+ 	return 0;
+ }
+ 
+@@ -655,19 +705,22 @@ posix_log_query_destroy(posix_log_query_
+ 	if (query->qu_expr) {
+ 		free(query->qu_expr);
+ 	}
++
+ 	query->qu_purpose = 0;	
++
+ 	return 0;
+ }
+ 
+ /* Obtain the string equivalent of an event-record member */
+ int
+-posix_log_memtostr(int member_selector,
+-	const struct posix_log_entry *entry,
+-	char *buf, size_t buflen)
++posix_log_memtostr(	int				member_selector,
++			const struct posix_log_entry	*entry,
++			char				*buf,
++			size_t				buflen)
+ {
+ 	char s[POSIX_LOG_MEMSTR_MAXLEN];
+ 
+-	if (entry == 0 || buf == 0) {
++	if ((entry == NULL) || (buf == NULL)) {
+ 		return EINVAL;
+ 	}
+ 
+@@ -679,36 +732,48 @@ posix_log_memtostr(int member_selector,
+ 		(void) snprintf(s, sizeof(s), "%u", entry->log_size);
+ 		break;
+ 	case POSIX_LOG_ENTRY_FORMAT:
+-		_evlGetNameByValue(_evlFormats, entry->log_format, s, sizeof(s), 0);
++		_evlGetNameByValue(_evlFormats, entry->log_format, s,
++								sizeof(s), 0);
+ 		break;
+ 	case POSIX_LOG_ENTRY_EVENT_TYPE:
+ 		(void) snprintf(s, sizeof(s), "0x%x", entry->log_event_type);
+ 		break;
+ 	case POSIX_LOG_ENTRY_FACILITY:
+ 		if (!_evlGetFacilityName(entry->log_facility, s)) {
+-			(void) snprintf(s, sizeof(s), "0x%x", entry->log_facility);
++			(void) snprintf(s, sizeof(s), "0x%x",
++							entry->log_facility);
+ 		}
+ 		break;
+ 	case POSIX_LOG_ENTRY_SEVERITY:
+-		_evlGetNameByValue(_evlSeverities, entry->log_severity, s, sizeof(s), 0);
++		_evlGetNameByValue(_evlSeverities, entry->log_severity,
++							s, sizeof(s), 0);
+ 		break;
+ 	case POSIX_LOG_ENTRY_UID:
+ 	    {
+ #ifdef _POSIX_THREAD_SAFE_FUNCTIONS
+ 		struct passwd *pw, passwd;
+ 		char buf[GETPW_R_SIZE_MAX];
++
+ 		/* If host is a rmt host - don't resolve the user name */
+-		if ((entry->log_processor >> 16) != 0) goto _rmt_user_exit; 
+-#ifndef __Lynx__
++		if ((entry->log_processor >> 16) != 0) {
++			goto _rmt_user_exit;
++		}
++
++#if defined(__Lynx__)
++		pw = getpwuid_r(&passwd, entry->log_uid, buf,
++							GETPW_R_SIZE_MAX);
++#else
+ 		(void) getpwuid_r(entry->log_uid, &passwd, buf,
+ 			GETPW_R_SIZE_MAX, &pw);
+-#else
+-		pw = getpwuid_r(&passwd, entry->log_uid, buf, GETPW_R_SIZE_MAX);
+ #endif
+ #else
+ 	    	struct passwd *pw;
++
+ 		/* If host is a rmt host - don't resolve the user name */
+-		if ((entry->log_processor >> 16) != 0) goto _rmt_user_exit; 
++		if ((entry->log_processor >> 16) != 0) {
++			goto _rmt_user_exit;
++		}
++
+ 		pw = getpwuid(entry->log_uid);
+ #endif
+ 		if (pw) {
+@@ -724,11 +789,12 @@ posix_log_memtostr(int member_selector,
+ #ifdef _POSIX_THREAD_SAFE_FUNCTIONS
+ 		struct group *gr, group;
+ 		char buf[GETGR_R_SIZE_MAX];
+-#ifndef __Lynx__
++
++#if defined(__Lynx__)
++		gr = getgrgid_r(&group, entry->log_gid, buf, GETGR_R_SIZE_MAX);
++#else
+ 		(void) getgrgid_r(entry->log_gid, &group, buf,
+ 			GETGR_R_SIZE_MAX, &gr);
+-#else 
+-		gr = getgrgid_r(&group, entry->log_gid, buf, GETGR_R_SIZE_MAX);
+ #endif
+ #else
+ 	    	struct group *gr = getgrgid(entry->log_gid);
+@@ -751,8 +817,10 @@ posix_log_memtostr(int member_selector,
+ 		char *nl;
+ 		time_t timestamp = (time_t) entry->log_time.tv_sec;
+ 		struct tm tm;
++
+ 		(void) strftime(s, POSIX_LOG_MEMSTR_MAXLEN, evl_time_format,
+ 			localtime_r(&timestamp, &tm));
++
+ 		/* Zap newline. */
+ 		nl = strchr(s, '\n');
+ 		if (nl) {
+@@ -763,7 +831,9 @@ posix_log_memtostr(int member_selector,
+ 	case POSIX_LOG_ENTRY_FLAGS:
+ 	    {
+ 		int anyFlags = 0;
++
+ 		(void) snprintf(s, sizeof(s), "0x%x", entry->log_flags);
++
+ 		anyFlags = addFlag(s, entry->log_flags, EVL_KERNEL_EVENT,
+ 			"KERNEL", anyFlags);
+ #ifdef EVL_PRINTK
+@@ -794,24 +864,29 @@ posix_log_memtostr(int member_selector,
+ 	if (strlen(s)+1 > buflen) {
+ 		return EMSGSIZE;
+ 	}
++
+ 	(void) strcpy(buf, s);
++
+ 	return 0;
+ }
+ 
+ /* Convert string to facility or facility to string */
+ int
+-posix_log_factostr(posix_log_facility_t fac, char *buf,
+-	size_t buflen)
++posix_log_factostr(posix_log_facility_t fac, char *buf, size_t buflen)
+ {
++	struct posix_log_entry entry;
++
+ 	/* This is sort of backward -- posix_log_memtostr() should probably
+ 	 * call factostr() -- but posix_log_memtostr() was written first.
+ 	 */
+-	struct posix_log_entry entry;
++
+ 	entry.log_facility = fac;
+ 	if (_evlGetFacilityAccess(fac) == -1) {
+ 		return EINVAL;
+ 	}
+-	return posix_log_memtostr(POSIX_LOG_ENTRY_FACILITY, &entry, buf, buflen);
++
++	return posix_log_memtostr(POSIX_LOG_ENTRY_FACILITY, &entry, buf,
++								buflen);
+ }	
+ 
+ int
+@@ -822,38 +897,48 @@ posix_log_strtofac(const char *str, posi
+ 	if (!str || !fac) {
+ 		return EINVAL;
+ 	}
++
+ 	facCode = _evlGetFacilityCodeByCIName(str);
+ 	if (facCode == EVL_INVALID_FACILITY) {
+ 		return EINVAL;
+ 	}
++
+ 	*fac = facCode;
++
+ 	return 0;
+ }	
+ 
+ int
+-posix_log_query_match(const posix_log_query_t *query,
+-	const struct posix_log_entry *entry, const void *buf, int *match)
++posix_log_query_match(	const posix_log_query_t		*query,
++			const struct posix_log_entry	*entry,
++			const void			*buf,
++			int				*match)
+ {
+ 	if (!entry || !match) {
+ 		return EINVAL;
+ 	}
+-	if ( (entry->log_size == 0 && buf != NULL)
+-	    || (entry->log_size != 0 && buf == NULL) ) {
++
++	if ( ((entry->log_size == 0) && (buf != NULL)) ||
++	     ((entry->log_size != 0) && (buf == NULL)) ) {
+ 		return EINVAL;
+ 	}
++
+ 	if (_evlValidateQuery(query, 0 /* NULL not OK */) < 0) {
+ 		return EINVAL;
+ 	}
++
+ 	*match = (_evlEvaluateQuery(query, entry, buf) != 0);
++
+ 	return 0;
+ }
+ /*
+  * Notification related API
+  */
+ int 
+-posix_log_notify_add(const posix_log_query_t *query,
+-        const struct sigevent *notification, int flags,
+-        posix_log_notify_t *nfyhandle)
++posix_log_notify_add(	const posix_log_query_t	*query,
++			const struct sigevent	*notification,
++			int			flags,
++			posix_log_notify_t	*nfyhandle)
+ {
+ 	nfyNewRqMsg_t newReq;
+ 	int ret=0;
+@@ -878,9 +963,12 @@ posix_log_notify_add(const posix_log_que
+ 	if (flags > (POSIX_LOG_ONCE_ONLY | POSIX_LOG_SEND_RECID | POSIX_LOG_SEND_SIGVAL) ) {
+ 		return EINVAL;
+ 	}
+-	if(!(flags & POSIX_LOG_SEND_RECID) && !(flags & POSIX_LOG_SEND_SIGVAL)){
++
++	if (!(flags & POSIX_LOG_SEND_RECID) &&
++	    !(flags & POSIX_LOG_SEND_SIGVAL)) {
+ 		flags |= POSIX_LOG_SEND_SIGVAL;
+ 	}
++
+ 	/* Enter critical section */
+ 	lockNfyApi();
+ 	/* Mask all signals so we don't get interrupted */
+@@ -894,10 +982,11 @@ posix_log_notify_add(const posix_log_que
+ 	
+ 	/* Validate query -- NULL is OK. */
+ 	if (query) {
+-		if(_evlValidateQuery(query, 1) == -1) {
++		if (_evlValidateQuery(query, 1) == -1) {
+ 			ret= EINVAL;
+ 			goto err_exit;
+ 		}
++
+ 		if (((query->qu_purpose & POSIX_LOG_PRPS_NOTIFY) == 0) &&
+ 		    ((query->qu_purpose & POSIX_LOG_PRPS_GENERAL) == 0) &&
+ 		    ((query->qu_purpose & EVL_PRPS_TEMPLATE) == 0)) {
+@@ -906,20 +995,14 @@ posix_log_notify_add(const posix_log_que
+ 		}
+ 
+ 		query_flags = query->qu_purpose;
+-		/*
+-		if ((query->qu_purpose & POSIX_LOG_PRPS_NOTIFY) == 0) {	
+-			ret = ENOTSUP;
+-			goto err_exit;
+-		}
+-		*/
+ 		newReq.nwQueryLength = strlen(query->qu_expr);
+ 	} else {
+ 		query_flags = 0;
+ 		newReq.nwQueryLength = strlen("<null>");
+ 	}
+-	
+-	
+-	if ((_evl_nfy_sd = _establishNonBlkConnection(EVLNOTIFYD_SERVER_SOCKET, &_evl_nfy_sock, 3 /*timeout*/)) < 0) {
++
++	if ((_evl_nfy_sd = _establishNonBlkConnection(
++		EVLNOTIFYD_SERVER_SOCKET, &_evl_nfy_sock, 3 /*timeout*/)) < 0) {
+ 		ret = EAGAIN;
+ 		goto err_exit;	/* convert error code back to positive number */
+ 	}
+@@ -927,33 +1010,38 @@ posix_log_notify_add(const posix_log_que
+ 		ret = EPERM;
+ 		goto err_exit;
+ 	}
+-	
+ 
+-	memcpy(&newReq.nwSigevent, notification, sizeof(struct sigevent));
++	(void) memcpy(&newReq.nwSigevent, notification,
++						sizeof(struct sigevent));
+ 	newReq.nwFlags = flags;
+ 	if (write(_evl_nfy_sd, &newReq, EVL_NFY_MSGMAXSIZE) <= 0) {
+ 		/* socket is broken */
+-		fprintf(stderr, "Failed to write the msg header to notify daemon.\n");
++		(void) fprintf(stderr,
++			"Failed to write the msg header to notify daemon.\n");
+ 		ret = EAGAIN;
+ 		goto err_exit;
+ 	}
+ 	/* Then send the query string. */
+ 	/* fprintf(stderr, "qlen=%i\n", newReq.nwQueryLength); */
+-	if(write(_evl_nfy_sd, (query)? query->qu_expr : "<null>", newReq.nwQueryLength) <= 0) {
+-		fprintf(stderr, "Failed to write the query str to notify daemon!\n");
++	if (write(_evl_nfy_sd, (query) ? query->qu_expr :
++					"<null>", newReq.nwQueryLength) <= 0) {
++		(void) fprintf(stderr,
++			"Failed to write the query str to notify daemon!\n");
+ 		ret = EAGAIN;
+ 		goto err_exit;
+ 	}
+ 	/* send out the query flags too */
+ 	if (write(_evl_nfy_sd, &query_flags, sizeof(query_flags)) <= 0) {
+-		fprintf(stderr, "Failed to write the query flags to notify daemon!\n");
++		(void) fprintf(stderr,
++			"Failed to write the query flags to notify daemon!\n");
+ 		ret = EAGAIN;
+ 		goto err_exit;
+ 	}
+ 	/* Server replies with the following message: */
+ 
+-	if(read(_evl_nfy_sd, &resp, sizeof(nfyMsgHdr_t)) <= 0) {
+-		fprintf(stderr, "Failed to read response from notify daemon.\n");	
++	if (read(_evl_nfy_sd, &resp, sizeof(nfyMsgHdr_t)) <= 0) {
++		(void) fprintf(stderr,
++			"Failed to read response from notify daemon.\n");
+ 		ret = EAGAIN;
+ 		goto err_exit;
+ 	}
+@@ -970,7 +1058,7 @@ posix_log_notify_add(const posix_log_que
+ 
+ err_exit:
+ 	if (_evl_nfy_sd > 0) { 
+-		close(_evl_nfy_sd);
++		(void) close(_evl_nfy_sd);
+ 	}
+ 	if (sigsBlocked) {
+ 		_evlRestoreSignals(&oldset);
+@@ -984,31 +1072,35 @@ err_exit:
+  *
+  */
+ int 
+-posix_log_sigval_getrecid(const union sigval sval,
+-        posix_log_recid_t *recid)
++posix_log_sigval_getrecid(const union sigval sval, posix_log_recid_t *recid)
+ {
+ 	if (recid) {
+  		*recid = sval.sival_int;
+  		return 0;
+  	}
++
+  	return EINVAL;
+ }
+ 
+-int posix_log_siginfo_getrecid(const siginfo_t *info,
+-        void *context, posix_log_recid_t *recid)
+-{	
+-	if(recid && info) {
++int posix_log_siginfo_getrecid(	const siginfo_t		*info,
++				void			*context,
++				posix_log_recid_t	*recid)
++{
++	if (recid && info) {
+ 		*recid = info->si_errno;
+ 		return 0;
+ 	}
++
+ 	return EINVAL;
+ }
+ 
+ int 
+-posix_log_notify_get(posix_log_notify_t nfyhandle,
+-        struct sigevent *notification, int *flags,
+-        char *qsbuf, size_t qslen, size_t *reqlen)
+-
++posix_log_notify_get(	posix_log_notify_t	nfyhandle,
++			struct sigevent		*notification,
++			int			*flags,
++			char			*qsbuf,
++			size_t			qslen,
++			size_t			*reqlen)
+ {
+ 	int ret = 0;
+ 	nfyNewRqMsg_t newReq;
+@@ -1019,7 +1111,7 @@ posix_log_notify_get(posix_log_notify_t 
+ 	int sigsBlocked;
+ 	int _evl_nfy_sd = -1;
+ 	struct sockaddr_un _evl_nfy_sock;
+-	
++
+ 	if (reqlen) {
+ 		*reqlen = 0;
+ 	}
+@@ -1029,16 +1121,20 @@ posix_log_notify_get(posix_log_notify_t 
+ 	if (!qsbuf) {
+ 		return EMSGSIZE;
+ 	}
++
+ 	/* Enter critical section */
+ 	lockNfyApi();
+ 	/* Mask all signals so we don't get interrupted */
+ 	sigsBlocked = (_evlBlockSignals(&oldset) == 0);
+-	
+-		
+-	if ((_evl_nfy_sd = _establishNonBlkConnection(EVLNOTIFYD_SERVER_SOCKET, &_evl_nfy_sock, 3 /*timeout*/)) < 0) {	
+-		ret = EAGAIN;	/* convert error code back to positive number */
++
++	_evl_nfy_sd = _establishNonBlkConnection(EVLNOTIFYD_SERVER_SOCKET,
++					&_evl_nfy_sock, 3 /*timeout*/);
++
++	if (_evl_nfy_sd < 0) {
++		ret = EAGAIN; /* convert error code back to positive number */
+ 		goto err_exit;
+ 	}
++
+ 	if (isAccess(_evl_nfy_sd) == -1) {
+ 		ret = EPERM;
+ 		goto err_exit;
+@@ -1052,15 +1148,17 @@ posix_log_notify_get(posix_log_notify_t 
+ 	
+ 	if (write(_evl_nfy_sd, &newReq, sizeof(nfyNewRqMsg_t)) <= 0) {
+ 		/* socket is broken */
+-		fprintf(stderr, "Failed to write the msg header to notify daemon.\n");
++		(void) fprintf(stderr,
++			"Failed to write the msg header to notify daemon.\n");
+ 		ret = EAGAIN;
+ 		goto err_exit;
+ 	}
+ 	/*
+ 	 * Server replies 
+ 	 */
+-	if(read(_evl_nfy_sd, &resp, sizeof(nfyMsgHdr_t)) <= 0) {
+-		fprintf(stderr, "Failed to read response from notify daemon.\n");
++	if (read(_evl_nfy_sd, &resp, sizeof(nfyMsgHdr_t)) <= 0) {
++		(void) fprintf(stderr,
++			"Failed to read response from notify daemon.\n");
+ 		ret = EAGAIN;
+ 		goto err_exit;
+ 	}
+@@ -1077,8 +1175,9 @@ posix_log_notify_get(posix_log_notify_t 
+ 	/*
+ 	 * Request is still in the system, read more ...
+ 	 */
+-	if(read(_evl_nfy_sd, &returnReq, sizeof(nfyNewRqMsg_t)) <= 0) {
+-		fprintf(stderr, "Failed to read response from notify daemon - Reconnect.\n");
++	if (read(_evl_nfy_sd, &returnReq, sizeof(nfyNewRqMsg_t)) <= 0) {
++		(void) fprintf(stderr,
++		"Failed to read response from notify daemon - Reconnect.\n");
+ 		ret = EAGAIN;
+ 		goto err_exit;
+ 	}
+@@ -1086,53 +1185,58 @@ posix_log_notify_get(posix_log_notify_t 
+ 	if (reqlen) {
+ 		*reqlen = returnReq.nwQueryLength + 1;
+ 	}
++
+ 	if (returnReq.nwQueryLength > 0) {
+ 		if ((qstring = malloc(returnReq.nwQueryLength + 1)) == NULL) {
+ 			ret = ENOMEM;
+ 			goto err_exit;
+ 		}
+ 		/*
+-	 	* Now we know the length of the query - go read the query string
+-	 	*/
+-		if(read(_evl_nfy_sd, qstring, returnReq.nwQueryLength) <= 0) {
+-			fprintf(stderr, "Failed to read response from notify daemon.\n");
+-			free(qstring);
++		 * Now we know the length of the query - go read the
++		 * query string
++	 	 */
++		if (read(_evl_nfy_sd, qstring, returnReq.nwQueryLength) <= 0) {
++			(void) fprintf(stderr,
++			"Failed to read response from notify daemon.\n");
++			free((void *) qstring);
+ 			ret = EAGAIN;
+ 			goto err_exit;
+ 		}
+ 	
+ 		if (qslen < returnReq.nwQueryLength+1) {
+-			free(qstring);
++			free((void *) qstring);
+ 			ret = EMSGSIZE;
+ 			goto err_exit;
+ 		}
+ 
+ 		qstring[returnReq.nwQueryLength] = '\0';
+ 		(void) strcpy(qsbuf, qstring);
+-		free(qstring);
++		free((void *) qstring);
+ 	} else {
+ 		qsbuf[0] = '\0';
+ 	}
+ 	
+ 	/* Per the standard, we store these values only on success. */
+-	memcpy(notification, &returnReq.nwSigevent, sizeof(struct sigevent));
++	(void) memcpy(notification, &returnReq.nwSigevent,
++						sizeof(struct sigevent));
+ 	*flags = returnReq.nwFlags;
+ 
+ err_exit:
+ 	if (_evl_nfy_sd > 0) { 
+-		close(_evl_nfy_sd);
++		(void) close(_evl_nfy_sd);
+ 	}
+ 	if (sigsBlocked) {
+ 		_evlRestoreSignals(&oldset);
+ 	}
++
+ 	unlockNfyApi();
++
+ 	return ret;	
+ }
+ 
+ int
+ posix_log_notify_remove(posix_log_notify_t nfyhandle)
+ {
+-	
+ 	int ret = 0;
+ 	nfyNewRqMsg_t newReq;
+ 	nfyMsgHdr_t resp;
+@@ -1144,15 +1248,19 @@ posix_log_notify_remove(posix_log_notify
+ 	if (nfyhandle == 0) {
+ 		return EINVAL;
+ 	}
++
+ 	lockNfyApi();
+ 	/* Mask all signals so we don't get interrpted */
+ 	sigsBlocked = (_evlBlockSignals(&oldset) == 0);
+-	
+-	
+-	if ((_evl_nfy_sd = _establishNonBlkConnection(EVLNOTIFYD_SERVER_SOCKET, &_evl_nfy_sock, 3 /* timeout */)) < 0) {
++
++	_evl_nfy_sd = _establishNonBlkConnection(EVLNOTIFYD_SERVER_SOCKET,
++					&_evl_nfy_sock, 3 /* timeout */);
++
++	if (_evl_nfy_sd < 0) {
+ 		ret = EAGAIN;
+ 		goto err_exit;
+ 	}
++
+ 	if (isAccess(_evl_nfy_sd) == -1 ) {
+ 		ret = EINVAL;
+ 		goto err_exit;
+@@ -1166,31 +1274,35 @@ posix_log_notify_remove(posix_log_notify
+ 	
+ 	if (write(_evl_nfy_sd, &newReq, sizeof(nfyNewRqMsg_t)) <= 0) {
+ 		/* socket is broken */
+-		fprintf(stderr, "Failed to write the msg header to notify daemon.\n");
++		(void) fprintf(stderr,
++			"Failed to write the msg header to notify daemon.\n");
+ 		ret = EAGAIN;
+ 		goto err_exit;
+ 	}
++
+ 	/* Server replies */
+ 	if (read(_evl_nfy_sd, &resp, sizeof(nfyMsgHdr_t)) <= 0) {
+-		fprintf(stderr, "Failed to read response from notify daemon.\n");
++		(void) fprintf(stderr,
++			"Failed to read response from notify daemon.\n");
+ 		ret = EAGAIN;
+ 		goto err_exit;
+ 	}
+ 	
+ 	if (resp.nhStatus == nrsNoRequest) {
+-		/* fprintf(stderr, "No such request with that handle in the system.\n"); */
+ 		ret = EINVAL;
+ 		goto err_exit;
+ 	}
+ 
+ err_exit:
+ 	if (_evl_nfy_sd > 0) { 
+-		close(_evl_nfy_sd);
++		(void) close(_evl_nfy_sd);
+ 	}
+ 	if (sigsBlocked) {
+ 		_evlRestoreSignals(&oldset);
+ 	}
++
+ 	unlockNfyApi();
++
+ 	return ret;	
+ }
+ 
+Index: evlog-1.6.1/user/lib/posix2.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/posix2.c
++++ evlog-1.6.1/user/lib/posix2.c
+@@ -111,13 +111,17 @@ typedef struct _log_description {
+  * Allocate a log description and return a pointer to it.
+  */
+ static log_desc_t *
+-makeLogDescription()
++makeLogDescription(void)
+ {
+-	log_desc_t *logd = (log_desc_t*) malloc(sizeof(log_desc_t));
++	log_desc_t *logd = (log_desc_t *) malloc(sizeof(log_desc_t));
++
+ 	assert(logd != NULL);
+-	memset(logd, 0, sizeof(log_desc_t));
++
++	(void) memset(logd, 0, sizeof(log_desc_t));
++
+ 	logd->ld_magic = LOGD_MAGIC;
+ 	logd->ld_fd = -1;
++
+ 	return logd;
+ }
+ 
+@@ -127,18 +131,22 @@ makeLogDescription()
+ static int
+ releaseLogDescription(log_desc_t *logd)
+ {
+-	if (logd == NULL || logd->ld_magic != LOGD_MAGIC) {
++	if ((logd == NULL) || (logd->ld_magic != LOGD_MAGIC)) {
+ 		return EBADF;
+ 	}
++
+ 	if (logd->ld_header != NULL) {
+ 		if (munmap(logd->ld_header, LOGD_MMAP_SZ) != 0) {
+ 			perror("munmap of log header");
+ 		}
+ 	}
++
+ 	if (logd->ld_fd >= 0) {
+ 		(void) close(logd->ld_fd);
+ 	}
++
+ 	free(logd);
++
+ 	return 0;
+ }
+ 
+@@ -150,9 +158,11 @@ static int
+ safeRead(int fd, void *buf, size_t len)
+ {
+ 	int nBytes;
++
+ 	do {
+ 		nBytes = read(fd, buf, len);
+-	} while (nBytes < 0 && errno == EINTR);
++	} while ((nBytes < 0) && (errno == EINTR));
++
+ 	return nBytes;
+ }
+ 
+@@ -161,9 +171,11 @@ static int
+ safeWrite(int fd, const void *buf, size_t len)
+ {
+ 	int nBytes;
++
+ 	do {
+ 		nBytes = write(fd, buf, len);
+-	} while (nBytes < 0 && errno == EINTR);
++	} while ((nBytes < 0) && (errno == EINTR));
++
+ 	return nBytes;
+ }
+ 
+@@ -200,10 +212,13 @@ _evlWriteLogHeader(int fd)
+ 	int nBytes;
+ 
+ 	(void) memset(&log_hdr, 0, sizeof(log_hdr));
++
+ 	log_hdr.log_magic = logMagic;
+ 	log_hdr.log_version = 0;	/*TODO: Plug in current version. */
+ 	log_hdr.log_generation = 0;
++
+ 	nBytes = safeWrite(fd, &log_hdr, sizeof(log_hdr));
++
+ 	return (nBytes < 0 ? -1 : 0);
+ }
+ 
+@@ -245,21 +260,26 @@ _evlOpen(posix_logd_t *logdes, const cha
+ 	 */
+ 	assert(LOGD_MMAP_SZ >= sizeof(log_header_t));
+ 	mappedLog = mmap(0, LOGD_MMAP_SZ, PROT_READ, MAP_PRIVATE, fd, 0);
++
+ 	if (mappedLog == MAP_FAILED) {
+ 		perror("mmap of log header");
+ 		(void) releaseLogDescription(logd);
++
+ 		return EINVAL;
+ 	}
+-	logHdr = (log_header_t*) mappedLog;
++
++	logHdr = (log_header_t *) mappedLog;
+ 	logd->ld_header = logHdr;
+ 
+ 	/* Check the magic number to verify that this is a valid log file. */
+ 	if (logHdr->log_magic != logMagic) {
+ 		(void) releaseLogDescription(logd);
++
+ 		return EINVAL;
+ 	}
+ 	if (isBusyLog(logHdr)) {
+ 		(void) releaseLogDescription(logd);
++
+ 		return EBUSY;
+ 	}
+ 	logd->ld_generation = logHdr->log_generation;
+@@ -269,10 +289,12 @@ _evlOpen(posix_logd_t *logdes, const cha
+ 								(loff_t)-1) {
+ 		perror("Seek past log header on open");
+ 		(void) releaseLogDescription(logd);
++
+ 		return EINVAL;
+ 	}
+ 
+ 	*logdes = logd;
++
+ 	return 0;
+ }
+ 
+@@ -283,13 +305,15 @@ _evlOpen(posix_logd_t *logdes, const cha
+ int
+ _evlValidateLogdes(posix_logd_t logd, int checkGeneration)
+ {
+-	if (logd == NULL || logd->ld_magic != LOGD_MAGIC) {
++	if ((logd == NULL) || (logd->ld_magic != LOGD_MAGIC)) {
+ 		return -1;
+ 	}
+-	if (checkGeneration
+-	    && logd->ld_generation != logd->ld_header->log_generation) {
++
++	if (checkGeneration &&
++	    (logd->ld_generation != logd->ld_header->log_generation)) {
+ 		return -1;
+ 	}
++
+ 	return 0;
+ }
+ 
+@@ -297,6 +321,7 @@ static int
+ readBuf(int fd, void *buf, size_t len)
+ {
+ 	int nBytes = safeRead(fd, buf, len);
++
+ 	if (nBytes < 0) {
+ 		if (errno == EAGAIN) {
+ 			return EAGAIN;
+@@ -308,6 +333,7 @@ readBuf(int fd, void *buf, size_t len)
+ 	} else if (nBytes != len) {
+ 		return EIO;
+ 	}
++
+ 	return 0;
+ }
+ 
+@@ -315,8 +341,10 @@ readBuf(int fd, void *buf, size_t len)
+  * logdes and entry have been previously validated.
+  */
+ int
+-_evlRead(posix_logd_t logdes, struct posix_log_entry *entry,
+-	void *buf, size_t bufLen)
++_evlRead(	posix_logd_t		logdes,
++		struct posix_log_entry	*entry,
++		void			*buf,
++		size_t			bufLen)
+ {
+ 	int fd = logdToFd(logdes);
+ 	int status;
+@@ -326,9 +354,13 @@ _evlRead(posix_logd_t logdes, struct pos
+ 	loff_t seekStatus;
+ 
+ 	(void) flock(fd, LOCK_SH);
++
+ 	/* Read the record header. */
+-	if ((status = readBuf(fd, entry, sizeof(struct posix_log_entry))) != 0) {
++	status = readBuf(fd, entry, sizeof(struct posix_log_entry));
++
++	if (status != 0) {
+ 		(void) flock(fd, LOCK_UN);
++
+ 		return status;
+ 	}
+ 
+@@ -336,20 +368,26 @@ _evlRead(posix_logd_t logdes, struct pos
+ 	dataLen = entry->log_size;
+ 
+ 	if (dataLen > POSIX_LOG_ENTRY_MAXLEN) {
+-		fprintf(stderr, "Corrupted record with log_size == %zu\n", dataLen);
++		(void) fprintf(stderr,
++			"Corrupted record with log_size == %zu\n", dataLen);
++
+ 		(void) flock(fd, LOCK_UN);
++
+ 		return EIO;
+ 	}
+ 
+ 	if (dataLen > 0) {
+ 		/* Need to read (or at least skip over) the variable data. */
+-		if (buf != 0 && bufLen > 0) {
++		if ((buf != NULL) && (bufLen > 0)) {
+ 			/* Caller wants the data. */
+ 			if (bufLen >= dataLen) {
+ 				/* And his buffer can hold it all. */
+ 				ioBuf = buf;
+ 			} else {
+-				/* Read all to our buffer, then copy his part. */
++				/*
++				 * Read all to our buffer, then copy
++				 * his part.
++				 */
+ 				ioBuf = bigBuf;
+ 			}
+ 			if ((status = readBuf(fd, ioBuf, dataLen)) != 0) {
+@@ -357,7 +395,9 @@ _evlRead(posix_logd_t logdes, struct pos
+ 					/* Shouldn't happen here. */
+ 					status = EIO;
+ 				}
++
+ 				(void) flock(fd, LOCK_UN);
++
+ 				return status;
+ 			}
+ 			if (ioBuf != buf) {
+@@ -367,8 +407,11 @@ _evlRead(posix_logd_t logdes, struct pos
+ 			/* Caller doesn't want the data.  Just skip over it. */
+ 			seekStatus = lseek64(fd, (loff_t) dataLen, SEEK_CUR);
+ 			if (seekStatus == (loff_t)-1) {
+-				fprintf(stderr, "lseek64 #1 failed in _evlRead\n");
++				(void) fprintf(stderr,
++					"lseek64 #1 failed in _evlRead\n");
++
+ 				(void) flock(fd, LOCK_UN);
++
+ 				return EIO;
+ 			}
+ 		}
+@@ -377,12 +420,13 @@ _evlRead(posix_logd_t logdes, struct pos
+ 	/* Skip over the log_size value at the end of the record. */
+ 	seekStatus = lseek64(fd, (loff_t) SIZESIZE, SEEK_CUR);
+ 	if (seekStatus == (loff_t)-1) {
+-		fprintf(stderr, "lseek64 #2 failed in _evlRead\n");
++		(void) fprintf(stderr, "lseek64 #2 failed in _evlRead\n");
+ 		(void) flock(fd, LOCK_UN);
+ 		return EIO;
+ 	}
+ 
+ 	(void) flock(fd, LOCK_UN);
++
+ 	return 0;
+ }
+ 
+@@ -397,10 +441,12 @@ int
+ _evlRewind(posix_logd_t logdes)
+ {
+ 	int fd = logdToFd(logdes);
++
+ 	if (lseek64(fd, (loff_t) sizeof(log_header_t), SEEK_SET) ==
+ 							(loff_t)-1) {
+ 		return EIO;
+ 	}
++
+ 	return 0;
+ }
+ 
+@@ -408,9 +454,11 @@ int
+ _evlSeekEnd(posix_logd_t logdes)
+ {
+ 	int fd = logdToFd(logdes);
++
+ 	if (lseek64(fd, (loff_t) 0, SEEK_END) == (loff_t)-1) {
+ 		return EIO;
+ 	}
++
+ 	return 0;
+ }
+ 
+@@ -418,10 +466,7 @@ int
+ _evlSeekFwd(posix_logd_t logdes, const posix_log_query_t *query)
+ {
+ 	int fd = logdToFd(logdes);
+-	loff_t startPosition, curPosition;
+-	int status;
+-	struct posix_log_entry entry;
+-	char buf[POSIX_LOG_ENTRY_MAXLEN];
++	loff_t startPosition;
+ 
+ 	startPosition = lseek64(fd, (loff_t) 0, SEEK_CUR);
+ 	if (startPosition == (loff_t)-1) {
+@@ -429,29 +474,45 @@ _evlSeekFwd(posix_logd_t logdes, const p
+ 	}
+ 
+ 	for (;;) {
++		int status;
++		loff_t curPosition;
++		struct posix_log_entry entry;
++		char buf[POSIX_LOG_ENTRY_MAXLEN];
++
+ 		curPosition = lseek64(fd, (loff_t) 0, SEEK_CUR);
+ 		if (curPosition == (loff_t)-1) {
+ 			return EIO;
+ 		}
+ 
+ 		status = _evlRead(logdes, &entry, buf, POSIX_LOG_ENTRY_MAXLEN);
+-		if (status == EAGAIN) {
+-			/* End of file: not found; reset read pointer */
+-			if (lseek64(fd, startPosition, SEEK_SET) ==
+-							(loff_t)-1) {
++
++		if (status != 0) {
++			if (status == EAGAIN) {
++				/*
++				 * End of file: not found; reset read pointer
++				 */
++
++				if (lseek64(fd, startPosition, SEEK_SET) ==
++								(loff_t)-1) {
++					return EIO;
++				}
++
++				return ENOENT;
++			} else {
+ 				return EIO;
+ 			}
+-			return ENOENT;
+-		} else if (status != 0) {
+-			return EIO;
+ 		}
+ 
+ 		if (!query || _evlEvaluateQuery(query, &entry, buf)) {
+-			/* Found the record we want. Move the read pointer back to it. */
++			/*
++			 * Found the record we want. Move the read
++			 * pointer back to it.
++			 */
+ 			if (lseek64(fd, curPosition, SEEK_SET) ==
+ 							(loff_t)-1) {
+ 				return EIO;
+ 			}
++
+ 			return 0;
+ 		}
+ 	}
+@@ -480,8 +541,12 @@ _evlSeekBkwd(posix_logd_t logdes, const 
+ 	 * we must be at the first record.
+ 	 */
+ 	while (curPosition > sizeof(struct posix_log_entry)) {
+-		/* Back up and read the size of the previous record's var data. */
+-		if (lseek64(fd, -((loff_t) SIZESIZE), SEEK_CUR) == (loff_t)-1) {
++		/*
++		 * Back up and read the size of the previous record's
++		 * var data.
++		 */
++		if (lseek64(fd, -((loff_t) SIZESIZE), SEEK_CUR) ==
++								(loff_t)-1) {
+ 			return EIO;
+ 		}
+ 		if (readBuf(fd, &wholeRecSize, SIZESIZE) != 0) {
+@@ -507,7 +572,8 @@ _evlSeekBkwd(posix_logd_t logdes, const 
+ 		if (lseek64(fd, curPosition, SEEK_SET) == (loff_t)-1) {
+ 			return EIO;
+ 		}
+-		entry = (struct posix_log_entry*) wholeRec;
++
++		entry = (struct posix_log_entry *) wholeRec;
+ 		buf = wholeRec + sizeof(struct posix_log_entry);
+ 
+ 		/* If this record matches the query, we're done. */
+@@ -520,6 +586,7 @@ _evlSeekBkwd(posix_logd_t logdes, const 
+ 	if (lseek64(fd, startPosition, SEEK_SET) == (loff_t)-1) {
+ 		return EIO;
+ 	}
++
+ 	return ENOENT;
+ }
+ 
+@@ -531,9 +598,10 @@ _evlValidateQuery(posix_log_query_t *que
+ 		return (nullOk ? 0 : -1);
+ 	}
+ 
+-	if (query->qu_tree == NULL || query->qu_expr == NULL
+-	    || query->qu_purpose == 0
+-	    || (query->qu_purpose & ~POSIX_LOG_PRPS_MASK) != 0) {
++	if ((query->qu_tree == NULL) ||
++	    (query->qu_expr == NULL) ||
++	    (query->qu_purpose == 0) ||
++	    (query->qu_purpose & ~POSIX_LOG_PRPS_MASK) != 0) {
+ 		return -1;
+ 	}
+ 	return 0;	
+@@ -544,45 +612,47 @@ _evlValidateQuery(posix_log_query_t *que
+  * Establish a socket connection - This is a non-blocking connect.
+  */
+ int
+-_establishNonBlkConnection(const char *socketpath, struct sockaddr_un *sa, int nsec)
++_establishNonBlkConnection(	const char		*socketpath,
++				struct sockaddr_un	*sa,
++				int			nsec)
+ {
+ 	int sd;
+-	socklen_t sock_len, len;	/* Size of generic UD address structure */
++	socklen_t sock_len, len; /* Size of generic UD address structure */
+ 
+ 	int flags, n, error=0;
+ 	struct timeval tval;
+ 	fd_set rset, wset;
+-	
++
+ 	/*
+ 	 * Open the daemon
+ 	 */
+-	if ((sd = socket(PF_UNIX, SOCK_STREAM, 0)) < 0){
+-		(void)fprintf(stderr, "Cannot create socket.\n");
++	if ((sd = socket(PF_UNIX, SOCK_STREAM, 0)) < 0) {
++		(void) fprintf(stderr, "Cannot create socket.\n");
+ 		return -EAGAIN;
+ 	}
+ 
+ 	/* setting non-blocking connect */
+ 	flags = fcntl(sd, F_GETFL);
+-	fcntl(sd, F_SETFL, flags | O_NONBLOCK);
+-	
++	(void) fcntl(sd, F_SETFL, flags | O_NONBLOCK);
++
+ 	/*
+ 	 * Request connect to the specified socket address.  In this case,
+ 	 * UNIX Domain format, The socket address is really just a file.
+ 	 */
+-	memset(sa, 0, sizeof(struct sockaddr_un));
++	(void) memset(sa, 0, sizeof(struct sockaddr_un));
+ 	sa->sun_family = PF_UNIX;
+-	(void)strcpy(sa->sun_path, socketpath);
++	(void) strcpy(sa->sun_path, socketpath);
+ 	sock_len = sizeof(sa->sun_family) + strlen(sa->sun_path);
+ 
+ 	if ((n = connect(sd, (struct sockaddr *)sa, sock_len) < 0)) {
+ 		if (errno != EINPROGRESS) {
+-//			(void)fprintf(stderr, "Failed to connect to the daemon. errno=%d.\n", errno);
+ 			goto err_connect;
+-		}	
++		}
+ 	}
+ 
+-	if (n == 0)
++	if (n == 0) {
+ 		goto done; 	/* connection completed immediatly */
++	}
+ 
+ 	FD_ZERO(&rset);
+ 	FD_SET(sd, &rset);
+@@ -591,7 +661,9 @@ _establishNonBlkConnection(const char *s
+ 	tval.tv_sec = nsec;
+ 	tval.tv_usec = 0;
+ 
+-	if ((n = select(sd + 1, &rset, &wset, NULL, nsec? &tval : NULL)) == 0) {
++	n = select(sd + 1, &rset, &wset, NULL, nsec ? &tval : NULL);
++
++	if (n == 0) {
+ 		/* time out */
+ 		goto err_connect;
+ 	}
+@@ -600,7 +672,8 @@ _establishNonBlkConnection(const char *s
+ 		len = sizeof(error);
+ 		if (getsockopt(sd, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
+ 			/* some error */
+-			(void)fprintf(stderr, "Error connecting to the daemon.\n");
++			(void) fprintf(stderr,
++				"Error connecting to the daemon.\n");
+ 			goto err_connect;
+ 		}
+ 	} else {
+@@ -609,9 +682,10 @@ _establishNonBlkConnection(const char *s
+ 
+ done:
+ 	/* Restore flags and set the close-on-exec flag on sd. */
+-	fcntl(sd, F_SETFL, flags);
++	(void) fcntl(sd, F_SETFL, flags);
+ 	flags = fcntl(sd, F_GETFD);
+ 	flags |= FD_CLOEXEC;
++
+ 	if (fcntl(sd, F_SETFD, flags) == -1) {
+ 		perror("fcntl(F_SETFD)");
+ 		goto err_connect;
+@@ -619,7 +693,8 @@ done:
+ 	return sd;
+ 
+ err_connect:
+-	close(sd);
++	(void) close(sd);
++
+ 	return -EAGAIN;
+ }
+ 
+@@ -627,19 +702,21 @@ int 
+ isAccess(int sd)
+ {
+ 	char abyte;
+-	
+-	read(sd, &abyte, sizeof(char));
+-	
++
++	(void) read(sd, &abyte, sizeof(char));
++
+ 	if (abyte == (char) NFY_ACCESS_DENIED) {
+ 		(void) fprintf(stderr, "isAccess test failed.\n");
+ 		return -1;
+ 	}
+ 	else if (abyte == (char) NFY_MAX_CLIENTS) {
+-		(void) fprintf(stderr, "Max number of clients reached. Access denied.\n");
++		(void) fprintf(stderr,
++			"Max number of clients reached. Access denied.\n");
+ 		return -1;
+ 	}
++
+ 	return 0;
+-}	
++}
+ 
+ int 
+ _evlWriteEx2(int sd, struct posix_log_entry *entry, const char *buf)
+@@ -649,14 +726,15 @@ _evlWriteEx2(int sd, struct posix_log_en
+ 	/* First write the header */
+ 	if (write(sd, entry, REC_HDR_SIZE) != REC_HDR_SIZE) {
+ 		/* socket is broken */
+-		fprintf(stderr, "Failed to write the msg header to evlog daemon.\n");
++		(void) fprintf(stderr,
++			"Failed to write the msg header to evlog daemon.\n");
+ 		return EIO;
+ 	}
+ 
+ 	/* then write the variable message body */
+ #ifdef POSIX_LOG_TRUNCATE
+-	if (entry->log_format == POSIX_LOG_STRING
+-	    && (entry->log_flags & POSIX_LOG_TRUNCATE) != 0) {
++	if ((entry->log_format == POSIX_LOG_STRING) &&
++	    (entry->log_flags & POSIX_LOG_TRUNCATE) != 0) {
+ 		/*
+ 		 * buf contains a string that was truncated to
+ 		 * POSIX_LOG_ENTRY_MAXLEN bytes.  Stick a null character at the
+@@ -666,33 +744,38 @@ _evlWriteEx2(int sd, struct posix_log_en
+ 		 * caller's buffer is const.
+ 		 * TODO: Get approval for this change in the POSIX draft.
+ 		 */
+-		bcopy((void *)buf, (void *)writebuf, entry->log_size);
++		bcopy((void *) buf, (void *) writebuf, entry->log_size);
+ 		writebuf[POSIX_LOG_ENTRY_MAXLEN - 1] = '\0';
++
+ 		if (write(sd, writebuf, entry->log_size) != entry->log_size) {
+-		/* socket is broken */
+-			fprintf(stderr, "Failed to write the msg body to evlog daemon.\n");
++			/* socket is broken */
++			(void) fprintf(stderr,
++			"Failed to write the msg body to evlog daemon.\n");
+ 			return EIO;
+ 		}
++
+ 		return 0;
+ 	}
+ #endif
+ 	if (entry->log_size > 0) {
+ 		if (write(sd, buf, entry->log_size) != entry->log_size) {
+ 			/* socket is broken */
+-			fprintf(stderr, "Failed to write the msg body to evlog daemon.\n");
++			(void) fprintf(stderr,
++			"Failed to write the msg body to evlog daemon.\n");
+ 			return EIO;
+ 		}
+ 	}
++
+ 	return 0;
+ }
+ 
+ int
+-_evlWriteEx( struct posix_log_entry * entry, const char * buf)
++_evlWriteEx(struct posix_log_entry *entry, const char *buf)
+ {
+ 	int ret = 0;
+ 	sigset_t oldset;
+ 	int sigsBlocked;
+-	int sd = -1;
++	int sd;
+ 	unsigned char c=0x0;
+ 
+ 	_evlLockMutex(&logdSocketMutex);
+@@ -711,21 +794,22 @@ _evlWriteEx( struct posix_log_entry * en
+ 		goto err_exit;
+ 	}
+ 	/* The daemon should tell the client that he finishes reading */ 
+-	read(sd, &c, sizeof(char));
+-	if(c != 0xac) {
++	(void) read(sd, &c, sizeof(char));
++	if (c != 0xac) {
+ 		ret = EIO;
+ 	}
+ 	
+ err_exit:
+ 	if (ret != 0) {
+ 		/* Got valid descriptor, but subsequent write/read failed. */
+-		close(sd);	
++		(void) close(sd);
+ 		zapSd(sd);
+ 	}
+ unlock_and_exit:
+ 	if (sigsBlocked) {
+ 		_evlRestoreSignals(&oldset);
+ 	}
++
+ 	_evlUnlockMutex(&logdSocketMutex);
+ 
+ 	return ret;
+@@ -799,14 +883,15 @@ struct stat
+  * Return the evlogd socket descriptor for the thread with process ID = pid.
+  * Called with logdSocketMutex held and signals blocked.
+  */
+-static int getSdByPid(pid_t pid)
++static int
++getSdByPid(pid_t pid)
+ {
+ 	int sd;
+ 	struct sdMapping *m;
+ 	evl_listnode_t *head = sdMap, *end, *p;
+ 	struct sockaddr_un _evl_log_sock;
+ 
+-	for (p=head, end=NULL; p!=end; end=head, p=p->li_next) {
++	for (p = head, end = NULL; p != end; end = head, p = p->li_next) {
+ 		m = (struct sdMapping *) p->li_data;
+ 		if (pid == m->pid) {
+ 			return m->sd;
+@@ -815,14 +900,18 @@ static int getSdByPid(pid_t pid)
+ 
+ 	/* No socket descriptor for this pid.  Create one. */
+ 	if ((sd = _establishNonBlkConnection(EVLOGD_EVTSERVER_SOCKET, 
+-			&_evl_log_sock, 1)) < 0) {
++						&_evl_log_sock, 1)) < 0) {
+ 		return -1;
+ 	}
++
+ 	m = (struct sdMapping *) malloc(sizeof(struct sdMapping));
+ 	assert(m != NULL);
++
+ 	m->sd = sd;
+ 	m->pid = pid;
++
+ 	sdMap = _evlAppendToList(sdMap, m);
++
+ 	return sd;
+ }
+ 
+@@ -830,11 +919,13 @@ static int getSdByPid(pid_t pid)
+  * Something went wrong with the indicated socket.  Remove it from our list.
+  * Called with logdSocketMutex held and signals blocked.
+  */
+-static void zapSd(int sd)
++static void
++zapSd(int sd)
+ {
+ 	struct sdMapping *m;
+ 	evl_listnode_t *head = sdMap, *end, *p;
+-	for (p=head, end=NULL; p!=end; end=head, p=p->li_next) {
++
++	for (p = head, end = NULL; p != end; end = head, p = p->li_next) {
+ 		m = (struct sdMapping *) p->li_data;
+ 		if (m->sd == sd) {
+ 			sdMap = _evlRemoveNode(p, sdMap, NULL);
+@@ -842,5 +933,5 @@ static void zapSd(int sd)
+ 			return;
+ 		}
+ 	}
+-	fprintf(stderr, "libevl:zapSd: Couldn't find sd=%d\n", sd);
++	(void) fprintf(stderr, "libevl:zapSd: Couldn't find sd=%d\n", sd);
+ }
+Index: evlog-1.6.1/user/lib/posix_evlsup.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/posix_evlsup.c
++++ evlog-1.6.1/user/lib/posix_evlsup.c
+@@ -68,7 +68,7 @@ struct _evlNvPair _evlLinuxFacilities[] 
+ 	{ LOG_LOCAL5,	"LOCAL5" },
+ 	{ LOG_LOCAL6,	"LOCAL6" },
+ 	{ LOG_LOCAL7,	"LOCAL7" },
+-	{ 0, 0 }
++	{ 0,		0 }
+ };
+ 
+ /*
+@@ -94,7 +94,7 @@ struct _evlNvPair _evlPosixFacilities[] 
+ 	{ LOG_LOCAL5,	"LOCAL5" },
+ 	{ LOG_LOCAL6,	"LOCAL6" },
+ 	{ LOG_LOCAL7,	"LOCAL7" },
+-	{ 0, 0 }
++	{ 0,		0 }
+ };
+ 
+ struct _evlNvPair _evlSeverities[] = {
+@@ -106,25 +106,25 @@ struct _evlNvPair _evlSeverities[] = {
+ 	{ LOG_NOTICE,	"NOTICE" },
+ 	{ LOG_INFO,	"INFO" },
+ 	{ LOG_DEBUG,	"DEBUG" },
+-	{ 0, 0 }
++	{ 0,		0 }
+ };
+ 
+ struct _evlNvPair _evlAttributes[] = {
+ 	{ POSIX_LOG_ENTRY_RECID,	"recid" },
+-	{ POSIX_LOG_ENTRY_SIZE,	"size" },
++	{ POSIX_LOG_ENTRY_SIZE,		"size" },
+ 	{ POSIX_LOG_ENTRY_FORMAT,	"format" },
+ 	{ POSIX_LOG_ENTRY_EVENT_TYPE,	"event_type" },
+ 	{ POSIX_LOG_ENTRY_FACILITY,	"facility" },
+ 	{ POSIX_LOG_ENTRY_SEVERITY,	"severity" },
+-	{ POSIX_LOG_ENTRY_UID,	"uid" },
+-	{ POSIX_LOG_ENTRY_GID,	"gid" },
+-	{ POSIX_LOG_ENTRY_PID,	"pid" },
+-	{ POSIX_LOG_ENTRY_PGRP,	"pgrp" },
+-	{ POSIX_LOG_ENTRY_TIME,	"time" },
++	{ POSIX_LOG_ENTRY_UID,		"uid" },
++	{ POSIX_LOG_ENTRY_GID,		"gid" },
++	{ POSIX_LOG_ENTRY_PID,		"pid" },
++	{ POSIX_LOG_ENTRY_PGRP,		"pgrp" },
++	{ POSIX_LOG_ENTRY_TIME,		"time" },
+ 	{ POSIX_LOG_ENTRY_FLAGS,	"flags" },
+ 	{ POSIX_LOG_ENTRY_THREAD,	"thread" },
+ 	{ POSIX_LOG_ENTRY_PROCESSOR,	"processor" },
+-	{ 0, 0 }
++	{ 0,				0 }
+ };
+ 
+ struct _evlNvPair _evlFormats[] = {
+@@ -132,23 +132,27 @@ struct _evlNvPair _evlFormats[] = {
+ 	{ POSIX_LOG_BINARY,	"BINARY" },
+ 	{ POSIX_LOG_STRING,	"STRING" },
+ 	{ POSIX_LOG_PRINTF,	"PRINTF" },
+-	{ 0, 0 }
++	{ 0,			0 }
+ };
+ 
+ struct _evlNvPair _evlMgmtEventTypes[] = {
+-	{ POSIX_LOG_MGMT_TIMEMARK,		"MGMT_TIMEMARK" },
++	{ POSIX_LOG_MGMT_TIMEMARK,	"MGMT_TIMEMARK" },
+ 	{ POSIX_LOG_MGMT_STARTMAINT,	"MGMT_STARTMAINT" },
+-	{ POSIX_LOG_MGMT_ENDMAINT,		"MGMT_ENDMAINT" },
++	{ POSIX_LOG_MGMT_ENDMAINT,	"MGMT_ENDMAINT" },
+ 	{ POSIX_LOG_MGMT_STOPLOGGING,	"MGMT_STOPLOGGING" },
+ 	{ POSIX_LOG_MGMT_STARTLOGGING,	"MGMT_STARTLOGGING" },
+-	{ 0, 0 }
++	{ 0,				0 }
+ };
+ 
+ void
+-_evlGetNameByValue(const struct _evlNvPair table[], int value, char *name, size_t size,
+-	const char *dflt)
++_evlGetNameByValue(	const struct _evlNvPair	table[],
++			int			value,
++			char			*name,
++			size_t			size,
++			const char		*dflt)
+ {
+ 	const struct _evlNvPair *nv;
++
+ 	for (nv = table; nv->nv_name; nv++) {
+ 		if (nv->nv_value == value) {
+ 			(void) strcpy(name, nv->nv_name);
+@@ -160,7 +164,7 @@ _evlGetNameByValue(const struct _evlNvPa
+ 	if (dflt) {
+ 		(void) strcpy(name, dflt);
+ 	} else {
+-		snprintf(name, size, "%d", value);
++		(void) snprintf(name, size, "%d", value);
+ 	}
+ }
+ 
+@@ -169,6 +173,7 @@ int
+ _evlGetValueByName(const struct _evlNvPair table[], const char *name, int dflt)
+ {
+ 	const struct _evlNvPair *nv;
++
+ 	for (nv = table; nv->nv_name; nv++) {
+ 		if (!strcmp(nv->nv_name, name)) {
+ 			return nv->nv_value;
+@@ -183,7 +188,7 @@ _evlGetValueByName(const struct _evlNvPa
+ int
+ _evlCIStrcmp(const char *s1, const char *s2)
+ {
+-	while (*s1 && toupper(*s1) == toupper(*s2)) {
++	while (*s1 && (toupper(*s1) == toupper(*s2))) {
+ 		s1++;
+ 		s2++;
+ 	}
+@@ -192,9 +197,12 @@ _evlCIStrcmp(const char *s1, const char 
+ 
+ /* Look up value by name, case-insensitive */
+ int
+-_evlGetValueByCIName(const struct _evlNvPair table[], const char *name, int dflt)
++_evlGetValueByCIName(	const struct _evlNvPair	table[],
++			const char		*name,
++			int			dflt)
+ {
+ 	const struct _evlNvPair *nv;
++
+ 	for (nv = table; nv->nv_name; nv++) {
+ 		if (!_evlCIStrcmp(nv->nv_name, name)) {
+ 			return nv->nv_value;
+@@ -205,30 +213,51 @@ _evlGetValueByCIName(const struct _evlNv
+ 	return dflt;
+ }
+ 
+-/* Return the proc id */
+-int 
+-_evlGetProcId()
++/*
++ * Return the processor ID.
++ *
++ * The processor ID encodes two pieces of information, the CPU ID of
++ * the logging processor is running on and the host ID of the logging
++ * system. The CPU ID is contained in the lower 16 bits and the host ID
++ * in the upper 16 bits. A host ID value of 0 denotes the local system -
++ * the EVLOG log daemon in running on and where the log files are
++ * managed.
++ *
++ * Linux, at least, doesn't appear to have a user-mode function
++ * for getting the ID of the current CPU.  In the kernel, there's
++ * smp_processor_id(). Therefore, we invent our own.
++ */
++
++posix_log_procid_t
++_evlGetProcId(void)
+ {
+ 	int fd, ret;
+ 	char buf[1024];
+ 	char *last_token;
+ 	size_t r;
++	posix_log_procid_t value;
+ 	
+ 	if ((fd = open("/proc/self/stat", O_RDONLY)) == -1) {
+-		fprintf(stderr, "Can't open stat\n");
++		(void) fprintf(stderr, "Can't open stat\n");
+ 		exit(1);
+ 	}
+ 
+-	if ((r = read(fd, buf, 1024)) == -1) {
+-		close(fd);
+-		fprintf(stderr, "Read stat failed\n");
++	r = read(fd, buf, 1024);
++	(void) close(fd);
++
++	if (r == -1) {
++		(void) fprintf(stderr, "Read stat failed\n");
+ 		exit(1);
+ 	}
+-	buf[r]='\0';
+-	close(fd);
++
++	buf[r] = '\0';
++
+ 	/* The last token contains the processor id */
+ 
+ 	last_token = (char *) strrchr(buf, ' ');
+ 	assert(last_token != NULL);	
+-	return (int) strtol(last_token, (char **)NULL, 10);
++
++	value = (posix_log_procid_t) strtol(last_token, (char **) NULL, 10);
++
++	return (value & 0xFFFF); /* local logging */
+ }
+Index: evlog-1.6.1/user/include/posix_evlsup.h
+===================================================================
+--- evlog-1.6.1.orig/user/include/posix_evlsup.h
++++ evlog-1.6.1/user/include/posix_evlsup.h
+@@ -61,8 +61,8 @@ typedef struct __evlFacilityRegistry {
+ 
+ extern void _evlGetNameByValue(const struct _evlNvPair table[], int value,
+ 	char *name, size_t size, const char *dflt);
+-extern int _evlGetValueByName(const struct _evlNvPair table[], const char *name,
+-	int dflt);
++extern int _evlGetValueByName(const struct _evlNvPair table[],
++	const char *name, int dflt);
+ extern int _evlGetValueByCIName(const struct _evlNvPair table[],
+ 	const char *name, int dflt);
+ extern int _evlCIStrcmp(const char *s1, const char *s2);
+@@ -74,13 +74,12 @@ extern struct _evlNvPair _evlAttributes[
+ extern struct _evlNvPair _evlFormats[];
+ extern struct _evlNvPair _evlMgmtEventTypes[];
+ 
+-#define LOG_EVLOG_DIR EVLOG_STATE_DIR
+-#define LOG_EVLOG_CONF_DIR "/etc/evlog.d"
+-#define LOG_CURLOG_PATH LOG_EVLOG_DIR "/eventlog"
+-#define LOG_PRIVATE_PATH LOG_EVLOG_DIR "/privatelog"
++#define LOG_EVLOG_DIR			EVLOG_STATE_DIR
++#define LOG_EVLOG_CONF_DIR		"/etc/evlog.d"
++#define LOG_CURLOG_PATH LOG_EVLOG_DIR	"/eventlog"
++#define LOG_PRIVATE_PATH LOG_EVLOG_DIR	"/privatelog"
+ 
+-#define EVL_INVALID_FACILITY ((posix_log_facility_t)-1)
+-#define EVL_INVALID_EVENT_TYPE (-1)
++#define EVL_INVALID_EVENT_TYPE		(-1)
+ 
+ /*
+  * The "age" pseudo-attribute -- must be distinct from POSIX_LOG_ENTRY_* in
+@@ -94,14 +93,14 @@ extern int _evlWrite(struct posix_log_en
+ extern int _evlOpen(posix_logd_t *logdes, const char *path);
+ extern int _evlValidateLogdes(posix_logd_t logdes, int checkGeneration);
+ extern int _evlRead(posix_logd_t logdes, struct posix_log_entry *entry,
+-	void *buf, size_t bufLen);
++						void *buf, size_t bufLen);
+ extern int _evlClose(posix_logd_t fd);
+ extern int _evlRewind(posix_logd_t logdes);
+ extern int _evlSeekEnd(posix_logd_t logdes);
+ extern int _evlSeekFwd(posix_logd_t logdes, const posix_log_query_t *query);
+ extern int _evlSeekBkwd(posix_logd_t logdes, const posix_log_query_t *query);
+ extern int _evlFdWrite(int fd, const struct posix_log_entry *entry,
+-	const void *buf);
++						const void *buf);
+ extern int _evlWriteLogHeader(int fd);
+ extern int _evlValidateQuery(posix_log_query_t *query, int nullOk);
+ extern int _evlLockLog(posix_logd_t logdes, int lock_bits);
+@@ -127,24 +126,25 @@ extern void _evlLockFacReg(void);
+ extern void _evlUnlockFacReg(void);
+ extern int _evlBlockSignals(sigset_t *oldset);
+ extern void _evlRestoreSignals(sigset_t *oldset);
+-extern _evlFacilityRegistry *_evlReadFacilities(const char *facRegPath);
++extern _evlFacilityRegistry * _evlReadFacilities(const char *facRegPath);
+ extern posix_log_facility_t _evlGetFacilityCodeByCIName(const char *name);
+ extern char *_evlGetFacilityName(posix_log_facility_t facNum, char *buf);
+ extern int _evlGetFacilityAccess(posix_log_facility_t facNum);
+-extern posix_log_query_t * _evlGetFacilityAccessQuery(posix_log_facility_t facNum, int * acc);
+-extern struct _evlNvPair *_evlSnapshotFacilities();
++extern posix_log_query_t * _evlGetFacilityAccessQuery(
++				posix_log_facility_t facNum, int *acc);
++extern struct _evlNvPair * _evlSnapshotFacilities(void);
+ extern int _evlAddFacilityToRegistry(const char *fname, unsigned int flags,
+-	const char *filter);
++						const char *filter);
+ extern unsigned int _evlCrc32(const unsigned char *data, int len);
+ 
+ /* posix1.c */
+-extern int _evlGetProcId();
++extern posix_log_procid_t _evlGetProcId(void);
+ extern int isAccess(int sd);
+-extern int _establishNonBlkConnection(const char * socketpath, struct sockaddr_un *sa, int nsec);
++extern int _establishNonBlkConnection(const char *socketpath,
++					struct sockaddr_un *sa, int nsec);
+ extern int _evlWriteEx(struct posix_log_entry *hdr, const char *buf);
+ extern int _evlEvaluateQuery(const posix_log_query_t *query,
+-	const struct posix_log_entry *entry, const void *buf);
+-
++		const struct posix_log_entry *entry, const void *buf);
+ #ifdef __cplusplus
+ }
+ #endif	/* __cplusplus */
+Index: evlog-1.6.1/user/include/posix_evlog.h
+===================================================================
+--- evlog-1.6.1.orig/user/include/posix_evlog.h
++++ evlog-1.6.1/user/include/posix_evlog.h
+@@ -49,20 +49,20 @@ extern "C" {
+ typedef struct _log_description *posix_logd_t;
+ 
+ /* Member selectors for posix_log_entry, for use by posix_log_memtostr  */
+-#define POSIX_LOG_ENTRY_DATA	0	/* variable-length data */
+-#define POSIX_LOG_ENTRY_RECID	1
+-#define POSIX_LOG_ENTRY_SIZE	2
+-#define POSIX_LOG_ENTRY_FORMAT	3
++#define POSIX_LOG_ENTRY_DATA		0	/* variable-length data */
++#define POSIX_LOG_ENTRY_RECID		1
++#define POSIX_LOG_ENTRY_SIZE		2
++#define POSIX_LOG_ENTRY_FORMAT		3
+ #define POSIX_LOG_ENTRY_EVENT_TYPE	4
+ #define POSIX_LOG_ENTRY_FACILITY	5
+ #define POSIX_LOG_ENTRY_SEVERITY	6
+ #define POSIX_LOG_ENTRY_UID		7
+ #define POSIX_LOG_ENTRY_GID		8
+ #define POSIX_LOG_ENTRY_PID		9
+-#define POSIX_LOG_ENTRY_PGRP	10
+-#define POSIX_LOG_ENTRY_TIME	11
+-#define POSIX_LOG_ENTRY_FLAGS	12
+-#define POSIX_LOG_ENTRY_THREAD	13
++#define POSIX_LOG_ENTRY_PGRP		10
++#define POSIX_LOG_ENTRY_TIME		11
++#define POSIX_LOG_ENTRY_FLAGS		12
++#define POSIX_LOG_ENTRY_THREAD		13
+ #define POSIX_LOG_ENTRY_PROCESSOR	14
+ 
+ /* Query purpose flags */
+@@ -82,7 +82,6 @@ typedef struct _posix_log_query {
+ 	struct evl_nonStdAtts	*qu_nonStdAtts;	/* Non-standard attributes. */
+ } posix_log_query_t;
+ 
+-
+ #define POSIX_LOG_ONCE_ONLY		0x01
+ #define POSIX_LOG_SEND_RECID		0x02
+ #define POSIX_LOG_SEND_SIGVAL		0x04
+@@ -101,21 +100,21 @@ typedef size_t posix_log_notify_t;
+  * notification daemon).
+  */
+ typedef enum _nfyMsgType {
+-	nmtNewRequest,			/* new notification request */
++	nmtNewRequest,		/* new notification request */
+ 	nmtGetRequestStatus,	/* get status of notification request */
+-	nmtRmRequest,			/* remove notification request */
+-	nmtRequestStatus		/* response to client requests */
++	nmtRmRequest,		/* remove notification request */
++	nmtRequestStatus	/* response to client requests */
+ } notifyMsgType_t;
+ 
+ /*
+  * The status of a notification request.
+  */
+ typedef enum _nfyRqStatus {
+-	nrsEnabled,		/* Request has been accepted by server. */
++	nrsEnabled,	/* Request has been accepted by server. */
+ 	nrsDisabled,	/* Once-only request has been satisfied */
+-					/* by the server, but not removed by the */
+-					/* client. */
+-	nrsRemoved,		/* Request has been removed at client's request. */
++			/* by the server, but not removed by the */
++			/* client. */
++	nrsRemoved,	/* Request has been removed at client's request. */
+ 	nrsNoRequest	/* Request not found by server */
+ } nfyRqStatus_t;
+ 
+@@ -138,9 +137,9 @@ typedef struct _nfyNewRqMsg {
+ #define EVL_NFY_MSGMAXSIZE (sizeof(nfyNewRqMsg_t))
+ 
+ /* Log-management event-type codes */
+-#define POSIX_LOG_MGMT_TIMEMARK	1
++#define POSIX_LOG_MGMT_TIMEMARK		1
+ #define POSIX_LOG_MGMT_STARTMAINT	2
+-#define POSIX_LOG_MGMT_ENDMAINT	3
++#define POSIX_LOG_MGMT_ENDMAINT		3
+ #define POSIX_LOG_MGMT_STOPLOGGING	4
+ #define POSIX_LOG_MGMT_STARTLOGGING	5
+ 
+@@ -152,11 +151,11 @@ typedef struct _nfyNewRqMsg {
+ 
+ /* Seek directions */
+ #define POSIX_LOG_SEEK_START	1
+-#define POSIX_LOG_SEEK_END		2
++#define POSIX_LOG_SEEK_END	2
+ #define POSIX_LOG_SEEK_FORWARD	3
+ #define POSIX_LOG_SEEK_BACKWARD	4
+ #define POSIX_LOG_SEEK_FIRST	5
+-#define POSIX_LOG_SEEK_LAST		6
++#define POSIX_LOG_SEEK_LAST	6
+ 
+ /* Maximum length for a string returned by posix_log_memtostr */
+ #define POSIX_LOG_MEMSTR_MAXLEN	128
+Index: evlog-1.6.1/user/lib/template/tmplfmt.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/template/tmplfmt.c
++++ evlog-1.6.1/user/lib/template/tmplfmt.c
+@@ -79,7 +79,8 @@ cantDoAdHocFormat(const tmpl_attribute_t
+ }
+ 
+ /*
+- * Create and return a list of format segments from the indicated format string.
++ * Create and return a list of format segments from the indicated format
++ * string.
+  */
+ evl_list_t *
+ _evlTmplParseFormat(template_t *t, char *fmtSpec)
+@@ -111,17 +112,19 @@ _evlTmplParseFormat(template_t *t, char 
+ 	 * Also flag any ref to %data%, since that would create an infinite
+ 	 * formatting loop.
+ 	 */
+-	for (head=list, p=head, end=NULL; p!=end; end=head, p=p->li_next) {
++	for (head = list, p = head, end = NULL;
++				p != end; end = head, p = p->li_next) {
+ 		evl_fmt_segment_t *fs = (evl_fmt_segment_t*) p->li_data;
+ 
+-		if (fs->fs_type == EVL_FS_MEMBER
+-		    && fs->u2.fs_member == POSIX_LOG_ENTRY_DATA) {
++		if ((fs->fs_type == EVL_FS_MEMBER) &&
++			(fs->u2.fs_member == POSIX_LOG_ENTRY_DATA)) {
+ 			_evlTmplSemanticError(
+ "Can't refer to %%data%% attribute in template");
+ 			ok = 0;
+ 		} else if (fs->fs_type == EVL_FS_ATTNAME) {
+ 			tmpl_attribute_t *att = _evlTmplFindAttribute(t,
+ 				fs->u.fs_attname);
++
+ 			if (att) {
+ 				if (fs->fs_userfmt) {
+ 					if (cantDoAdHocFormat(att)) {
+@@ -156,10 +159,13 @@ _evlTmplParseFormat(template_t *t, char 
+ 	}
+ }
+ 
+-#define FORMAT_SCALAR(type, member) _evlBprintf(f, fmt, (type) att->ta_value.member);
++#define FORMAT_SCALAR(type, member) \
++			_evlBprintf(f, fmt, (type) att->ta_value.member);
+ 
+ static void
+-castAndFormatAtt(const tmpl_attribute_t *att, const char *fmt, evl_fmt_buf_t *f)
++castAndFormatAtt(	const tmpl_attribute_t	*att,
++			const char		*fmt,
++			evl_fmt_buf_t		*f)
+ {
+ 	switch (baseType(att)) {
+ 	case TY_CHAR:	FORMAT_SCALAR(signed char, val_long);		break;
+@@ -170,15 +176,17 @@ castAndFormatAtt(const tmpl_attribute_t 
+ 	case TY_UINT:	FORMAT_SCALAR(unsigned int, val_ulong);		break;
+ 	case TY_LONG:	FORMAT_SCALAR(long, val_long);			break;
+ 	case TY_ULONG:	FORMAT_SCALAR(unsigned long, val_ulong);	break;
+-	case TY_LONGLONG:	FORMAT_SCALAR(long long, val_longlong);	break;
+-	case TY_ULONGLONG:	FORMAT_SCALAR(unsigned long long, val_ulonglong);	break;
+-	case TY_ADDRESS:	FORMAT_SCALAR(void*, val_address);	break;
++	case TY_LONGLONG:
++			FORMAT_SCALAR(long long, val_longlong);		break;
++	case TY_ULONGLONG:
++			FORMAT_SCALAR(unsigned long long, val_ulonglong);break;
++	case TY_ADDRESS:FORMAT_SCALAR(void *, val_address);		break;
+ 	case TY_FLOAT:	FORMAT_SCALAR(float, val_double);		break;
+ 	case TY_DOUBLE:	FORMAT_SCALAR(double, val_double);		break;
+-	case TY_LDOUBLE:	FORMAT_SCALAR(long double, val_longdouble);	break;
+-	case TY_STRING:	FORMAT_SCALAR(char*, val_string);		break;
++	case TY_LDOUBLE:FORMAT_SCALAR(long double, val_longdouble);	break;
++	case TY_STRING:	FORMAT_SCALAR(char *, val_string);		break;
+ 	case TY_WCHAR:	FORMAT_SCALAR(wchar_t, val_long);		break;
+-	case TY_WSTRING:	FORMAT_SCALAR(wchar_t*, val_wstring);	break;
++	case TY_WSTRING:FORMAT_SCALAR(wchar_t *, val_wstring);		break;
+ 	default:
+ 		/* Shouldn't get here */
+ 		assert(0);
+@@ -214,10 +222,13 @@ getAttDelimiter(const tmpl_attribute_t *
+ #define bpIS(type) _evlBprintf(f, fmt, i, extractVal(type));
+ #define bpSI(type) _evlBprintf(f, fmt, extractVal(type), i);
+ #define bpS(type)  _evlBprintf(f, fmt, extractVal(type))
+-#define FORMAT_PSCALAR(type) if(izo==IS) bpIS(type) else if(izo==SI) bpSI(type) else bpS(type)
++#define FORMAT_PSCALAR(type) \
++	if (izo == IS) bpIS(type) else if (izo == SI) bpSI(type) else bpS(type)
+ 
+ static int
+-formatArrayOfScalars(const tmpl_attribute_t *att, const char *fmt, evl_fmt_buf_t *f)
++formatArrayOfScalars(	const tmpl_attribute_t	*att,
++			const char		*fmt,
++			evl_fmt_buf_t		*f)
+ {
+ 	tmpl_base_type_t ty = baseType(att);
+ 	size_t valsize = _evlTmplTypeInfo[ty].ti_size;
+@@ -229,12 +240,14 @@ formatArrayOfScalars(const tmpl_attribut
+ 	const char *delimiter = getAttDelimiter(att);
+ 
+ 	for (i = 0; i < nelements; i++) {
+-		if (ty != TY_STRING && ty != TY_WSTRING) {
++		if ((ty != TY_STRING) && (ty != TY_WSTRING)) {
+ 			(void) memcpy(alval, val, valsize);
+ 		}
++
+                 if (i > 0) {
+ 			_evlBprintf(f, "%s", delimiter);
+ 		}
++
+ 		switch (ty) {
+ 		case TY_CHAR:	FORMAT_PSCALAR(signed char);	break;
+ 		case TY_WCHAR:	FORMAT_PSCALAR(wchar_t);	break;
+@@ -245,12 +258,14 @@ formatArrayOfScalars(const tmpl_attribut
+ 		case TY_UINT:	FORMAT_PSCALAR(unsigned int);	break;
+ 		case TY_LONG:	FORMAT_PSCALAR(long);		break;
+ 		case TY_ULONG:	FORMAT_PSCALAR(unsigned long);	break;
+-		case TY_LONGLONG:	FORMAT_PSCALAR(long long);	break;
+-		case TY_ULONGLONG:	FORMAT_PSCALAR(unsigned long long);	break;
+-		case TY_ADDRESS:	FORMAT_PSCALAR(void*);	break;
+-		case TY_FLOAT:	FORMAT_PSCALAR(float);	break;
+-		case TY_DOUBLE:	FORMAT_PSCALAR(double);	break;
+-		case TY_LDOUBLE:	FORMAT_PSCALAR(long double);	break;
++		case TY_LONGLONG:
++				FORMAT_PSCALAR(long long);	break;
++		case TY_ULONGLONG:
++				FORMAT_PSCALAR(unsigned long long); break;
++		case TY_ADDRESS:FORMAT_PSCALAR(void *);		break;
++		case TY_FLOAT:	FORMAT_PSCALAR(float);		break;
++		case TY_DOUBLE:	FORMAT_PSCALAR(double);		break;
++		case TY_LDOUBLE:FORMAT_PSCALAR(long double);	break;
+ 
+ 		case TY_STRING:
+ 		case TY_WSTRING:
+@@ -266,10 +281,11 @@ formatArrayOfScalars(const tmpl_attribut
+ 			/* Shouldn't get here */
+ 			assert(0);
+ 		}
++
+ 		if (ty == TY_STRING) {
+ 			val += strlen(val) + 1;
+ 		} else if (ty == TY_WSTRING) {
+-			val += (wcslen((wchar_t*)val) + 1) * sizeof(wchar_t);
++			val += (wcslen((wchar_t *) val) + 1) * sizeof(wchar_t);
+ 		} else {
+ 			val += valsize;
+ 		}
+@@ -296,6 +312,7 @@ dumpArray(int arch, const tmpl_attribute
+ 		/* Count all the chars in all the strings. */
+ 		char *c, *array = (char*) att->ta_value.val_array;
+ 		int ns;
++
+ 		for (c = array, ns = 0; ns < nel; c++) {
+ 			if (*c == '\0') {
+ 				++ns;
+@@ -307,6 +324,7 @@ dumpArray(int arch, const tmpl_attribute
+ 		/* Analogous to TY_STRING */
+ 		wchar_t *c, *array = (wchar_t*) att->ta_value.val_array;
+ 		int ns;
++
+ 		for (c = array, ns = 0; ns < nel; c++) {
+ 			if (*c == L'\0') {
+ 				++ns;
+@@ -347,14 +365,16 @@ bprintCharArrAsString(const tmpl_attribu
+ 	if (baseType(att) == TY_WCHAR) {
+ 		wchar_t *tmp = NULL, *val;
+ 		int i;
+-		val = (wchar_t*) att->ta_value.val_array;
++
++		val = (wchar_t *) att->ta_value.val_array;
++
+ 		for (i = 0; i < nel; i++) {
+ 			if (val[i] == L'\0') {
+ 				break;
+ 			}
+ 		}
+ 		if (i >= nel) {
+-			tmp = (wchar_t*) malloc((nel+1)*sizeof(wchar_t));
++			tmp = (wchar_t *) malloc((nel + 1) * sizeof(wchar_t));
+ 			assert(tmp != NULL);
+ 			(void) memcpy(tmp, val, nel*sizeof(wchar_t));
+ 			tmp[nel] = L'\0';
+@@ -366,14 +386,16 @@ bprintCharArrAsString(const tmpl_attribu
+ 	} else {
+ 		char *tmp = NULL, *val;
+ 		int i;
+-		val = (char*) att->ta_value.val_array;
++
++		val = (char *) att->ta_value.val_array;
+ 		for (i = 0; i < nel; i++) {
+ 			if (val[i] == '\0') {
+ 				break;
+ 			}
+ 		}
++
+ 		if (i >= nel) {
+-			tmp = (char*) malloc(nel+1);
++			tmp = (char *) malloc(nel + 1);
+ 			assert(tmp != NULL);
+ 			(void) memcpy(tmp, val, nel);
+ 			tmp[nel] = '\0';
+@@ -391,13 +413,14 @@ bprintCharArrAsString(const tmpl_attribu
+  * - The %Z has been replaced by %s.
+  * - The %I, if any, has been replaced by %d.
+  * For each struct in the array:
+- * 1. Format the struct (represented by %Z in the original format string) to a
+- * temporary buffer.
++ * 1. Format the struct (represented by %Z in the original format string)
++ *    to a temporary buffer.
+  * 2. Using the result of #1, format the array element according to fmt.
+  */
+ static int
+-formatArrayOfStructs(const tmpl_attribute_t *att, const char *fmt,
+-	evl_fmt_buf_t *f)
++formatArrayOfStructs(	const tmpl_attribute_t	*att,
++			const char		*fmt,
++			evl_fmt_buf_t		*f)
+ {
+ 	/*
+ 	 * If there's more than SCRATCH_PAD_SIZE left in f's buffer,
+@@ -417,9 +440,10 @@ formatArrayOfStructs(const tmpl_attribut
+ 	size_t reqlen;
+ 	evl_fmt_buf_t *stbuf;
+ 	ptrdiff_t room = f->fb_end - f->fb_next;
++
+ 	if (room > SCRATCH_PAD_SIZE) {
+ 		bufsz = room;
+-		buf = (char*) malloc(room);
++		buf = (char *) malloc(room);
+ 		assert(buf != NULL);
+ 	} else {
+ 		bufsz = SCRATCH_PAD_SIZE;
+@@ -427,9 +451,10 @@ formatArrayOfStructs(const tmpl_attribut
+ 	}
+ 
+ 	head = att->ta_value.val_list;
+-	for (i=0, p=head, end=NULL; p!=end; i++, end=head, p=p->li_next) {
++	for (i = 0, p = head, end = NULL;
++				p != end; i++, end = head, p = p->li_next) {
+ 		int status;
+-		template_t *st = (template_t*) p->li_data;
++		template_t *st = (template_t *) p->li_data;
+ 		stbuf = _evlMakeFmtBuf(buf, bufsz);
+ 
+ 		/* Format the current template into that buffer. */
+@@ -445,13 +470,14 @@ formatArrayOfStructs(const tmpl_attribut
+ 			 */
+ 			reqlen = stbuf->fb_next - stbuf->fb_buf;
+ 			if (buf == scratchPad) {
+-				buf = (char*) malloc(reqlen);
+-				(void) memcpy(buf, scratchPad, SCRATCH_PAD_SIZE);
++				buf = (char *) malloc(reqlen);
++				(void) memcpy(buf, scratchPad,
++							SCRATCH_PAD_SIZE);
+ 			} else {
+ 				buf = realloc(buf, reqlen);
+ 			}
+-			(void) memset(buf+bufsz-1, 'X', reqlen-bufsz);
+-			buf[reqlen-1] = '\0';
++			(void) memset(buf + bufsz - 1, 'X', reqlen-bufsz);
++			buf[reqlen - 1] = '\0';
+ 			bufsz = reqlen;
+ 		} else {
+ 			assert(status == 0);
+@@ -485,6 +511,7 @@ static int
+ formatAttribute(int arch, const tmpl_attribute_t *att, evl_fmt_buf_t *f)
+ {
+ 	const char *fmt;
++
+ 	if (!attExists(att)) {
+ 		/* No data for this attribute. */
+ 		return 0;
+@@ -535,6 +562,7 @@ formatAttribute(int arch, const tmpl_att
+ 		    	long val = _evlTmplGetValueOfIntegerAttribute(att);
+ 			tmpl_bitmap_t *bmap = att->ta_format.u.u_bitmaps;
+ 			int found = 0;
++
+ 			for ( ; bmap->bm_name; bmap++) {
+ 				if (val == bmap->bm_1bits) {
+ 					found = 1;
+@@ -556,7 +584,8 @@ formatAttribute(int arch, const tmpl_att
+ 
+ 			_evlBprintf(f, "0x%lx", val);
+ 			for ( ; bmap->bm_name; bmap++) {
+-				if ((bar|bmap->bm_1bits|bmap->bm_0bits)==bar) {
++				if ((bar | bmap->bm_1bits | bmap->bm_0bits) ==
++								bar) {
+ 					/*
+ 					 * We've already reported the name of
+ 					 * a bitmap that covers all the bits
+@@ -564,8 +593,9 @@ formatAttribute(int arch, const tmpl_att
+ 					 */
+ 					continue;
+ 				}
+-				if (((val & bmap->bm_1bits) == bmap->bm_1bits)
+-				    && ((val & bmap->bm_0bits) == 0)) {
++				if (((val & bmap->bm_1bits) ==
++						bmap->bm_1bits) &&
++					((val & bmap->bm_0bits) == 0)) {
+ 					/* Found a match */
+ 					_evlBprintf(f, (bar ? "|" : "("));
+ 					_evlBprintf(f, "%s", bmap->bm_name);
+@@ -620,18 +650,19 @@ formatPrintfRecIntoFmtBuf(const char *da
+  * EMSGSIZE if _evlFormatPrintfRec() overflows buffer f, or 0 if not.
+  */
+ static int
+-formatStringAsPrintf(const template_t *tmpl, const tmpl_attribute_t *att,
+-	const char *fmt, evl_fmt_buf_t *f)
++formatStringAsPrintf(	const template_t	*tmpl,
++			const tmpl_attribute_t	*att,
++			const char		*fmt,
++			evl_fmt_buf_t		*f)
+ {
+ 	int printk = 0;
+ 	const char *attAddr, *recAddr;
+ 	size_t recRemainder;
+ 
+-	if (isArray(att)
+-	    || baseType(att) != TY_STRING
+-	    || !fmt) {
++	if (isArray(att) || (baseType(att) != TY_STRING) || !fmt) {
+ 		return -1;
+ 	}
++
+ 	if (strcmp(fmt, "printk") == 0) {
+ 		printk = 1;
+ 	} else if (strcmp(fmt, "printf") != 0) {
+@@ -653,8 +684,10 @@ formatStringAsPrintf(const template_t *t
+  * format.
+  */
+ int
+-_evlFormatTmplAttribute(const template_t *tmpl, const tmpl_attribute_t *att,
+-	const char *fmt, evl_fmt_buf_t *f)
++_evlFormatTmplAttribute(const template_t	*tmpl,
++			const tmpl_attribute_t	*att,
++			const char		*fmt,
++			evl_fmt_buf_t		*f)
+ {
+ 	int status;
+ 	
+@@ -685,14 +718,17 @@ _evlFormatTmplAttribute(const template_t
+  * only once; subsequent calls to sethostname() have no effect.
+  */
+ const char *
+-_evlGetHostName()
++_evlGetHostName(void)
+ {
+ 	static char namebuf[256];
+ 	static char *name = NULL;
++
+ 	if (!name) {
+ 		int status = gethostname(namebuf, 256);
++
+ 		if (status == 0) {
+ 			char *dot = strchr(namebuf, '.');
++
+ 			if (dot) {
+ 				*dot = '\0';
+ 			}
+@@ -708,52 +744,60 @@ struct evlhost {
+ 	char name[256];
+ 	int id;
+ };
+-static struct evlhost *evlhosts = (struct evlhost *) 0;
++static struct evlhost *evlhosts = (struct evlhost *) NULL;
+ static int numhosts = 0;
+ 
+ static int 
+-addEvlHost(char *name, int id) {
+-	evlhosts = (struct evlhost *) realloc(evlhosts, 
+-										  (numhosts + 1) * sizeof(struct evlhost));
++addEvlHost(char *name, int id)
++{
++	evlhosts = (struct evlhost *) realloc(evlhosts,
++				(numhosts + 1) * sizeof(struct evlhost));
++
+ 	if (evlhosts == NULL) {
+ 		return -1;
+ 	}
+-	strcpy(evlhosts[numhosts].name, name);
++
++	(void) strcpy(evlhosts[numhosts].name, name);
++
+ 	evlhosts[numhosts].id = id;
+ 	++numhosts;
++
+ 	return 0;
+ }
+ 
+ #define EVLHOSTS "/etc/evlog.d/evlhosts"
++
+ static int
+-populateEvlHosts()
++populateEvlHosts(void)
+ {
+ 	char *p, *name, *id;
+ 	char line[256];
+-	FILE * f;
++	FILE *f;
+ 	struct evlhost *hp;
+ 	int nodeID;
+ 	int ret = 0;
+-	
++
+ 	numhosts = 0;
+-	if((f = fopen(EVLHOSTS, "r")) == NULL) {
++
++	if ((f = fopen(EVLHOSTS, "r")) == NULL) {
+ 		fprintf(stderr, "can't open evlhosts file.\n");
+ 		return -1;
+ 	}	
+ 
+ 	while (fgets(line, 256, f) != NULL) {
+ 		int len;
+-		if (line[0] == '#' || line[0] == '\n' 
+-			|| strcspn(line, "") == 0) {
++
++		if ((line[0] == '#') || (line[0] == '\n') ||
++						(strcspn(line, "") == 0)) {
+ 			continue;
+ 		}
+ 		len = strlen(line);
+ 		/* replace newline with null char */
+-		if (line[len -1] == '\n') {
+-			line[len -1] = '\0';
++		if (line[len - 1] == '\n') {
++			line[len - 1] = '\0';
+ 		}
+ 
+-		/* host id */		
++		/* host id */
+ 		id = (char *) strtok(line, " \t");
+ 		if (!id) {
+ 			ret = -1;
+@@ -769,22 +813,26 @@ populateEvlHosts()
+ 		/* Remove leading space and trailing space */
+ 		_evlTrim(name);
+ 
+-		if ((p=strchr(id, '.')) != NULL) {
++		if ((p = strchr(id, '.')) != NULL) {
+ 			/* id in 255.255 format */
+ 			char *endp = 0;
+ 			int lowerbyte, upperbyte;
++
+ 			upperbyte = (int) strtoul(id, &endp, 10);
+ 			if (*endp != '.') {
+-				fprintf(stderr, "%s is an invalid node id.\n", id);
++				(void) fprintf(stderr,
++					"%s is an invalid node id.\n", id);
+ 				continue;
+ 			}
+ 			lowerbyte = (int) strtoul(p + 1, &endp, 10);
+ 			if (*endp != '\0') {
+-				fprintf(stderr, "%s is an invalid node id.\n", id);
++				(void) fprintf(stderr,
++					"%s is an invalid node id.\n", id);
+ 				continue;
+ 			}
+ 			if (upperbyte > 255 || lowerbyte > 255) {
+-				fprintf(stderr, "%s is an invalid node id.\n", id);
++				(void) fprintf(stderr,
++					"%s is an invalid node id.\n", id);
+ 				continue;
+ 			}
+ 			nodeID = (upperbyte << 8) + lowerbyte;
+@@ -795,12 +843,13 @@ populateEvlHosts()
+ 	}
+ 		  
+  error_exit:	
+-	fclose(f);
++	(void) fclose(f);
+ 	return ret;
+ }
++
+ /* TODO: Make this function thread safe */
+ const char *
+-lookUpEvlHostName(int nodeId)
++lookUpEvlHostName(posix_log_procid_t nodeID)
+ {
+ 	int i;
+ 	static char buf[8];
+@@ -808,46 +857,55 @@ lookUpEvlHostName(int nodeId)
+ 	if (!evlhosts) {
+ 		populateEvlHosts();
+ 	}
++
+ 	if (evlhosts) {
+-		for (i=0; i < numhosts; ++i) {
+-			if(evlhosts[i].id == nodeId) {
++		for (i = 0; i < numhosts; ++i) {
++			if (evlhosts[i].id == nodeID) {
+ 				return evlhosts[i].name;
+ 			}
+ 		}
+ 	}
+-	snprintf(buf, sizeof(buf), "0x%x", nodeId);
++
++	(void) snprintf(buf, sizeof(buf), "0x%x", nodeID);
++
+ 	return buf; 
+ }
+ 
+-int
+-_evlGetNodeId(const char * name)
++posix_log_procid_t
++_evlGetNodeId(const char *name)
+ {
+-	int i;
+-
+-	if (!strcmp(name, _evlGetHostName())) {
+-		/* local host - return nodeId = 0 for local host */
+-		return 0;
+-	}
+ 	if (!evlhosts) {
+ 		populateEvlHosts();
+ 	}
++
+ 	if (evlhosts) {
+-		for (i=0; i < numhosts; ++i) {
+-			if (!strcmp(evlhosts[i].name, name)) {
++		int i;
++
++		for (i = 0; i < numhosts; ++i) {
++			if (strcmp(evlhosts[i].name, name) == 0) {
+ 				return evlhosts[i].id;
+ 			}
+ 		}
++
++		if (strcmp(name, _evlGetHostName()) == 0) {
++			/* local host - return nodeID = 0 for local host */
++			return 0;
++		}
+ 	}
++
+ 	return -1;
+ }
++
+ const char *
+-_evlGetHostNameEx(int nodeId)
++_evlGetHostNameEx(posix_log_procid_t nodeID)
+ {
+-	nodeId &= 0x0000FFFF;
+-	if (nodeId == 0) {
++	nodeID &= 0x0000FFFF;
++
++	if (nodeID == 0) {
+ 		return _evlGetHostName();
+ 	}
+-	return lookUpEvlHostName(nodeId);
++
++	return lookUpEvlHostName(nodeID);
+ }
+ 
+ /*
+@@ -870,8 +928,11 @@ _evlGetHostNameEx(int nodeId)
+  * template-based formatting.
+  */
+ static int
+-formatRecord(const struct posix_log_entry *entry, const void *evBuf,
+-	const template_t *tmpl, const evl_list_t *head, evl_fmt_buf_t *s)
++formatRecord(	const struct posix_log_entry	*entry,
++		const void			*evBuf,
++		const template_t		*tmpl,
++		const evl_list_t		*head,
++		evl_fmt_buf_t			*s)
+ {
+ 	const evl_listnode_t *p = head;
+ 	const evl_fmt_segment_t *fs;
+@@ -888,19 +949,23 @@ formatRecord(const struct posix_log_entr
+ 				/* %data% */
+ 				if (tmpl) {
+ 					formatRecordFromTemplate(tmpl, s);
+-				} else if (entry->log_format == POSIX_LOG_STRING) {
++				} else if (entry->log_format ==
++							POSIX_LOG_STRING) {
+ 					_evlBprintf(s, "%s", evBuf);
+-				} else if (entry->log_format == POSIX_LOG_BINARY) {
++				} else if (entry->log_format ==
++							POSIX_LOG_BINARY) {
+ 					_evlDumpBytesToFmtBuf(evBuf,
+ 						entry->log_size, s);
+-				} else if (entry->log_format == POSIX_LOG_PRINTF) {
++				} else if (entry->log_format ==
++							POSIX_LOG_PRINTF) {
+ 					formatPrintfRecIntoFmtBuf(evBuf,
+ 						entry->log_size, s,
+-						(entry->log_flags & EVL_PRINTK) != 0);
++					(entry->log_flags & EVL_PRINTK) != 0);
+ 				}
+ 			} else if (fs->fs_userfmt == NULL) {
+ 				/* Standard scalar attribute, standard format */
+ 				char buf[POSIX_LOG_MEMSTR_MAXLEN];
++
+ 				status = posix_log_memtostr(fs->u2.fs_member,
+ 					entry, buf, POSIX_LOG_MEMSTR_MAXLEN);
+ 				assert(status == 0);
+@@ -908,12 +973,14 @@ formatRecord(const struct posix_log_entr
+ 			} else {
+ 				/* Use the user-specified format. */
+ 				const char *fmt = fs->fs_userfmt;
++
+ 				if (fs->fs_stringfmt) {
+ 					/*
+ 					 * User wants a variation of what we
+ 					 * would have printed anyway.
+ 					 */
+ 					char buf[POSIX_LOG_MEMSTR_MAXLEN];
++
+ 					status = posix_log_memtostr(
+ 						fs->u2.fs_member, entry, buf,
+ 						POSIX_LOG_MEMSTR_MAXLEN);
+@@ -939,7 +1006,8 @@ formatRecord(const struct posix_log_entr
+ 					fs->fs_userfmt, s);
+ 			} else if (!strcmp(fs->u.fs_attname, "host")) {
+ 				/* host pseudo-attribute */
+-				_evlBprintf(s, "%s", _evlGetHostNameEx(entry->log_processor >> 16));
++				_evlBprintf(s, "%s",
++				_evlGetHostNameEx(entry->log_processor >> 16));
+ 			}
+ 		    }
+ 			break;
+@@ -948,7 +1016,7 @@ formatRecord(const struct posix_log_entr
+ 			_evlFormatTmplAttribute(tmpl, fs->u2.fs_attribute,
+ 				fs->fs_userfmt, s);
+ 			break;
+-    default: /* keep gcc happy */;
++		default: /* keep gcc happy */;
+ 		}
+ 		p = p->li_next;
+ 	} while (p != head);
+@@ -965,9 +1033,13 @@ formatRecord(const struct posix_log_entr
+  * would write if we had enough room.
+  */
+ int
+-_evlSpecialFormatEvrec(const struct posix_log_entry *entry, const void *evBuf,
+-	const evltemplate_t *tmpl, const evl_list_t *list, char *fmtBuf,
+-	size_t fmtBufLen, size_t *reqLen)
++_evlSpecialFormatEvrec(	const struct posix_log_entry	*entry,
++			const void			*evBuf,
++			const evltemplate_t		*tmpl,
++			const evl_list_t		*list,
++			char				*fmtBuf,
++			size_t				fmtBufLen,
++			size_t				*reqLen)
+ {
+ 	evl_fmt_buf_t *s;
+ 	int status;
+@@ -984,10 +1056,10 @@ _evlSpecialFormatEvrec(const struct posi
+ static int
+ formatRecordFromTemplate(const template_t *template, evl_fmt_buf_t *f)
+ {
+-	if (! template || ! f) {
++	if (!template || !f) {
+ 		return EINVAL;
+ 	}
+-	if (! isPopulatedTmpl(template)) {
++	if (!isPopulatedTmpl(template)) {
+ 		return EINVAL;
+ 	}
+ 
+@@ -1050,6 +1122,7 @@ static void
+ bindent(evl_fmt_buf_t *f, int indent)
+ {
+ 	int i;
++
+ 	for (i = 0; i < indent; i++) {
+ 		_evlBprintf(f, "  ");
+ 	}
+@@ -1069,9 +1142,9 @@ isNewlineDelimitedArray(tmpl_attribute_t
+ 	if (delim && strchr(delim, '\n')) {
+ 		return 1;
+ 	}
+-	if ((fmt->af_type == TMPL_AFS_ARRAY
+-	    || fmt->af_type == TMPL_AFS_IZARRAY)
+-	    && strchr(fmt->af_format, '\n')) {
++	if (((fmt->af_type == TMPL_AFS_ARRAY) ||
++		(fmt->af_type == TMPL_AFS_IZARRAY)) &&
++		(strchr(fmt->af_format, '\n'))) {
+ 	    	return 1;
+ 	}
+ 	return 0;
+@@ -1081,8 +1154,8 @@ isNewlineDelimitedArray(tmpl_attribute_t
+ static void
+ neqvDumpAtt(int arch, tmpl_attribute_t *att, evl_fmt_buf_t *f)
+ {
+-	if (att->ta_format.af_type == TMPL_AFS_DUMP
+-	    || isNewlineDelimitedArray(att)) {
++	if ((att->ta_format.af_type == TMPL_AFS_DUMP) ||
++		isNewlineDelimitedArray(att)) {
+ 		_evlBprintf(f, "\n");
+ 	} else {
+ 		_evlBprintf(f, " ");
+@@ -1097,8 +1170,9 @@ neqvDumpTmpl(const evltemplate_t *t, evl
+ 	evl_listnode_t *head, *end, *p;
+ 	
+ 	head = t->tm_attributes;
+-	for (end=NULL, p=head; p!=end; end=head, p=p->li_next) {
++	for (end = NULL, p = head; p != end; end = head, p = p->li_next) {
+ 		tmpl_attribute_t *att = (tmpl_attribute_t*) p->li_data;
++
+ 		if (!att->ta_name) {
+ 			continue;
+ 		}
+@@ -1109,7 +1183,7 @@ neqvDumpTmpl(const evltemplate_t *t, evl
+ 		_evlBprintf(f, "%s\t=", att->ta_name);
+ 		if (isStruct(att) && !isArray(att)) {
+ 			_evlBprintf(f, "\n");
+-			neqvDumpTmpl(att->ta_value.val_struct, f, indent+1);
++			neqvDumpTmpl(att->ta_value.val_struct, f, indent + 1);
+ 		} else {
+ 			neqvDumpAtt(t->tm_arch, att, f);
+ 		}
+Index: evlog-1.6.1/user/lib/util/evl_common.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/util/evl_common.c
++++ evlog-1.6.1/user/lib/util/evl_common.c
+@@ -62,21 +62,24 @@
+  * RETURN	:
+  * 
+  */
+-int _evlCreateListenSocket(struct sockaddr_un *sa, const char *sock_path_name, int backlog)
++int
++_evlCreateListenSocket(	struct sockaddr_un	*sa,
++			const char		*sock_path_name,
++			int			backlog)
+ {
+ 	int sd;
+-	size_t listen_sock_len;           /* Size of generic UD address structure */
++	size_t listen_sock_len; /* Size of generic UD address structure */
+ 	
+ 	if ((sd = socket(PF_UNIX, SOCK_STREAM, 0)) < 0) {
+ 		perror("socket: listen_sd");
+ 		exit(1);
+ 	}
+-    memset(sa, 0, sizeof(struct sockaddr_un));
++	(void) memset(sa, 0, sizeof(struct sockaddr_un));
+ 	sa->sun_family = PF_UNIX;
+-	(void)strcpy(sa->sun_path, sock_path_name);
++	(void) strcpy(sa->sun_path, sock_path_name);
+ 	listen_sock_len = sizeof(sa->sun_family) + strlen(sa->sun_path);
+ 
+-	if (bind(sd, (struct sockaddr*)sa, listen_sock_len) < 0) {
++	if (bind(sd, (struct sockaddr *)sa, listen_sock_len) < 0) {
+ 		perror("bind: listen_sd");
+ 		exit(1);
+ 	}
+@@ -103,20 +106,22 @@ int _evlCreateListenSocket(struct sockad
+  *
+  */
+ 
+-int _evlReadEx(int sd, void * buf, size_t len)
++int
++_evlReadEx(int sd, void *buf, size_t len)
+ {
+ 	int n = 0;
+ 	int moreBytes = len;
+ 	void *tmp;
++
+ 	tmp = buf;
+ 	while (moreBytes > 0) {
+ 		n = read(sd, tmp, moreBytes);
+ 		if (n < 0) {
+-				fprintf(stderr, "read error on sd %d\n", sd);
++				(void) fprintf(stderr,
++					"read error on sd %d\n", sd);
+ 				return -1;
+ 		} else {
+ 			if (n == 0) {
+-				//fprintf(stderr, "Socket sd %d closed\n", sd);
+ 				return -1;
+ 			}
+ 			moreBytes -= n;
+@@ -136,7 +141,8 @@ int _evlReadEx(int sd, void * buf, size_
+  * RETURN	:
+  * 
+  */
+-int _evlGetUserGroups(uid_t uid, size_t size, gid_t list[])
++int
++_evlGetUserGroups(uid_t uid, size_t size, gid_t list[])
+ {
+ 	struct group *grp;
+ 	struct passwd *pw;
+@@ -144,11 +150,12 @@ int _evlGetUserGroups(uid_t uid, size_t 
+ 	char *p;
+ 
+ 	setgrent();
+-	while((grp = getgrent()) != NULL) {
+-		int i=0;
+-		while((p = grp->gr_mem[i++]) != NULL)  {
++	while ((grp = getgrent()) != NULL) {
++		int i = 0;
++
++		while ((p = grp->gr_mem[i++]) != NULL)  {
+ 			pw = getpwnam(p);
+-			if(pw->pw_uid == uid) {
++			if (pw->pw_uid == uid) {
+ 				list[n++] = grp->gr_gid;
+ 			}	
+ 		}
+@@ -160,17 +167,18 @@ int _evlGetUserGroups(uid_t uid, size_t 
+ /* 
+  * FUNCTION	: _evlVerifyUserCredential
+  * 
+- * PURPOSE	: This function provides the switching uid, gid and groups capability
+- * 			  (to callers and back to the original id). 
+- * 			  Caller provides the uid, gid and a pointer to the function that's
+- * 			  actually doing to security check. 
++ * PURPOSE	: This function provides the switching uid, gid and groups
++ *		  capability (to callers and back to the original id).
++ * 		  Caller provides the uid, gid and a pointer to the
++ *		  function that's actually doing to security check.
+  * 
+  * ARGS		:	
+  * 
+  * RETURN	: return the return code of the security test function
+  * 
+  */
+-int _evlVerifyUserCredential(uid_t euid, gid_t egid, int (*sec_verify_func)())
++int
++_evlVerifyUserCredential(uid_t euid, gid_t egid, int (*sec_verify_func)())
+ {
+ 	int ret = 0;
+ 	uid_t ruid;
+@@ -189,8 +197,10 @@ int _evlVerifyUserCredential(uid_t euid,
+ 	 * Temporary set the uid and gid and groups to connecting user
+ 	 */
+ 	if (setegid(egid) == -1) {
+-		LOGERROR(EVLOG_GID_OP_FAILED, "setegid failed errno=%d", errno);
+-		fprintf(stderr, "Failed to change group ID to %d.\n", egid);
++		LOGERROR(EVLOG_GID_OP_FAILED,
++			"setegid failed errno=%d", errno);
++		(void) fprintf(stderr,
++			"Failed to change group ID to %d.\n", egid);
+ 		return -1;
+ 	}
+ 
+@@ -201,15 +211,16 @@ int _evlVerifyUserCredential(uid_t euid,
+ 	if (initgroups(pw->pw_name, egid) == -1) {
+ 		return -1;
+ 	}
+-	
+ 
+ 	if (seteuid(euid) == -1) {
+-		LOGERROR(EVLOG_UID_OP_FAILED, "seteuid failed errno=%d", errno);
+-		fprintf(stderr, "Failed to change user ID to %d.\n", euid);
++		LOGERROR(EVLOG_UID_OP_FAILED,
++			"seteuid failed errno=%d", errno);
++		(void) fprintf(stderr,
++			"Failed to change user ID to %d.\n", euid);
+ 	}
+ 	TRACE("ruid=%d : rgid=%d --- euid=%d : egid=%d\n", 
+ 			getuid(), getgid(), geteuid(), getegid());
+-			
++
+ 	/*
+ 	 * Callers plug in their own security test function,
+ 	 * I am going to pass the return code from the security test func
+@@ -220,16 +231,20 @@ int _evlVerifyUserCredential(uid_t euid,
+ 
+ exit_credential_check:
+ 	if (seteuid(ruid) == -1) {
+-		LOGERROR(EVLOG_UID_OP_FAILED, "seteuid failed errno=%d", errno);
+-		fprintf(stderr, "Failed to change user ID back to %d.\n", ruid);
++		LOGERROR(EVLOG_UID_OP_FAILED,
++			"seteuid failed errno=%d", errno);
++		(void) fprintf(stderr,
++			"Failed to change user ID back to %d.\n", ruid);
+ 	}
+ 	if (setegid(rgid) == -1) {
+-		LOGERROR(EVLOG_GID_OP_FAILED, "setegid failed errno=%d", errno);
+-		fprintf(stderr, "Failed to change group ID back to %d.\n", rgid);
++		LOGERROR(EVLOG_GID_OP_FAILED,
++			"setegid failed errno=%d", errno);
++		(void) fprintf(stderr,
++			"Failed to change group ID back to %d.\n", rgid);
+ 	}
+ 	TRACE("ruid=%d : rgid=%d --- euid=%d : egid=%d\n", 
+ 			getuid(), getgid(), geteuid(), getegid());
+-			
++
+ 	pw = getpwuid(ruid);
+ 	if (pw == NULL) {
+ 		return -1;
+@@ -252,13 +267,14 @@ exit_credential_check:
+  *
+  */
+ size_t
+-_evlSplitCmd(char * cmdbuf, size_t n, char **argv)
++_evlSplitCmd(char *cmdbuf, size_t n, char **argv)
+ {
+ 	int nsplit;
+-    char c;
+-    char *tmp;
++	char c;
++	char *tmp;
+ 	unsigned int dbquote_open = 0x0;
+ 	unsigned int squote_open = 0x0;
++
+ 	nsplit = 0;
+ 
+ 	tmp = cmdbuf;
+@@ -267,34 +283,36 @@ _evlSplitCmd(char * cmdbuf, size_t n, ch
+ 			break;
+ 		}
+ 		c = *cmdbuf;
+-		if ((c == ' ' || c == '\t' || c == '\0') && dbquote_open == 0 && squote_open == 0) {
++		if (((c == ' ') || (c == '\t') || (c == '\0')) &&
++			(dbquote_open == 0) && (squote_open == 0)) {
+ 			*cmdbuf = '\0';
+-			if ((*tmp == '\'' || *tmp == '\"') &&
+-				(tmp[strlen(tmp)-1] == '\'' || tmp[strlen(tmp)-1] == '\"')) {
++			if (((*tmp == '\'') || (*tmp == '\"')) &&
++				((tmp[strlen(tmp) - 1] == '\'') ||
++				 (tmp[strlen(tmp) - 1] == '\"'))) {
+ 				/* try to ged rid of the quote */
+-				tmp[strlen(tmp)-1] = '\0';
+-				argv[nsplit++] = tmp+1;
++				tmp[strlen(tmp) - 1] = '\0';
++				argv[nsplit++] = tmp + 1;
+ 			} else {
+ 				argv[nsplit++] = tmp;
+ 			}
+ 			/* point to the next token */
+ 			tmp = cmdbuf + sizeof(char);
+ 			/* eat all white space */
+-			while (*tmp == ' ' || *tmp == '\t') {
++			while ((*tmp == ' ') || (*tmp == '\t')) {
+ 				tmp++;
+ 			}
+ 			cmdbuf = tmp;
+ 			continue;
+ 			
+ 		}
+-		if (c == '\"' && !squote_open) {
++		if ((c == '\"') && !squote_open) {
+ 			dbquote_open ^= 0x1;
+ 		}
+-		if (c == '\'' && !dbquote_open) {
++		if ((c == '\'') && !dbquote_open) {
+ 			squote_open ^= 0x1;
+ 		}
+ 		cmdbuf++;
+-	} while (c != '\0') ;
++	} while (c != '\0');
+ 
+ 	return nsplit;
+ }
+@@ -309,22 +327,23 @@ _evlSplitCmd(char * cmdbuf, size_t n, ch
+  * RETURN	:
+  *
+  */
+-void _evlTrim (const char * str)
++void
++_evlTrim (const char *str)
+ {
+ 	char const *psrc = str;
+ 	char *pdes = (char *) str;
+ 	int i, len;
+ 
+   	/* remove leading space */
+-	while(*psrc == ' ' || *psrc == '\t') {
++	while ((*psrc == ' ') || (*psrc == '\t')) {
+ 		psrc++;
+ 	}
+ 	/* remove the trailing space */
+ 	len = strlen(psrc);
+-	while (*(psrc+len-1) == ' ' || *(psrc+len-1) == '\t') {
++	while ((*(psrc + len - 1) == ' ') || (*(psrc + len - 1) == '\t')) {
+ 		--len;
+ 	}
+-	for (i=0 ; i < len; i++) {
++	for (i = 0; i < len; i++) {
+ 		pdes[i] = psrc[i];
+ 	}
+ 	pdes[i] = '\0';
+@@ -342,8 +361,10 @@ _evlValidate_pid(char *pfile)
+ 	if ((f = fopen(pfile, "r")) == NULL) {
+ 		return 0;
+ 	}
+-	fscanf(f, "%d", &f_pid);
+-	fclose(f);
++
++	(void) fscanf(f, "%d", &f_pid);
++	(void) fclose(f);
++
+ 	if (kill(f_pid, 0) && errno == ESRCH) {
+ 		return 0;
+ 	}
+@@ -365,13 +386,13 @@ _evlUpdate_pid(char *pfile)
+ 		return 0;
+ 	}
+    	if ((f = fdopen(fd, "r+")) == NULL) {
+-		close(fd);
++		(void) close(fd);
+ 		return 0;
+ 	}
+ 	pid = getpid();
+-	flock(fd, LOCK_EX);
+-	fprintf(f, "%d\n", pid);
+-	fclose(f);	/* closes fd; releases locks */
++	(void) flock(fd, LOCK_EX);
++	(void) fprintf(f, "%d\n", pid);
++	(void) fclose(f);	/* closes fd; releases locks */
+ 
+    	return 1;	
+ }
+Index: evlog-1.6.1/user/lib/formatrec.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/formatrec.c
++++ evlog-1.6.1/user/lib/formatrec.c
+@@ -41,7 +41,7 @@
+ 
+ extern tmpl_base_type_t _evlGetTypeFromConversion(struct evl_parsed_format *pf,
+ 	int promote, int signedOnly);
+-extern char * _evlGetHostNameEx(int id);
++extern char *_evlGetHostNameEx(posix_log_procid_t id);
+ 
+ /* Used for scanning the variable part of an event record */
+ typedef struct recbuf {
+@@ -53,52 +53,60 @@ typedef struct recbuf {
+ 
+ /* Append one "name=value," to the buffer. */
+ static int
+-addAttr(const struct posix_log_entry *entry, int memberSelector,
+-	const char *memberName, char *buf, size_t buflen,
+-	const char *separator, size_t maxLineLen, int fmtFlags, size_t *totalSize,
+-	size_t *curLineLen, int lastAttr)
++addAttr(	const struct posix_log_entry	*entry,
++		int				memberSelector,
++		const char			*memberName,
++		char				*buf,
++		size_t				buflen,
++		const char			*separator,
++		size_t				maxLineLen,
++		int				fmtFlags,
++		size_t				*totalSize,
++		size_t				*curLineLen,
++		int				lastAttr)
+ {
+ 	char val[POSIX_LOG_MEMSTR_MAXLEN];
+ 	char attr[sizeof("VeryLongAttrName=")+POSIX_LOG_MEMSTR_MAXLEN+MAXSEPLEN];
+ 	int status;
+ 	size_t attrLen;
+ 	int needNewLine = 0;
+-	int nodeId;
++	posix_log_procid_t nodeID;
+ 	struct posix_log_entry rechdr;
+ 
+ 	if (memberSelector == POSIX_LOG_ENTRY_PROCESSOR) {
+-		nodeId = entry->log_processor >> 16;
+-		memcpy(&rechdr, entry, sizeof(struct posix_log_entry));
++		nodeID = entry->log_processor >> 16;
++		(void) memcpy(&rechdr, entry, sizeof(struct posix_log_entry));
+ 		rechdr.log_processor &= 0x0000ffff;
+ 		/* Get the attribute's value. */
+ 		status = posix_log_memtostr(memberSelector, &rechdr, val,
+-									POSIX_LOG_MEMSTR_MAXLEN);
++						POSIX_LOG_MEMSTR_MAXLEN);
+ 	} else {
+-
+ 		/* Get the attribute's value. */
+ 		status = posix_log_memtostr(memberSelector, entry, val,
+-									POSIX_LOG_MEMSTR_MAXLEN);
++						POSIX_LOG_MEMSTR_MAXLEN);
+ 	}
+ 	if (status != 0) {
+ 		return status;
+ 	}
+ 
+ 	/* Build "name=value,". */
+-	if ((fmtFlags & EVL_COMPACT) != 0) {
++	if (fmtFlags & EVL_COMPACT) {
+ 		(void) strcpy(attr, val);
++
+ 		if (memberSelector == POSIX_LOG_ENTRY_PROCESSOR) {
+ 			(void) strcat(attr, separator);
+-			(void) strcat(attr, _evlGetHostNameEx(nodeId));
++			(void) strcat(attr, _evlGetHostNameEx(nodeID));
+ 		}
+ 	} else {
+ 		(void) strcpy(attr, memberName);
+ 		(void) strcat(attr, "=");
+ 		(void) strcat(attr, val);
++
+ 		if (memberSelector == POSIX_LOG_ENTRY_PROCESSOR) {
+ 			(void) strcat(attr, separator);
+ 			(void) strcat(attr, "host");
+ 			(void) strcat(attr, "=");
+-			(void) strcat(attr, _evlGetHostNameEx(nodeId));
++			(void) strcat(attr, _evlGetHostNameEx(nodeID));
+ 		}
+ 	}
+ 
+@@ -153,9 +161,13 @@ addAttr(const struct posix_log_entry *en
+ }
+ 
+ int
+-evl_format_evrec_fixed(const struct posix_log_entry *entry, char *buf,
+-	size_t buflen, size_t *reqlen, const char *separator, size_t linelen,
+-	int fmt_flags)
++evl_format_evrec_fixed(	const struct posix_log_entry	*entry,
++			char				*buf,
++			size_t				buflen,
++			size_t				*reqlen,
++			const char			*separator,
++			size_t				linelen,
++			int				fmt_flags)
+ {
+ 	const struct _evlNvPair *nv;
+ 	size_t curLineLen = 0;
+@@ -167,7 +179,7 @@ evl_format_evrec_fixed(const struct posi
+ 		*reqlen = 0;
+ 	}
+ 
+-	if (fmt_flags != 0 && fmt_flags != EVL_COMPACT) {
++	if ((fmt_flags != 0) && (fmt_flags != EVL_COMPACT)) {
+ 		return EINVAL;
+ 	}
+ 
+@@ -175,11 +187,11 @@ evl_format_evrec_fixed(const struct posi
+ 		return EINVAL;
+ 	}
+ 
+-	if (separator && strlen(separator) > MAXSEPLEN) {
++	if (separator && (strlen(separator) > MAXSEPLEN)) {
+ 		return EINVAL;
+ 	}
+ 
+-	if (buf && buflen != 0) {
++	if (buf && (buflen != 0)) {
+ 		buf[0] = '\0';
+ 	} else {
+ 		/*
+@@ -193,10 +205,11 @@ evl_format_evrec_fixed(const struct posi
+ 	}
+ 
+ 	for (nv = _evlAttributes; nv->nv_name; nv++) {
+-		int lastAttr = ((nv+1)->nv_name == 0);
++		int lastAttr = ((nv + 1)->nv_name == 0);
+ 		int result = addAttr(entry, nv->nv_value, nv->nv_name,
+ 			buf, buflen, separator, linelen, fmt_flags,
+ 			&totalSize, &curLineLen, lastAttr);
++
+ 		if (result != 0) {
+ 			/*
+ 			 * If result is EMSGSIZE, we've run out of space,
+@@ -274,11 +287,16 @@ format8chars(const char *dp, const char 
+  * cols 69-76: 8 bytes of data, formatted as 8 characters
+  */
+ static char *
+-formatDumpLine(const char *dp, const char *dend, size_t offset, char *bp, size_t size)
++formatDumpLine(	const char	*dp,
++		const char	*dend,
++		size_t		offset,
++		char		*bp,
++		size_t		size)
+ {
+ #define BYTES_PER_LINE 16
+ #define DUMPLINELEN 77	/* (8+1+(8*3)+1+(8*3)+2+8+1+8) */
+-	snprintf(bp, size, "%08X", offset);
++
++	(void) snprintf(bp, size, "%08X", offset);
+ 	bp += 8;
+ 	*bp++ = ' ';
+ 	bp = format8bytes(dp, dend, bp);
+@@ -289,6 +307,7 @@ formatDumpLine(const char *dp, const cha
+ 	bp = format8chars(dp, dend, bp);
+ 	*bp++ = ' ';
+ 	bp = format8chars(dp+8, dend, bp);
++
+ 	return bp;
+ }
+ 
+@@ -299,20 +318,23 @@ formatDumpLine(const char *dp, const cha
+  * number of bytes required.
+  */
+ int
+-_evlDumpBytes(const void *data, size_t nBytes, char *buf, size_t buflen,
+-	size_t *reqlen)
++_evlDumpBytes(	const void	*data,
++		size_t		nBytes,
++		char		*buf,
++		size_t		buflen,
++		size_t		*reqlen)
+ {
+ 	int nLines;
+ 	size_t reqBufLen;
+ 	const char *dbase = (const char *) data;
+-	const char *dend = dbase + (nBytes -1);
++	const char *dend = dbase + (nBytes - 1);
+ 	const char *dp;
+ 	char *bp;
+ 
+ 	if (reqlen) {
+ 		*reqlen = 0;
+ 	}
+-	if (!data || nBytes == 0) {
++	if (!data || (nBytes == 0)) {
+ 		return EINVAL;
+ 	}
+ 	nLines = (nBytes + BYTES_PER_LINE - 1)/BYTES_PER_LINE;
+@@ -334,12 +356,13 @@ _evlDumpBytes(const void *data, size_t n
+ 	}
+ 
+ 	for (dp = dbase, bp = buf; dp <= dend; dp += BYTES_PER_LINE) {
+-		bp = formatDumpLine(dp, dend, dp-dbase, bp, DUMPLINELEN + 1);
++		bp = formatDumpLine(dp, dend, dp - dbase, bp,
++							DUMPLINELEN + 1);
+ 		*bp++ = '\n';
+ 	}
+ 
+ 	/* Replace the final new line with a null. */
+-		bp[-1] = '\0';
++	bp[-1] = '\0';
+ 	return 0;
+ }
+ 
+@@ -351,8 +374,11 @@ _evlDumpBytes(const void *data, size_t n
+  * to the needed buffer size.
+  */
+ int
+-_evlDumpBytesForce(const void *data, size_t nBytes, char *buf, size_t buflen,
+-	size_t *reqlen)
++_evlDumpBytesForce(	const void	*data,
++			size_t		nBytes,
++			char		*buf,
++			size_t		buflen,
++			size_t		*reqlen)
+ {
+ 	size_t myReqlen = 0;
+ 	size_t *pReqlen;
+@@ -370,12 +396,13 @@ _evlDumpBytesForce(const void *data, siz
+ 	}
+ 	status = _evlDumpBytes(data, nBytes, buf, buflen, pReqlen);
+ 	if (status == EMSGSIZE) {
+-		char *mybuf = (char*) malloc(*pReqlen);
++		char *mybuf = (char *) malloc(*pReqlen);
++
+ 		assert(mybuf != NULL);
+ 		status = _evlDumpBytes(data, nBytes, mybuf, *pReqlen, NULL);
+ 		assert(status == 0);
+ 		(void) memcpy(buf, mybuf, buflen);
+-		buf[buflen-1] = '\0';
++		buf[buflen - 1] = '\0';
+ 		free(mybuf);
+ 	}
+ 	return status;
+@@ -392,7 +419,7 @@ _evlDumpBytesToFile(const void *data, si
+ 	const char *dbase = (const char *) data;
+ 	const char *dend = dbase + (nBytes -1);
+ 	const char *dp;
+-	char line[DUMPLINELEN+1];
++	char line[DUMPLINELEN + 1];
+ 	char *eol;
+ 
+ 	if (!data || nBytes == 0) {
+@@ -400,9 +427,10 @@ _evlDumpBytesToFile(const void *data, si
+ 	}
+ 
+ 	for (dp = dbase; dp <= dend; dp += BYTES_PER_LINE) {
+-		eol = formatDumpLine(dp, dend, dp-dbase, line, sizeof(line));
++		eol = formatDumpLine(dp, dend, dp - dbase,
++							line, sizeof(line));
+ 		*eol = '\0';
+-		fprintf(f, "%s\n", line);
++		(void) fprintf(f, "%s\n", line);
+ 	}
+ 
+ 	return 0;
+@@ -413,11 +441,12 @@ _evlDumpBytesToFile(const void *data, si
+  * of the largest possible variable portion of an event record.
+  */
+ size_t
+-_evlGetMaxDumpLen()
++_evlGetMaxDumpLen(void)
+ {
+ 	static size_t nLines =
+-		(POSIX_LOG_ENTRY_MAXLEN+BYTES_PER_LINE-1)/BYTES_PER_LINE;
+-	return nLines*(DUMPLINELEN+1);
++		(POSIX_LOG_ENTRY_MAXLEN + BYTES_PER_LINE - 1)/BYTES_PER_LINE;
++
++	return nLines * (DUMPLINELEN + 1);
+ }
+ 
+ /*
+@@ -444,10 +473,14 @@ getPopulatedTemplate(const struct posix_
+ }
+ 
+ int
+-evl_format_evrec_variable(const struct posix_log_entry *entry,
+-	const void *var_buf, char *buf, size_t buflen, size_t *reqlen)
++evl_format_evrec_variable(	const struct posix_log_entry	*entry,
++				const void			*var_buf,
++				char				*buf,
++				size_t				buflen,
++				size_t				*reqlen)
+ {
+ 	evltemplate_t *tmpl;
++
+ 	if (reqlen) {
+ 		*reqlen = 0;
+ 	}
+@@ -460,6 +493,7 @@ evl_format_evrec_variable(const struct p
+ 		/* Format according to this event type's template. */
+ 		int status = _evlSpecialFormatEvrec(entry, var_buf,
+ 			tmpl, tmpl->tm_parsed_format, buf, buflen, reqlen);
++
+ 		evl_releasetemplate(tmpl);
+ 		return status;
+ 	}
+@@ -482,7 +516,7 @@ evl_format_evrec_variable(const struct p
+ 		if (buflen < entry->log_size) {
+ 			return EMSGSIZE;
+ 		}
+-		(void) strcpy(buf, (const char*) var_buf);
++		(void) strcpy(buf, (const char *) var_buf);
+ 		return 0;
+ 	case POSIX_LOG_BINARY:
+ 		return _evlDumpBytes(var_buf, entry->log_size, buf,
+@@ -508,9 +542,12 @@ evl_format_evrec_variable(const struct p
+  * specified format, this function doesn't tell you WHY.)
+  */
+ int
+-evl_format_evrec_sprintf(const struct posix_log_entry *entry,
+-	const void *var_buf, const char *format, char *buf,
+-	size_t buflen, size_t *reqlen)
++evl_format_evrec_sprintf(	const struct posix_log_entry	*entry,
++				const void			*var_buf,
++				const char			*format,
++				char				*buf,
++				size_t				buflen,
++				size_t				*reqlen)
+ {
+ 	evl_list_t *parsedFormat;
+ 	char *myformat;
+@@ -548,8 +585,9 @@ evl_format_evrec_sprintf(const struct po
+ 	 */
+ 	needTmpl = 0;
+ 	head = parsedFormat;
+-	for (p=head, end=NULL; p!=end; end=head, p=p->li_next) {
+-		evl_fmt_segment_t *fs = (evl_fmt_segment_t*) p->li_data;
++	for (p = head, end = NULL; p != end; end = head, p = p->li_next) {
++		evl_fmt_segment_t *fs = (evl_fmt_segment_t *) p->li_data;
++
+ 		if (fs->fs_type == EVL_FS_ATTNAME) {
+ 			needTmpl = 1;
+ 			break;
+@@ -558,6 +596,7 @@ evl_format_evrec_sprintf(const struct po
+ 
+ 	if (needTmpl) {
+ 		evltemplate_t *tmpl;
++
+ 		tmpl = getPopulatedTemplate(entry, var_buf);
+ 		if (!tmpl) {
+ 			/* No such template */
+@@ -565,10 +604,13 @@ evl_format_evrec_sprintf(const struct po
+ 			free(myformat);
+ 			return EBADMSG;
+ 		}
+-		for (p=head, end=NULL; p!=end; end=head, p=p->li_next) {
++		for (p = head, end = NULL; p != end;
++				end = head, p = p->li_next) {
+ 			evl_fmt_segment_t *fs = (evl_fmt_segment_t*) p->li_data;
++
+ 			if (fs->fs_type == EVL_FS_ATTNAME) {
+ 				evlattribute_t *att;
++
+ 				status = evltemplate_getatt(tmpl,
+ 					fs->u.fs_attname, &att);
+ 				if (status != 0) {
+@@ -601,8 +643,12 @@ evl_format_evrec_sprintf(const struct po
+ }
+ 
+ extern int
+-evl_atttostr(const char *attribute, const struct posix_log_entry *entry,
+-	const void *var_buf, char *buf, size_t buflen, size_t *reqlen)
++evl_atttostr( 	const char			*attribute,
++		const struct posix_log_entry	*entry,
++		const void			*var_buf,
++		char				*buf,
++		size_t				buflen,
++		size_t				*reqlen)
+ {
+ 	int member;
+ 	int status = 0;
+@@ -619,13 +665,7 @@ evl_atttostr(const char *attribute, cons
+ 
+ 	/* Is this a standard attribute? */
+ 	member = _evlGetValueByName(_evlAttributes, attribute, -1);
+-	if (member != -1) {
+-		/* Yes, a standard attribute. */
+-		mybuf = membuf;
+-		status = posix_log_memtostr(member, entry, membuf,
+-			POSIX_LOG_MEMSTR_MAXLEN);
+-		assert(status == 0);
+-	} else {
++	if (member == -1) {
+ 		/*
+ 		 * Try to find an attribute by this name in the optional
+ 		 * part of the record.  We currently do this by putting
+@@ -638,7 +678,8 @@ evl_atttostr(const char *attribute, cons
+ 		 * Note that we come here if the attribute's name is "data".
+ 		 */
+ 		char *fmt;
+-		fmt = (char*) malloc(strlen(attribute)+3);
++
++		fmt = (char *) malloc(strlen(attribute)+3);
+ 		assert(fmt != NULL);
+ 		snprintf(fmt, strlen(attribute)+3,  "%%%s%%", attribute);
+ 		status = evl_format_evrec_sprintf(entry, var_buf, fmt, buf,
+@@ -653,6 +694,12 @@ evl_atttostr(const char *attribute, cons
+ 		}
+ 		free(fmt);
+ 		return status;
++	} else {
++		/* Yes, a standard attribute. */
++		mybuf = membuf;
++		status = posix_log_memtostr(member, entry, membuf,
++			POSIX_LOG_MEMSTR_MAXLEN);
++		assert(status == 0);
+ 	}
+ 
+ 	/* We get here only if attribute is a standard name (not "data"). */
+@@ -698,7 +745,8 @@ static const char *
+ collectString(recbuf_t *b)
+ {
+ 	const char *s = b->b_next;
+-	while (b->b_next < b->b_end && *(b->b_next)) {
++
++	while ((b->b_next < b->b_end) && *(b->b_next)) {
+ 		b->b_next++;
+ 	}
+ 	if (b->b_next < b->b_end) {
+@@ -719,12 +767,14 @@ static const wchar_t *
+ collectWstring(recbuf_t *b)
+ {
+ 	wchar_t wc;	/* in case alignment is an issue */
+-	const wchar_t *s = (const wchar_t*) b->b_next;
++	const wchar_t *s = (const wchar_t *) b->b_next;
++
+ 	do {
+ 		if (collectBytes(b, &wc, sizeof(wchar_t)) < 0) {
+ 			return NULL;
+ 		}
+ 	} while (wc != 0);
++
+ 	return s;
+ }
+ 
+@@ -740,9 +790,8 @@ elidePrintkSeverities(char *s)
+ 
+ 	/* Each iteration of this loop starts with p at the start of a line. */
+ 	do {
+-		if (p[0] == '<'
+-		    && '0' <= p[1] && p[1] <= '7'
+-		    && p[2] == '>') {
++		if ((p[0] == '<') && ('0' <= p[1]) &&
++				(p[1] <= '7') && (p[2] == '>')) {
+ 			p += 3;
+ 		}
+ 		do {
+@@ -752,7 +801,7 @@ elidePrintkSeverities(char *s)
+ 			}
+ 			p++;
+ 			q++;
+-		} while (c != '\n' && c != '\0');
++		} while ((c != '\n') && (c != '\0'));
+ 	} while (c == '\n');
+ }
+ 
+@@ -818,6 +867,7 @@ formatConversion(evl_fmt_buf_t *f, evl_f
+ 		case TY_STRING:
+ 		    {
+ 		    	const char *s = collectString(b);
++
+ 			if (s) {
+ 				_evlBprintf(f, fmt, s);
+ 			} else {
+@@ -828,6 +878,7 @@ formatConversion(evl_fmt_buf_t *f, evl_f
+ 		case TY_WSTRING:
+ 		    {
+ 			const wchar_t *s = collectWstring(b);
++
+ 			if (s) {
+ 				_evlBprintf(f, fmt, s);
+ 			} else {
+@@ -845,31 +896,31 @@ formatConversion(evl_fmt_buf_t *f, evl_f
+ 			switch (type) {
+ 			case TY_CHAR:
+ 			case TY_UCHAR:
+-				_evlBprintf(f, fmt, *((char*) alval));
++				_evlBprintf(f, fmt, *((char *) alval));
+ 				break;
+ 			case TY_SHORT:
+-				_evlBprintf(f, fmt, *((short*) alval));
++				_evlBprintf(f, fmt, *((short *) alval));
+ 				break;
+ 			case TY_INT:
+-				_evlBprintf(f, fmt, *((int*) alval));
++				_evlBprintf(f, fmt, *((int *) alval));
+ 				break;
+ 			case TY_LONG:
+-				_evlBprintf(f, fmt, *((long*) alval));
++				_evlBprintf(f, fmt, *((long *) alval));
+ 				break;
+ 			case TY_LONGLONG:
+-				_evlBprintf(f, fmt, *((long long*) alval));
++				_evlBprintf(f, fmt, *((long long *) alval));
+ 				break;
+ 			case TY_DOUBLE:
+-				_evlBprintf(f, fmt, *((double*) alval));
++				_evlBprintf(f, fmt, *((double *) alval));
+ 				break;
+ 			case TY_LDOUBLE:
+-				_evlBprintf(f, fmt, *((long double*) alval));
++				_evlBprintf(f, fmt, *((long double *) alval));
+ 				break;
+ 			case TY_ADDRESS:
+-				_evlBprintf(f, fmt, *((void**) alval));
++				_evlBprintf(f, fmt, *((void **) alval));
+ 				break;
+ 			case TY_WCHAR:
+-				_evlBprintf(f, fmt, *((wchar_t*) alval));
++				_evlBprintf(f, fmt, *((wchar_t *) alval));
+ 				break;
+ 			default:
+ 				assert(0);
+@@ -894,8 +945,12 @@ out:
+  * remove the terminating newline and any leading <n> severity codes.
+  */
+ int
+-_evlFormatPrintfRec(const char *data, size_t datasz, char *buf, size_t buflen,
+-	size_t *reqlen, int printk)
++_evlFormatPrintfRec( 	const char	*data,
++			size_t		datasz,
++			char		*buf,
++			size_t		buflen,
++			size_t		*reqlen,
++			int		printk)
+ {
+ 	evl_list_t *parsedFmt;
+ 	evl_listnode_t *head, *end, *p;
+@@ -910,7 +965,7 @@ _evlFormatPrintfRec(const char *data, si
+ 		/* In case we bail out early */
+ 		*reqlen = 0;
+ 	}
+-	if (!data || datasz == 0) {
++	if (!data || (datasz == 0)) {
+ 		return EINVAL;
+ 	}
+ 
+@@ -942,10 +997,10 @@ _evlFormatPrintfRec(const char *data, si
+ 	 * each printf-conversion segment.
+ 	 */
+ 	head = parsedFmt;
+-	for (p=head, end=NULL; p!=end; end=head, p=p->li_next) {
++	for (p = head, end = NULL; p != end; end = head, p = p->li_next) {
+ 		tmpl_base_type_t type;
+ 		const char *fmt;
+-		evl_fmt_segment_t *seg = (evl_fmt_segment_t*) p->li_data;
++		evl_fmt_segment_t *seg = (evl_fmt_segment_t *) p->li_data;
+ 
+ 		if (seg->fs_type == EVL_FS_STRING) {
+ 			_evlBprintf(f, "%s", seg->u.fs_string);

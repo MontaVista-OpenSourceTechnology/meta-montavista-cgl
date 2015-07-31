@@ -1,0 +1,38 @@
+MR: 25575
+Type: Document change
+Description:
+    Added threshold and interval fields in evlnotify -l output.
+
+Root Cause:
+    evlnotify implementation added those two fields.
+
+Index: evlog-1.6.1/user/man/evlnotify.1
+===================================================================
+--- evlog-1.6.1.orig/user/man/evlnotify.1	2007-10-19 17:48:12.000000000 -0700
++++ evlog-1.6.1/user/man/evlnotify.1	2007-10-19 17:51:00.000000000 -0700
+@@ -91,8 +91,8 @@
+ notifications. The list output consists of the
+ following fields:
+ 
+-.nf
+-Notify Id : filter : action : user id : once-only : peristent
++Notify Id : filter : action : user id : once-only : threshold : interval : persistent
++
+ 			
+ .fi
+ (\fIonce-only\fR=1 if once-only)
+Index: evlog-1.6.1/user/man/evlnotify.1.in
+===================================================================
+--- evlog-1.6.1.orig/user/man/evlnotify.1.in	2007-10-19 17:48:12.000000000 -0700
++++ evlog-1.6.1/user/man/evlnotify.1.in	2007-10-19 17:51:16.000000000 -0700
+@@ -91,8 +91,8 @@
+ notifications. The list output consists of the
+ following fields:
+ 
+-.nf
+-Notify Id : filter : action : user id : once-only : peristent
++Notify Id : filter : action : user id : once-only : threshold : interval : persistent
++
+ 			
+ .fi
+ (\fIonce-only\fR=1 if once-only)

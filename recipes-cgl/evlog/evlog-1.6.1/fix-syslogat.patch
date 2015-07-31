@@ -1,0 +1,696 @@
+This patch does a couple of things:
+
+  * Part of the build process should copy bfd.h into the "include" directory
+    in the main executable.  Make sure to pick it up from there instead of
+    from the environment.
+
+  * The syslogat() function was mostly broken due to changes in the compiler.
+    The __FUNCTION__ could no longer be used like it was, so syslogat() was
+    basically broken.  This patch modifies the way syslogat() works to
+    not put the strings in the .log section and instead reference them and
+    then look them up using bfd magic.  It will also handle the previous
+    format, so old executable can still be used with it.
+
+Index: evlog-1.6.1/user/cmd/evlgentmpls/Makefile.am
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlgentmpls/Makefile.am
++++ evlog-1.6.1/user/cmd/evlgentmpls/Makefile.am
+@@ -11,7 +11,7 @@ EXTRA_DIST += Makefile.mk
+ MOSTLYCLEANFILES += 
+ 
+ # General compilation flags
+-INCLUDES = -I$(top_srcdir)/user/include -I$(top_srcdir)/user/include/linux
++INCLUDES = -I$(top_srcdir)/user/include -I$(top_srcdir)/user/include/linux -I$(top_srcdir)/include
+ 
+ sbin_PROGRAMS := evlgentmpls
+ evlgentmpls_SOURCES := evlgentmpls.c
+Index: evlog-1.6.1/user/cmd/evlgentmpls/evlgentmpls.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlgentmpls/evlgentmpls.c
++++ evlog-1.6.1/user/cmd/evlgentmpls/evlgentmpls.c
+@@ -58,8 +58,8 @@ static const char *progname = NULL;
+ static int errors = 0;
+ 
+ struct log_meta_info {
+-	const struct evlog_info	*info;
+-	evl_list_t		*dups;
++	const struct evlog_info_v1	*info;
++	evl_list_t			*dups;
+ #define MINFO_UNIQUE	0
+ #define MINFO_1ST_DUP	1
+ #define MINFO_NTH_DUP	2
+@@ -69,6 +69,18 @@ struct log_meta_info {
+ 	char			*unbraced_format;
+ };
+ 
++struct sec_info {
++	struct sec_info *next;
++	void *contents;
++	bfd_size_type size;
++	asection *sect;
++};
++
++struct sec_info *log_sec;
++struct sec_info *sects;
++arelent **log_rel;
++long relcount;
++
+ /*
+ Two printkat/syslogat calls that yield the same event type are
+ referred to here as "duplicates."  Since we can generate only one
+@@ -107,8 +119,8 @@ compute_event_type(const struct log_meta
+ 	switch (version) {
+ 	case 1:
+ 	    {
+-		const struct evlog_info *info = mif->info;
+-		return evl_gen_event_type(info->pos.file, info->pos.function,
++		const struct evlog_info_v1 *info = mif->info;
++		return evl_gen_event_type(info->file, info->function,
+ 			info->format);
+ 	    }
+ 	case 2:
+@@ -395,7 +407,7 @@ emit_event_type(FILE *t, const struct lo
+ static void
+ emit_filefunc_att(FILE *t, const struct log_meta_info *mif, const char *att)
+ {
+-	const struct evlog_info *info;
++	const struct evlog_info_v1 *info;
+ 	int file_att = (strcmp(att, "file") == 0);
+ 
+ 	fprintf(t, "\tstring %s = \"", att);
+@@ -403,8 +415,8 @@ emit_filefunc_att(FILE *t, const struct 
+ 		const char *curr, *prev = NULL;
+ 		evl_listnode_t *head = mif->dups, *end, *p;
+ 		for (p=head, end=NULL; p!=end; end=head, p=p->li_next) {
+-			info = (const struct evlog_info *) p->li_data;
+-			curr = (file_att ? info->pos.file : info->pos.function);
++			info = (const struct evlog_info_v1 *) p->li_data;
++			curr = (file_att ? info->file : info->function);
+ 			if (!prev || strcmp(prev, curr) != 0) {
+ 				if (prev) {
+ 					fprintf(t, ", ");
+@@ -416,7 +428,7 @@ emit_filefunc_att(FILE *t, const struct 
+ 	} else {
+ 		info = mif->info;
+ 		fprintf(t, "%s",
+-			(file_att ? info->pos.file : info->pos.function));
++			(file_att ? info->file : info->function));
+ 	}
+ 	fprintf(t, "\";\n");
+ }
+@@ -430,7 +442,7 @@ create_template(const char *rootdir, con
+ {
+ 	evl_list_t *parsed_fmt = NULL;
+ 	evl_listnode_t *head, *end, *p;
+-	const struct evlog_info *info = mif->info;
++	const struct evlog_info_v1 *info = mif->info;
+ 	const char *facname = info->facility;
+ 	char *format_dup = strdup(info->format);	/* scribbleable copy */
+ 	FILE *t;
+@@ -462,7 +474,7 @@ create_template(const char *rootdir, con
+ 
+ 	rec_supplies_line_number = (strstr(info->format, "{line}%") != NULL);
+ 	if (!rec_supplies_line_number) {
+-		fprintf(t, "\tint line = %d;\n", info->pos.line);
++		fprintf(t, "\tint line = %d;\n", info->line);
+ 	}
+ 	fprintf(t, "}\n");
+ 	fprintf(t, "attributes {\n");
+@@ -517,9 +529,9 @@ create_template(const char *rootdir, con
+ 		/* Tack on the dups' line numbers. */
+ 		evl_listnode_t *head = mif->dups, *p;
+ 		for (p = head->li_next; p != head; p = p->li_next) {
+-			const struct evlog_info *dup =
+-				(const struct evlog_info *) p->li_data;
+-			fprintf(t, ", %d", dup->pos.line);
++			const struct evlog_info_v1 *dup =
++				(const struct evlog_info_v1 *) p->li_data;
++			fprintf(t, ", %d", dup->line);
+ 		}
+ 	}
+ 	fprintf(t, "\n");
+@@ -544,12 +556,12 @@ same_event(const struct log_meta_info *m
+ 	switch (version) {
+ 	case 1:
+ 	    {
+-		const struct evlog_info *info1, *info2;
++		const struct evlog_info_v1 *info1, *info2;
+ 		info1 = mif1->info;
+ 		info2 = mif2->info;
+ 		return (strcmp(info1->format, info2->format) == 0
+-		    && strcmp(info1->pos.file, info2->pos.file) == 0
+-		    && strcmp(info1->pos.function, info2->pos.function) == 0);
++		    && strcmp(info1->file, info2->file) == 0
++		    && strcmp(info1->function, info2->function) == 0);
+ 	    }
+ 	case 2:
+ 		return (!strcmp(mif1->unbraced_format, mif2->unbraced_format));
+@@ -567,7 +579,7 @@ duplicate_info(const struct log_meta_inf
+ 	if (mif1->event_type == mif2->event_type
+ 	    && mif1->facility == mif2->facility) {
+ 		/* We have a match.  Make sure it's valid. */
+-		const struct evlog_info *info1, *info2;
++		const struct evlog_info_v1 *info1, *info2;
+ 		info1 = mif1->info;
+ 		info2 = mif2->info;
+ 		if (! same_event(mif1, mif2)) {
+@@ -576,10 +588,10 @@ duplicate_info(const struct log_meta_inf
+ "%s:%s:%d - %s\n"
+ "%s:%s:%d - %s\n",
+ 				progname,
+-				info1->pos.file, info1->pos.function,
+-				info1->pos.line, info1->format,
+-				info2->pos.file, info2->pos.function,
+-				info2->pos.line, info2->format);
++				info1->file, info1->function,
++				info1->line, info1->format,
++				info2->file, info2->function,
++				info2->line, info2->format);
+ 			errors++;
+ 		}
+ 		return 1;
+@@ -592,19 +604,20 @@ duplicate_info(const struct log_meta_inf
+  * 0, if they sort the same, or > 0 otherwise.
+  */
+ static int
+-compare_info(const struct evlog_info *info1, const struct evlog_info *info2)
++compare_info(const struct evlog_info_v1 *info1,
++	     const struct evlog_info_v1 *info2)
+ {
+ 	int ret = 0;
+ 	switch (version) {
+ 	case 1:
+-		ret = info1->pos.line - info2->pos.line;
++		ret = info1->line - info2->line;
+ 		break;
+ 	case 2:
+-		ret = strcmp(info1->pos.file, info2->pos.file);
++		ret = strcmp(info1->file, info2->file);
+ 		if (ret == 0) {
+-			ret = strcmp(info1->pos.function, info2->pos.function);
++			ret = strcmp(info1->function, info2->function);
+ 			if (ret == 0) {
+-				ret = info1->pos.line - info2->pos.line;
++				ret = info1->line - info2->line;
+ 			}
+ 		}
+ 		break;
+@@ -619,12 +632,12 @@ compare_info(const struct evlog_info *in
+  * sorted according to compare_info().
+  */
+ static evl_list_t *
+-add_dup(evl_listnode_t *head, const struct evlog_info *info)
++add_dup(evl_listnode_t *head, const struct evlog_info_v1 *info)
+ {
+ 	evl_listnode_t *end, *p;
+ 	for (p=head, end=NULL; p!=end; end=head, p=p->li_next) {
+-		const struct evlog_info *pinfo =
+-			(const struct evlog_info*) p->li_data;
++		const struct evlog_info_v1 *pinfo =
++			(const struct evlog_info_v1 *) p->li_data;
+ 		if (compare_info(info, pinfo) < 0) {
+ 			return _evlInsertToList((void*)info, p, head);
+ 		}
+@@ -727,6 +740,188 @@ unbrace_fmt(const char *fmt)
+ 	return (char*) fmt;
+ }
+ 
++char *
++get_section_contents(asection *sect, bfd_size_type *size)
++{
++	struct sec_info *s;
++
++	for (s = sects; s; s = s->next) {
++		if (s->sect == sect) {
++			*size = s->size;
++			return s->contents;
++		}
++	}
++
++	return NULL;
++}
++
++arelent *
++find_reloc_at(bfd_size_type offset)
++{
++	long i;
++
++	for (i = 0; i < relcount; i++) {
++		if (log_rel[i]->address == offset)
++			return log_rel[i];
++	}
++	return NULL;
++}
++
++char *
++find_sect_data_by_vma(bfd *bfd, bfd_vma vma)
++{
++	struct sec_info *s;
++
++	for (s = sects; s; s = s->next) {
++		bfd_vma svma = bfd_section_vma(bfd, s->sect);
++		if ((vma > svma) && (vma < (svma + s->size)))
++			return s->contents + (vma - svma);
++	}
++
++	return NULL;
++}
++
++char *
++lookup_ptr_value(bfd *bfd, void *p)
++{
++	arelent *reloc;
++
++	reloc = find_reloc_at(((char *) p) - ((char *) log_sec->contents));
++	if (reloc) {
++		char *c;
++		asymbol *s;
++		bfd_size_type size;
++
++		if (!(reloc->sym_ptr_ptr && *reloc->sym_ptr_ptr))
++			return NULL;
++		s = *(reloc->sym_ptr_ptr);
++		c = get_section_contents(s->section, &size);
++		if (!c)
++			return NULL;
++		assert(s->value + reloc->addend < size);
++		return c + s->value + reloc->addend;
++	} else {
++		/* An absolute reference */
++		return find_sect_data_by_vma(bfd, *((unsigned long *) p));
++	}
++}
++
++struct evlog_info_v1 *
++load_info(bfd *bfd, char *contents, bfd_size_type *rpos, bfd_size_type size)
++{
++	bfd_size_type pos = *rpos;
++	struct evlog_info_header *h = (void *) (contents + pos);
++	struct evlog_info_v1 *rinfo;
++
++	if ((pos + 2) > size) {
++		fprintf(stderr, "Invalid log contents(3)\n");
++		exit(1);
++	}
++
++	rinfo = malloc(sizeof(*rinfo));
++	assert(rinfo);
++	rinfo->id = h->id;
++	rinfo->version = h->version;
++
++	if (h->id == 0) {
++		struct evlog_info_v1 *info;
++		char *str;
++
++		if (h->version != 1) {
++			fprintf(stderr, "Invalid log version: %d\n",
++				h->version);
++			exit(1);
++		}
++		if ((pos + sizeof(*info)) > size) {
++			fprintf(stderr, "Invalid log contents(4)\n");
++			exit(1);
++		}
++		info = (void *) h;
++
++		rinfo->format = lookup_ptr_value(bfd, &info->format);
++		if (!str) {
++			fprintf(stderr, "error finding format\n");
++			exit(1);
++		}
++
++		rinfo->facility = lookup_ptr_value(bfd, &info->facility);
++		if (!str) {
++			fprintf(stderr, "error finding facility\n");
++			exit(1);
++		}
++
++		rinfo->file = lookup_ptr_value(bfd, &info->file);
++		if (!str) {
++			fprintf(stderr, "error finding file\n");
++			exit(1);
++		}
++
++		rinfo->function = lookup_ptr_value(bfd, &info->function);
++		if (!str) {
++			fprintf(stderr, "error finding function\n");
++			exit(1);
++		}
++
++		rinfo->line = info->line;
++
++		*rpos += sizeof(*info);
++	} else {
++		struct evlog_info_v0 *info;
++
++		rinfo->version = 0;
++
++		if ((pos + sizeof(*info)) > size) {
++			fprintf(stderr, "Invalid log contents(5)\n");
++			exit(1);
++		}
++		info = (void *) h;
++		rinfo->format = info->format;
++		rinfo->facility = info->facility;
++		rinfo->file = info->pos.file;
++		rinfo->function = info->pos.function;
++		rinfo->line = info->pos.line;
++
++		*rpos = pos + sizeof(*info);
++	}
++
++	return rinfo;
++}
++
++void
++skip_info(char *contents, bfd_size_type *rpos, bfd_size_type size)
++{
++	bfd_size_type pos = *rpos;
++	struct evlog_info_header *h = (void *) (contents + pos);
++
++	if ((pos + 2) > size) {
++		fprintf(stderr, "Invalid log contents(6)\n");
++		exit(1);
++	}
++
++	if (h->id == 0) {
++		struct evlog_info_v1 *info;
++
++		if (h->version != 1) {
++			fprintf(stderr, "Invalid log version: %d\n",
++				h->version);
++			exit(1);
++		}
++		if ((pos + sizeof(*info)) > size) {
++			fprintf(stderr, "Invalid log contents(1)\n");
++			exit(1);
++		}
++		*rpos += sizeof(*info);
++	} else {
++		struct evlog_info_v0 *info;
++
++		if ((pos + sizeof(*info)) > size) {
++			fprintf(stderr, "Invalid log contents(2)\n");
++			exit(1);
++		}
++		*rpos = pos + sizeof(*info);
++	}
++}
++
+ /*
+  * info is the array of evlog_info objects extracted from the .o file's .log
+  * section.  Create and return mif, an array of meta-info objects, such
+@@ -738,15 +933,30 @@ unbrace_fmt(const char *fmt)
+  * including i.
+  */
+ static struct log_meta_info *
+-prepare_meta_info(const struct evlog_info *info, int nel)
++prepare_meta_info(bfd *bfd, int *rcount)
+ {
++	bfd_size_type pos;
+ 	int i, j, status;
+-	const struct evlog_info *infoi;
+-	struct log_meta_info *mi, *mj, *mif = (struct log_meta_info *)
+-		malloc(nel * sizeof(struct log_meta_info));
++	const struct evlog_info_v1 *infoi;
++	struct log_meta_info *mi, *mj, *mif;
++
++	/* First count how many log entries we have. */
++	for (pos = 0, i = 0; pos < log_sec->size; i++)
++		skip_info(log_sec->contents, &pos, log_sec->size);
++
++	mif = malloc(i * sizeof(struct log_meta_info));
+ 	assert(mif != NULL);
+-	for (i = 0; i < nel; i++) {
+-		infoi = info + i;
++
++	for (pos = 0, i = 0; pos < log_sec->size; i++) {
++		infoi = load_info(bfd, log_sec->contents, &pos, log_sec->size);
++#if 0
++		printf("Info\n");
++		printf("  format: %s\n", infoi->format);
++		printf("  facility: %s\n", infoi->facility);
++		printf("  file: %s\n", infoi->file);
++		printf("  function: %s\n", infoi->function);
++		printf("  line %d\n", infoi->line);
++#endif
+ 		mi = mif + i;
+ 		mi->info = infoi;
+ 		mi->dups = NULL;
+@@ -776,12 +986,12 @@ prepare_meta_info(const struct evlog_inf
+ 			if (duplicate_info(mif + i, mif + j)) {
+ 				/* i is a dup of j. */
+ 				evl_list_t *dups = mj->dups;
+-				const struct evlog_info *first_dup;
++				const struct evlog_info_v1 *first_dup;
+ 				if (!dups) {
+-					dups = _evlMkListNode(info + j);
++					dups = _evlMkListNode(mif->info);
+ 				}
+ 				dups = add_dup(dups, infoi);
+-				first_dup = (const struct evlog_info *)
++				first_dup = (const struct evlog_info_v1 *)
+ 					dups->li_data;
+ 				if (first_dup == infoi) {
+ 					/* i replaces j as first dup */
+@@ -802,6 +1012,7 @@ prepare_meta_info(const struct evlog_inf
+ 			}
+ 		}
+ 	}
++	*rcount = i;
+ 	return mif;
+ }
+ 
+@@ -823,46 +1034,60 @@ free_meta_info(struct log_meta_info *mif
+ 	free(mif);
+ }
+ 
+-#ifdef DEBUG
+-static void
+-dump_details(const struct evlog_info *info, int nel)
++void
++free_sec_info_list(struct sec_info **list)
+ {
+-	const struct evlog_info *in, *end = info + nel;
+-	for (in = info; in < end; in++) {
+-		printf("%p %s\t%s\t%s:%s:%d\n",
+-			in, in->format, in->facility,
+-			in->pos.file, in->pos.function, in->pos.line);
++	struct sec_info *curr, *next;
++	curr = *list;
++	*list = NULL;
++	while (curr) {
++		next = curr->next;
++		free(curr->contents);
++		curr = next;
+ 	}
+ }
+-#endif
+ 
+-static void
+-do_section(bfd *bfd, asection *log, void *tsd)
++void
++process_bfd(bfd *bfd, const char *tsd)
+ {
+-	bfd_size_type size;
+-	size_t number;
+-	struct evlog_info *info;
++	asymbol **syms;
++	long relsize;
++	long symcount, symsize;
+ 	int i;
+ 	struct log_meta_info *mif;
++	int number;
+ 
+-	/* Not log section? */
+-	if (strcmp(log->name, ".log") != 0)
+-		return;
+-
+-	size = bfd_section_size(bfd, log);
+-	number = size / sizeof(struct evlog_info);
+-	info = (struct evlog_info*) malloc(size + sizeof(struct evlog_info));
++	symsize = bfd_get_symtab_upper_bound(bfd);
++	if (symsize < 0) {
++		bfd_perror("getting symtab upper bound");
++		exit(1);
++	}
++	if (symsize) {
++		syms = malloc(symsize);
++		assert(syms);
++	}
++	symcount = bfd_canonicalize_symtab(bfd, syms);
++	if (symcount < 0) {
++		bfd_perror("getting symtab");
++		exit(1);
++	}
+ 
+-	if (!bfd_get_section_contents(bfd, log, info, 0, size)) {
+-		bfd_perror("Getting section contents");
++	relsize = bfd_get_reloc_upper_bound(bfd, log_sec->sect);
++	if (relsize < 0) {
++		bfd_perror("getting reloc upper bound");
+ 		exit(1);
+ 	}
+ 
+-#ifdef DEBUG
+-	dump_details(info, number);
+-#endif
++	log_rel = malloc(relsize);
++	assert(log_rel);
+ 
+-	mif = prepare_meta_info(info, number);
++	relcount = bfd_canonicalize_reloc(bfd, log_sec->sect, log_rel, syms);
++	if (relcount < 0) {
++		bfd_perror("getting relocations");
++		exit(1);
++	}
++
++	mif = prepare_meta_info(bfd, &number);
+ 
+ 	for (i = 0; i < number; i++) {
+ 		if (mif[i].dup_status == MINFO_NTH_DUP) {
+@@ -872,7 +1097,50 @@ do_section(bfd *bfd, asection *log, void
+ 		create_template(tsd, mif + i);
+ 	}
+ 	free_meta_info(mif, number);
+-	free(info);
++	free_sec_info_list(&log_sec);
++	free_sec_info_list(&sects);
++}
++
++struct sec_info *
++load_sec(bfd *bfd, asection *sect)
++{
++	struct sec_info *si;
++
++	si = malloc(sizeof(*si));
++	if (!si) {
++		fprintf(stderr, "Out of memory\n");
++		exit(1);
++	}
++	si->next = NULL;
++	si->sect = sect;
++
++	si->size = bfd_section_size(bfd, sect);
++	si->contents = malloc(si->size);
++
++	if (!bfd_get_section_contents(bfd, sect, si->contents, 0, si->size)) {
++		bfd_perror("Getting section contents");
++		exit(1);
++	}
++
++	return si;
++}
++
++static void
++do_section(bfd *bfd, asection *sect, void *dummy)
++{
++	if (strcmp(sect->name, ".log") == 0) {
++		if (log_sec) {
++			fprintf(stderr,
++				"Internal ERROR, log section occurs twice\n");
++			exit(1);
++		}
++		log_sec = load_sec(bfd, sect);
++	} else if ((sect->flags & SEC_ALLOC)
++		   && (sect->flags & SEC_HAS_CONTENTS)) {
++		struct sec_info *si = load_sec(bfd, sect);
++		si->next = sects;
++		sects = si;
++	}
+ }
+ 
+ int
+@@ -924,13 +1192,15 @@ main(int argc, char *argv[])
+ 			for (i = bfd_openr_next_archived_file(obj, NULL);
+ 			    i;
+ 			    i = nexti) {
+-				bfd_map_over_sections(i, do_section, (void*) tsd);
++				bfd_map_over_sections(i, do_section, NULL);
++				process_bfd(i, tsd);
+ 				nexti = bfd_openr_next_archived_file(obj, i);
+ 				bfd_close(i);
+ 				bfd_set_error(bfd_error_no_error);
+ 			}
+ 		} else if (bfd_check_format(obj, bfd_object)) {
+-			bfd_map_over_sections(obj, do_section, (void*) tsd);
++			bfd_map_over_sections(obj, do_section, NULL);
++			process_bfd(obj, tsd);
+ 		} else {
+ 			bfd_perror("Identifying file");
+ 			exit(1);
+Index: evlog-1.6.1/user/include/evlog.h.in
+===================================================================
+--- evlog-1.6.1.orig/user/include/evlog.h.in
++++ evlog-1.6.1/user/include/evlog.h.in
+@@ -185,31 +185,56 @@ extern void syslog(int priority, char *f
+ #define __stringify2(s) #s
+ #define __stringify(s) __stringify2(s)
+ 
+-struct evlog_position {
+-   int line;
+-   char function[64 - sizeof(int)];
+-   char file[128];
+-};
+-
+-#if defined(__GNUC__) && ((__GNUC__ < 3) || \
+-				((__GNUC__ == 3) && (__GNUC_MINOR__ < 4)))
+-#define	_EVLOG_FUNCTION_SYMBOL_	__FUNCTION__
++#if defined(__GNUC__)
++# if (__GNUC__ < 3) || ((__GNUC__ == 3) && (__GNUC_MINOR__ < 4))
++#  define	_EVLOG_FUNCTION_SYMBOL_	__FUNCTION__
++# else
++#  define	_EVLOG_FUNCTION_SYMBOL_	__func__
++# endif
+ #else
+ #define	_EVLOG_FUNCTION_SYMBOL_	"{unimplemented}"
+ #endif
+ 
+-#define _EVLOG_POS { __LINE__, _EVLOG_FUNCTION_SYMBOL_, __FILE__ }
++struct evlog_position_v0 {
++   int line;
++   char function[64 - sizeof(int)];
++   char file[128];
++};
+ 
+-struct evlog_info {
++struct evlog_info_v0 {
+    char format[128+64];
+    char facility[64];
+-   struct evlog_position pos;
++   struct evlog_position_v0 pos;
++};
++
++struct evlog_info_v1 {
++   char id;
++   char version;
++   char dummy[6];
++   char *format;
++   char *facility;
++   char *file;
++   char *function;
++   unsigned int line;
++   /* Pad this out to a multiple of 32 bytes. */
++#define evlog_v1_dsize (8 + 4 * sizeof(char *) + sizeof(int))
++   char pad[(((evlog_v1_dsize / 32) + 1) * 32) - evlog_v1_dsize];
++};
++
++struct evlog_info_header {
++   char id; /* Will always be zero for v1, always be non-zero for v0 */
++   char version; /* Unused for version 0, 1 for version 1. */
+ };
+ 
++/*
++ * Attribute on the .log section variable is "unused" to keep from generating
++ * warnings and "used" to make it actually generate output.
++ */
+ #define syslogat(priority, fmt, ...) \
+     do { \
+-	static struct evlog_info __attribute__((section(".log"),unused)) ___ \
+-		= { fmt, __stringify(EVL_FACILITY_NAME), _EVLOG_POS }; \
++	static struct evlog_info_v1 __attribute__((section(".log"),unused,used)) \
++		___ = { 0, 1, { 0 }, fmt, __stringify(EVL_FACILITY_NAME), \
++			__FILE__, _EVLOG_FUNCTION_SYMBOL_, __LINE__ }; \
+ 	char *unbraced_fmt = _evl_unbrace(fmt); \
+ 	if (_evl_syslogat(priority, __stringify(EVL_FACILITY_NAME), \
+ 	    evl_gen_event_type(__FILE__, _EVLOG_FUNCTION_SYMBOL_, fmt), \

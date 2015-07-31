@@ -1,0 +1,120 @@
+Bug-Debian: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=569378
+Author: Emilio Pozuelo Monfort <pochu@debian.org>
+
+Move the define before using it to fix a build failure.
+
+diff -ruNp gnet-2.0.8/tests/check/gnetcheck.h gnet-2.0.8.new/tests/check/gnetcheck.h
+--- gnet-2.0.8/tests/check/gnetcheck.h	2008-02-03 13:04:41.000000000 +0100
++++ gnet-2.0.8.new/tests/check/gnetcheck.h	2010-03-06 19:23:28.000000000 +0100
+@@ -310,6 +310,8 @@ int main (int argc, char **argv)				\
+ 
+ gboolean _gnet_check_run_test_func (const gchar * func_name);
+ 
++#define _tcase_add_test  __gnet_tcase_add_test
++
+ static inline void
+ __gnet_tcase_add_test (TCase * tc, TFun tf, const gchar * func_name,
+     int sig, int start, int end)
+@@ -319,8 +321,6 @@ __gnet_tcase_add_test (TCase * tc, TFun
+   }
+ }
+ 
+-#define _tcase_add_test  __gnet_tcase_add_test
+-
+ G_END_DECLS
+ 
+ #endif /* __GNET_CHECK_H__ */
+---
+Bug-Debian: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=554644
+Author: Aurelien Jarno <aurel32@debian.org>
+
+Fix build with recent libtool version by linking examples with 
+libglib-2.0.
+
+--- gnet-2.0.8.orig/examples/xmlrpc/Makefile.am
++++ gnet-2.0.8/examples/xmlrpc/Makefile.am
+@@ -17,10 +17,12 @@
+ 
+ test_xmlrpc_client_SOURCES = test-xmlrpc-client.c xmlrpc.h
+ test_xmlrpc_client_LDADD = \
++	$(GLIB_LIBS) \
+ 	libgnetxmlrpc.a \
+ 	$(top_builddir)/src/libgnet-$(GNET_MAJOR_VERSION).$(GNET_MINOR_VERSION).la
+ 
+ test_xmlrpc_server_SOURCES = test-xmlrpc-server.c xmlrpc.h
+ test_xmlrpc_server_LDADD = \
++	$(GLIB_LIBS) \
+ 	libgnetxmlrpc.a \
+ 	$(top_builddir)/src/libgnet-$(GNET_MAJOR_VERSION).$(GNET_MINOR_VERSION).la
+only in patch2:
+unchanged:
+--- gnet-2.0.8.orig/examples/xmlrpc/Makefile.in
++++ gnet-2.0.8/examples/xmlrpc/Makefile.in
+@@ -269,11 +269,13 @@
+ libgnetxmlrpc_a_LIBADD = $(top_builddir)/src/libgnet-$(GNET_MAJOR_VERSION).$(GNET_MINOR_VERSION).la
+ test_xmlrpc_client_SOURCES = test-xmlrpc-client.c xmlrpc.h
+ test_xmlrpc_client_LDADD = \
++	$(GLIB_LIBS) \
+ 	libgnetxmlrpc.a \
+ 	$(top_builddir)/src/libgnet-$(GNET_MAJOR_VERSION).$(GNET_MINOR_VERSION).la
+ 
+ test_xmlrpc_server_SOURCES = test-xmlrpc-server.c xmlrpc.h
+ test_xmlrpc_server_LDADD = \
++	$(GLIB_LIBS) \
+ 	libgnetxmlrpc.a \
+ 	$(top_builddir)/src/libgnet-$(GNET_MAJOR_VERSION).$(GNET_MINOR_VERSION).la
+ 
+--- gnet-2.0.8.orig/examples/Makefile.am
++++ gnet-2.0.8/examples/Makefile.am
+@@ -22,7 +22,7 @@
+ 
+ AM_CFLAGS = $(GLIB_CFLAGS) $(GTHREAD_CFLAGS)
+ INCLUDES  = -I$(top_srcdir)/src 
+-LDADD     = $(top_builddir)/src/libgnet-$(GNET_MAJOR_VERSION).$(GNET_MINOR_VERSION).la
++LDADD     = $(top_builddir)/src/libgnet-$(GNET_MAJOR_VERSION).$(GNET_MINOR_VERSION).la $(GLIB_LIBS)
+ 
+ ##########
+ 
+--- gnet-2.0.8.orig/examples/Makefile.in
++++ gnet-2.0.8/examples/Makefile.in
+@@ -343,7 +343,7 @@
+ CLEANFILES = $(EXTRA_PROGRAMS)
+ AM_CFLAGS = $(GLIB_CFLAGS) $(GTHREAD_CFLAGS)
+ INCLUDES = -I$(top_srcdir)/src 
+-LDADD = $(top_builddir)/src/libgnet-$(GNET_MAJOR_VERSION).$(GNET_MINOR_VERSION).la
++LDADD = $(top_builddir)/src/libgnet-$(GNET_MAJOR_VERSION).$(GNET_MINOR_VERSION).la $(GLIB_LIBS)
+ 
+ ##########
+ echoclient_SOURCES = echoclient.c
+---
+--- gnet-2.0.8.orig/ltmain.sh.old	2007-10-09 07:38:25.000000000 +0200
++++ gnet-2.0.8/ltmain.sh	2007-10-09 07:39:25.000000000 +0200
+@@ -1794,6 +1794,11 @@
+ 	arg=`$echo "X$arg" | $Xsed -e "s/^ //"`
+ 	;;
+ 
++      -Wl,--as-needed)
++	deplibs="$deplibs $arg"
++	continue
++	;;
++
+       -Wl,*)
+ 	args=`$echo "X$arg" | $Xsed -e "$sed_quote_subst" -e 's/^-Wl,//'`
+ 	arg=
+@@ -2137,6 +2142,15 @@
+ 	lib=
+ 	found=no
+ 	case $deplib in
++	-Wl,--as-needed)
++	  if test "$linkmode,$pass" = "prog,link"; then
++	    compile_deplibs="$deplib $compile_deplibs"
++	    finalize_deplibs="$deplib $finalize_deplibs"
++	  else
++	    deplibs="$deplib $deplibs"
++	  fi
++	  continue
++	  ;;
+ 	-mt|-mthreads|-kthread|-Kthread|-pthread|-pthreads|--thread-safe|-threads)
+ 	  if test "$linkmode,$pass" = "prog,link"; then
+ 	    compile_deplibs="$deplib $compile_deplibs"
+---

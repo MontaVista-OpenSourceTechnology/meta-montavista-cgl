@@ -1,0 +1,1652 @@
+--- a/examples/Makefile	2013-09-24 23:18:45.000000000 +0700
++++ b/examples/Makefile	2015-01-27 15:20:17.993205135 +0700
+@@ -6,8 +6,8 @@ PROGS	+= testlock testcsum test_select k
+ 
+ CLEANFILES = $(PROGS) pcap.o nm_util.o *.o
+ NO_MAN=
+-CFLAGS = -O2 -pipe
+-CFLAGS += -Werror -Wall
++CFLAGS += -O2 -pipe
++CFLAGS += -Wall
+ CFLAGS += -I ../sys # -I/home/luigi/FreeBSD/head/sys -I../sys
+ CFLAGS += -Wextra
+ CFLAGS += -DNO_PCAP
+--- a/examples/nm_util.h	2013-09-24 23:18:45.000000000 +0700
++++ b/examples/nm_util.h	2015-01-27 15:20:18.023205662 +0700
+@@ -132,7 +132,9 @@ extern int time_second;
+ // XXX does it work on 32-bit machines ?
+ static inline void prefetch (const void *x)
+ {
++#if 0
+ 	__asm volatile("prefetcht0 %0" :: "m" (*(const unsigned long *)x));
++#endif
+ }
+ 
+ // XXX only for multiples of 64 bytes, non overlapped.
+--- a/examples/pkt-gen.c	2013-10-19 06:54:25.000000000 +0700
++++ b/examples/pkt-gen.c	2015-01-27 15:20:18.060206335 +0700
+@@ -892,7 +892,8 @@ sender_body(void *data)
+ 	struct pollfd fds[1];
+ 	struct netmap_if *nifp = targ->nifp;
+ 	struct netmap_ring *txring;
+-	int i, n = targ->g->npackets / targ->g->nthreads, sent = 0;
++	int i, n = targ->g->npackets / targ->g->nthreads;
++	uint64_t sent = 0;
+ 	int options = targ->g->options | OPT_COPY;
+ 	struct timespec tmptime, nexttime = { 0, 0}; // XXX silence compiler
+ 	int rate_limit = targ->g->tx_rate;
+--- a/LINUX/bsd_glue.h	2013-10-19 23:20:24.000000000 +0700
++++ b/LINUX/bsd_glue.h	2015-01-27 15:20:17.559197339 +0700
+@@ -50,6 +50,7 @@
+ #include <linux/module.h>
+ #include <linux/moduleparam.h>
+ #include <linux/virtio.h>	// virt_to_phys
++#include <linux/vmalloc.h>
+ 
+ #define printf(fmt, arg...)	printk(KERN_ERR fmt, ##arg)
+ #define KASSERT(a, b)		BUG_ON(!(a))
+--- a/LINUX/final-patches/diff--xgene-standalone--30a33--99999	1970-01-01 07:00:00.000000000 +0700
++++ b/LINUX/final-patches/diff--xgene-standalone--30a33--99999	2015-02-20 07:52:01.063462107 +0700
+@@ -0,0 +1,141 @@
++diff -Naur xgene/Makefile xgene_tmp/Makefile
++--- a/xgene/Makefile	2015-02-17 19:04:37.465122170 -0800
+++++ b/xgene/Makefile	2015-02-17 19:03:11.393125285 -0800
++@@ -24,3 +24,6 @@
++ endif
++ 
++ obj-$(CONFIG_NET_XGENE) += enet-xgene.o
+++
+++xgene-netmap-objs := xgene_netmap.o
+++obj-$(CONFIG_XGENE_NETMAP) += xgene-netmap.o
++diff -Naur xgene/xgene_netmap.c xgene_tmp/xgene_netmap.c
++--- a/xgene/xgene_netmap.c	1969-12-31 16:00:00.000000000 -0800
+++++ b/xgene/xgene_netmap.c	2015-02-17 19:03:28.209124677 -0800
++@@ -0,0 +1,127 @@
+++/**
+++ * AppliedMicro APM88xxxx SoC Ethernet netmap  Driver
+++ *
+++ * Copyright (c) 2013 Applied Micro Circuits Corporation.
+++ * All rights reserved. Ankit Jindal <ajindal@apm.com>
+++ *                      Tushar Jagad <tjagad@apm.com>
+++ *
+++ * This program is free software; you can redistribute it and/or modify
+++ * it under the terms of the GNU General Public License as published by
+++ * the Free Software Foundation; either version 2 of the License, or
+++ * (at your option) any later version.
+++ *
+++ * This program is distributed in the hope that it will be useful,
+++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+++ * GNU General Public License for more details.
+++ *
+++ * @file xgene_netmap.c
+++ *
+++ * This file implements natmap support for APM88xxxx SoC Ethernet subsystem
+++ *
+++ */
+++
+++#include <misc/xgene/cle/apm_preclass_data.h>
+++#include <misc/xgene/cle/apm_cle_config.h>
+++#include "xgene_enet_main.h"
+++
+++#include <if_xgene_netmap.h>
+++
+++/* Global pdata structure */
+++extern struct SOFTC_T *enet_pdata[XGENE_MAX_INTERFACE];
+++
+++static void xgene_netmap_open(void *data)
+++{
+++	struct SOFTC_T *pdata = (struct SOFTC_T *)data;
+++	netmap_enable_all_rings(pdata->ndev);
+++}
+++
+++static void xgene_netmap_close(void *data)
+++{
+++	struct SOFTC_T *pdata = (struct SOFTC_T *)data;
+++	netmap_disable_all_rings(pdata->ndev);
+++}
+++
+++static int __init xgene_netmap_init(void)
+++{
+++        int i = 0;
+++        int rc;
+++	struct SOFTC_T *pdata;
+++
+++        /* Register the required interfaces with netmap */
+++        for (i = 0; i < XGENE_MAX_INTERFACE; i++) {
+++	        pdata = enet_pdata[i];
+++
+++		switch (i) {
+++		case XGENE_SC_SGENET_0:
+++		case XGENE_SC_SGENET_1:
+++		case XGENE_MN_SGENET_0:
+++		case XGENE_MN_SGENET_1:
+++			if (pdata != NULL) {
+++				rc = xgene_netmap_attach(pdata);
+++				if (rc) {
+++					printk("Failed to register interface"
+++						"%s with netmap \n",
+++						pdata->ndev->name);
+++					continue;
+++				}
+++	
+++				/* set the call back routined 
+++				 * called during interface up/down time 
+++				 */
+++				pdata->xgene_netmap_open = xgene_netmap_open;
+++				pdata->xgene_netmap_close = xgene_netmap_close;
+++
+++				printk("Xgene interface %s registered"
+++					"with netmap \n",
+++					pdata->ndev->name);
+++			}
+++		}
+++	}
+++
+++        return 0;
+++}
+++
+++static void __exit xgene_netmap_exit(void)
+++{
+++	int i = 0;
+++	int rc;
+++	struct SOFTC_T *pdata;
+++
+++        /* De-register interfaces from netmap */
+++        for (i = 0; i < XGENE_MAX_INTERFACE; i++) {
+++	        pdata = enet_pdata[i];
+++		switch (i) {
+++		case XGENE_SC_SGENET_0:
+++		case XGENE_SC_SGENET_1:
+++		case XGENE_MN_SGENET_0:
+++		case XGENE_MN_SGENET_1:
+++			if (pdata != NULL) {
+++				pdata->xgene_netmap_open = NULL;
+++				pdata->xgene_netmap_close = NULL;
+++				
+++				xgene_netmap_close((void *) pdata);
+++
+++				rc = xgene_netmap_detach(pdata);
+++				if (rc) {
+++					printk("Failed to de-register interface"
+++						"%s from netmap \n",
+++						pdata->ndev->name);
+++					continue;
+++				}
+++
+++				printk("Xgene interface %s de-registered"
+++					"from netmap \n",
+++					pdata->ndev->name);
+++			}
+++		}
+++	}
+++}
+++
+++module_init(xgene_netmap_init);
+++module_exit(xgene_netmap_exit);
+++
+++MODULE_AUTHOR("Ankit Jindal <ajindal@apm.com>");
+++MODULE_AUTHOR("Tushar Jagad <tjagad@apm.com>");
+++MODULE_DESCRIPTION("APM X-Gene Netmap driver");
+++MODULE_LICENSE("GPL");
+--- a/LINUX/if_xgene_netmap.h	1970-01-01 07:00:00.000000000 +0700
++++ b/LINUX/if_xgene_netmap.h	2015-02-20 07:52:01.219464753 +0700
+@@ -0,0 +1,1272 @@
++/**
++ * AppliedMicro APM88xxxx SoC Ethernet netmap  Driver
++ *
++ * Copyright (c) 2013 Applied Micro Circuits Corporation.
++ * All rights reserved. Ankit Jindal <ajindal@apm.com>
++ *                      Tushar Jagad <tjagad@apm.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * @file if_xgene_netmap.h 
++ *
++ * This file implements natmap support for APM88xxxx SoC Ethernet subsystem
++ *
++ */
++
++#include <bsd_glue.h>
++#include <net/netmap.h>
++#include <netmap/netmap_kern.h>
++#include "xgene_enet_main.h"
++
++#define SOFTC_T	xgene_enet_pdata
++
++#undef NETMAP_DEBUG
++#ifdef NETMAP_DEBUG
++#define XGENE_NM_DEBUG(x,...) printk(x, ##__VA_ARGS__)
++#else
++#define XGENE_NM_DEBUG(x,...)
++#endif
++
++#undef XGENE_TX_SAB_IRQ
++#undef XGENE_RX_SAB_IRQ
++
++#define CONFIG_NAPI
++#define XGENE_QMTM_COHERENT	1
++
++#define XGENE_QMTM_MODSAB_CMD(thr, sab_int, crid, sab_en) ((sab_en & 0x1) | \
++                                                        ((crid & 0x7) << 1) | \
++                                                        ((sab_int & 0x1) << 4) | \
++                                                        ((thr & 0x7) << 5))
++
++enum xgene_netmap_rx_buf_num_start {
++        XGENE_SC_SGENET0_NM_RX_BUF_NUM_START = 0x8,
++        XGENE_SC_SGENET1_NM_RX_BUF_NUM_START = 0x14,
++	XGENE_MN_SGENET0_NM_RX_BUF_NUM_START = 10,
++	XGENE_MN_SGENET1_NM_RX_BUF_NUM_START = 14,
++};
++
++enum xgene_netmap_tx_buf_num_start {
++        XGENE_SC_SGENET0_NM_TX_BUF_NUM_START = 0x4,
++        XGENE_SC_SGENET1_NM_TX_BUF_NUM_START = 0x4,
++	XGENE_MN_SGENET0_NM_TX_BUF_NUM_START = 4,
++	XGENE_MN_SGENET1_NM_TX_BUF_NUM_START = 12,
++};
++
++enum xgene_netmap_rx_fp_buf_num_start {
++        XGENE_SC_SGENET0_NM_RX_FP_BUF_NUM_START = 0x28,
++        XGENE_SC_SGENET1_NM_RX_FP_BUF_NUM_START = 0x28,
++	XGENE_MN_SGENET0_NM_RX_FP_BUF_NUM_START = 0x24,
++	XGENE_MN_SGENET1_NM_RX_FP_BUF_NUM_START = 0x2C,
++};
++
++enum xgene_netmap_queue_num_start {
++        XGENE_SC_SGENET0_NM_QUEUE_NUM_START = 128,
++        XGENE_SC_SGENET1_NM_QUEUE_NUM_START = 384,
++	XGENE_MN_SGENET0_NM_QUEUE_NUM_START = 96,
++	XGENE_MN_SGENET1_NM_QUEUE_NUM_START = 160,
++};
++
++enum xgene_netmap_irq_num_start {
++        XGENE_SC_SGENET0_NM_IRQ_NUM_START = 136,
++        XGENE_SC_SGENET1_NM_IRQ_NUM_START = 148,
++	XGENE_MN_SGENET0_NM_IRQ_NUM_START = 138,
++	XGENE_MN_SGENET1_NM_IRQ_NUM_START = 142,
++};
++
++/* This is soft flow context of QM */
++struct xgene_netmap_qcontext {	
++	unsigned int ring_num;
++
++        struct SOFTC_T *pdata;
++	void __iomem *sab_cmd;
++
++        struct xgene_enet_desc16 *desc16;
++        struct xgene_enet_desc *desc;
++
++	u16 hw_qid;
++	u8 hw_pbn;
++        u16 eqnum;
++
++	u32 encode_length;	
++        unsigned int index;
++        unsigned int count;
++        unsigned int irq;
++        struct napi_struct napi;
++        char irq_name[16];
++	atomic_t irq_enable;
++
++	/* 
++	 * ring is only used to communicate 
++	 * with the xgene-enet driver 
++	 */
++	struct xgene_enet_desc_ring *ring;	
++};
++
++/*
++ * netmap adapter structure
++ */
++struct xgene_netmap_adapter {
++        struct SOFTC_T *pdata;
++
++#define MAX_NETMAP_TX_QUEUES 1
++	struct xgene_netmap_qcontext *tx_ring[MAX_NETMAP_TX_QUEUES];
++	struct xgene_netmap_qcontext *tx_completion_ring[MAX_NETMAP_TX_QUEUES];
++
++#define MAX_NETMAP_RX_QUEUES 1
++	struct xgene_netmap_qcontext *rx_ring[MAX_NETMAP_RX_QUEUES];
++	struct xgene_netmap_qcontext *rx_fp_ring[MAX_NETMAP_RX_QUEUES];
++
++	u8 tx_buf_num_start;
++	u8 rx_buf_num_start;
++	u8 rx_fp_buf_num_start;
++	u16 queue_num_start;
++	int irq_num_start;
++};
++
++extern struct xgene_enet_desc_ring *xgene_enet_create_desc_ring(
++                        struct net_device *ndev, struct xgene_ring_params *ring_params,
++                        int irq);
++extern void xgene_enet_delete_ring(struct xgene_enet_desc_ring *ring);
++
++extern int xgene_qmtm_set_coleascing(struct xgene_enet_pdata *pdata);
++
++static void xgene_netmap_cpu_to_le64(struct xgene_enet_desc *desc,
++                                          int count)
++{
++        int i;
++
++        for (i = 0; i < count; i++)
++                ((u64 *)desc)[i] = cpu_to_le64(((u64 *)desc)[i]);
++}
++
++static void xgene_netmap_le64_to_cpu(struct xgene_enet_desc *desc,
++                                          int count)
++{
++        int i;
++
++        for (i = 0; i < count; i++)
++                ((u64 *)desc)[i] = le64_to_cpu(((u64 *)desc)[i]);
++}
++
++/* global structure which have pointer to netmap_adapter of all ports */
++static struct xgene_netmap_adapter *xgene_nm_ad[XGENE_MAX_INTERFACE];
++
++static void print_netmap_qcontext(struct xgene_netmap_qcontext *qcontext)
++{
++	struct SOFTC_T *pdata = qcontext->pdata;
++	struct xgene_ring_ops *ring_ops = &pdata->ring_ops;
++
++	XGENE_NM_DEBUG("ring_num = %d \n", qcontext->ring_num);
++
++	XGENE_NM_DEBUG("pdata = 0x%p \n", qcontext->pdata);
++	XGENE_NM_DEBUG("sab_cmd = 0x%p \n", qcontext->sab_cmd);
++	
++	XGENE_NM_DEBUG("desc16 = 0x%p \n", qcontext->desc16);
++	XGENE_NM_DEBUG("desc = 0x%p \n", qcontext->desc);
++	
++	XGENE_NM_DEBUG("hw_qid = %d \n", qcontext->hw_qid);
++	XGENE_NM_DEBUG("hw_pbn = %d \n", qcontext->hw_pbn);
++	XGENE_NM_DEBUG("eqnum = %d \n", qcontext->eqnum);
++	
++	XGENE_NM_DEBUG("encode_length = 0x%x \n", qcontext->encode_length);	
++	XGENE_NM_DEBUG("index = %d \n", qcontext->index);	
++	XGENE_NM_DEBUG("count = %d \n", qcontext->count);
++	XGENE_NM_DEBUG("irq = %d \n", qcontext->irq);
++
++	XGENE_NM_DEBUG("********HARDWARE QUEUE STATE******** \n");
++	
++	ring_ops->dump_ring_state(qcontext->ring);
++	return;
++}
++
++static void print_netmap_desc(struct xgene_enet_desc *desc, int size)
++{
++	int i;
++
++	for (i = 0 ; i < size; i ++)
++		XGENE_NM_DEBUG("desc[%d] = 0x%llx \n", i, le64_to_cpu(((u64 *)desc)[i]));
++	
++}
++
++#ifdef XGENE_TX_SAB_IRQ
++static void xgene_netmap_tx_irq(void *ptr)
++#else
++static irqreturn_t xgene_netmap_tx_irq(int irq, void *ptr)
++#endif
++{       
++	struct xgene_netmap_qcontext *e2c = (struct xgene_netmap_qcontext *)ptr;
++	struct SOFTC_T *pdata = e2c->pdata;
++	
++	disable_irq_nosync(irq);
++	atomic_set(&e2c->irq_enable, 0);
++
++	netmap_tx_irq(pdata->ndev, e2c->ring_num);
++	return IRQ_HANDLED;
++}
++
++#ifdef XGENE_RX_SAB_IRQ
++static void xgene_netmap_sab_rx_irq(void *ptr)
++#else
++static irqreturn_t xgene_netmap_rx_irq(int irq, void *ptr)
++#endif
++{
++	struct xgene_netmap_qcontext *e2c = (struct xgene_netmap_qcontext *)ptr;
++
++#ifdef CONFIG_NAPI
++	struct napi_struct *n = &(e2c->napi);
++	disable_irq_nosync(irq);
++
++	/* Schedule polling */
++	if (napi_schedule_prep(n)) {
++
++		/* Tell system we have work to be done. */
++		__napi_schedule(n);
++	}
++#else
++	int workdone = 0;
++	struct SOFTC_T *pdata = e2c->pdata;
++	disable_irq_nosync(irq);
++	atomic_set(&e2c->irq_enable, 0);
++	netmap_rx_irq(pdata->ndev, e2c->ring_num, &workdone);
++
++#endif
++	return IRQ_HANDLED;
++}
++
++#ifdef CONFIG_NAPI
++static int xgene_netmap_napi_poll(struct napi_struct *napi, int budget)
++{
++	struct xgene_netmap_qcontext *e2c =
++		container_of(napi, struct xgene_netmap_qcontext, napi);
++	int workdone = 0;
++	
++	napi_complete(napi);
++
++	atomic_set(&e2c->irq_enable, 0);
++	
++	netmap_rx_irq(e2c->pdata->ndev, e2c->ring_num, &workdone);
++
++	return 0;
++}
++
++static void xgene_netmap_napi_add(struct xgene_netmap_adapter *nm_ad)
++{
++	int qindex;
++	/* Add napi for netmap rx queue */
++	for (qindex = 0; qindex < MAX_NETMAP_RX_QUEUES; qindex++)
++		netif_napi_add(nm_ad->pdata->ndev, &(nm_ad->rx_ring[qindex]->napi), xgene_netmap_napi_poll, 128);
++}
++
++static void xgene_netmap_napi_del(struct xgene_netmap_adapter *nm_ad)
++{
++	u32 qindex;
++	/* Delete napi for netmap rx queue */
++	for (qindex = 0; qindex < MAX_NETMAP_RX_QUEUES; qindex++)
++		netif_napi_del(&(nm_ad->rx_ring[qindex]->napi));
++}
++
++static void xgene_netmap_napi_enable(struct xgene_netmap_adapter *nm_ad)
++{
++	u32 qindex;
++	/* Enable napi for netmap rx queue */
++	for (qindex = 0; qindex < MAX_NETMAP_RX_QUEUES; qindex++)
++		napi_enable(&(nm_ad->rx_ring[qindex]->napi));
++}
++
++static void xgene_netmap_napi_disable(struct xgene_netmap_adapter *nm_ad)
++{
++	u32 qindex;
++        /* Enable napi for netmap rx queue */
++        for (qindex = 0; qindex < MAX_NETMAP_RX_QUEUES; qindex++)
++                napi_disable(&(nm_ad->rx_ring[qindex]->napi));
++}
++#endif
++
++static void xgene_netmap_init_tx_state (struct xgene_netmap_adapter *nm_ad, int ring_no) 
++{
++	struct xgene_netmap_qcontext *c2e = nm_ad->tx_ring[ring_no];
++        struct xgene_netmap_qcontext *e2c = nm_ad->tx_completion_ring[ring_no];
++	struct SOFTC_T *pdata = nm_ad->pdata;
++	struct netmap_adapter *na = NA(pdata->ndev);
++	unsigned int headptr = 0; 
++	register unsigned int count = c2e->count;
++	void *addr;
++	uint64_t paddr;
++	unsigned int i, slot_idx;
++	struct netmap_slot* slot;
++        struct xgene_ring_ops *ring_ops = &pdata->ring_ops;
++	struct xgene_enet_ring_info ring_info;
++
++        /* initialize the TX completion queue */
++	memset(&ring_info, 0, sizeof(ring_info));
++        
++	/* read qstate for headptr */
++	ring_ops->get_ring_info(e2c->ring, &ring_info);
++
++        /* update the index as per current head ptr */
++        e2c->index = ((unsigned int)ring_info.headptr)/2;
++
++	XGENE_NM_DEBUG("Completion headptr = %d \n", ring_info.headptr);
++		
++	/* mark all the message slots as empty */
++        for (i = 0; i < e2c->count; i++) {
++                struct xgene_enet_desc *desc = (struct xgene_enet_desc *)
++							&e2c->desc[i];
++
++                /* prepare QM message */
++                memset(desc, 0, sizeof(struct xgene_enet_desc));
++
++                /* set empty flag to the slot */
++                ((u64 *)desc)[EMPTY_SLOT_INDEX] = EMPTY_SLOT;
++        }
++
++	/* initialize the Tx queue */
++	memset(&ring_info, 0, sizeof(ring_info));
++	ring_ops->get_ring_info(c2e->ring, &ring_info);
++	
++	headptr = ((unsigned int)ring_info.headptr)/2;
++	
++	XGENE_NM_DEBUG("TX headptr = %d \n", headptr);
++
++	/* Initialize Tx Ring */
++	c2e->encode_length = NETMAP_BUF_SIZE;
++
++	slot = netmap_reset(na, NR_TX, ring_no, headptr);
++	for (i = 0; i < count; i++) {
++		/* get the message pointer */
++                struct xgene_enet_desc *desc = (struct xgene_enet_desc *)
++							&c2e->desc[i];
++		/* prepare tx message */
++		memset(desc, 0, sizeof(struct xgene_enet_desc));
++
++		slot_idx = netmap_idx_n2k(&na->tx_rings[ring_no], i);
++		
++		addr = PNMB(slot + slot_idx, &paddr);
++		XGENE_NM_DEBUG ("addr = 0x%p paddr = 0x%llx \n", addr, paddr);
++
++		/* Set default values in desc */
++                ring_ops->set_desc(desc, DATAADDR, paddr);
++                ring_ops->set_desc(desc, BUFDATALEN, c2e->encode_length);
++                ring_ops->set_desc(desc, COHERENT, XGENE_QMTM_COHERENT);
++
++		switch (pdata->intf) {
++                case XGENE_SC_XGENET_0:
++                case XGENE_SC_XGENET_1:
++                case XGENE_SC_SGENET_0:
++                case XGENE_SC_SGENET_1:
++                case XGENE_MN_SGENET_0:
++                case XGENE_MN_SGENET_1:
++                        ring_ops->set_desc(desc, AM, 1);
++                        break;
++                default:
++                        break;
++                }
++		ring_ops->set_desc(desc, USERINFO, i);
++		ring_ops->set_desc(desc, HENQNUM, c2e->eqnum);
++		ring_ops->set_desc(desc, TYPESEL, 1);
++		ring_ops->set_desc(desc, IC, 1);
++		
++		print_netmap_desc(desc, 4);
++	
++		/* Push the work message to ENET HW */
++		xgene_netmap_cpu_to_le64(desc, 4);
++	}
++
++#ifndef XGENE_TX_SAB_IRQ
++        /* enable interrupt coleasing for this queue */
++        writel(XGENE_QMTM_MODSAB_CMD(5, 0, 2, 0), e2c->sab_cmd);
++        
++	atomic_set(&e2c->irq_enable, 1);
++	
++	if (request_irq(e2c->irq, xgene_netmap_tx_irq, IRQF_SHARED,
++                                e2c->irq_name, (void *)e2c) != 0) {
++                printk("Failed to request_irq %d for netmap TX Completion for interface %s\n",
++                                e2c->irq, pdata->ndev->name);
++                return;
++        }
++#else
++#if 0
++	/* register sab interrupts */
++	xgene_qmtm_request_sab_irq(pdata->sdev->qmtm_ip, c2e->hw_qid, NULL, xgene_netmap_tx_irq, (void *)c2e);
++        
++        /* enable sab for this queue */
++        writel(XGENE_QMTM_MODSAB_CMD(1, 0, 3, 0), e2c->sab_cmd);
++#endif
++#endif
++	return;
++}
++
++static void xgene_netmap_deinit_tx_state (struct xgene_netmap_adapter *nm_ad, int ring_no) {
++	struct SOFTC_T *pdata = nm_ad->pdata;
++	struct xgene_netmap_qcontext *c2e = nm_ad->tx_ring[ring_no];
++	struct xgene_netmap_qcontext *e2c = nm_ad->tx_completion_ring[ring_no];
++        struct xgene_ring_ops *ring_ops = &pdata->ring_ops;
++	struct xgene_enet_ring_info ring_info;
++
++	/* read tx_completion qinfo for nummsgs */
++	memset(&ring_info, 0, sizeof(ring_info));
++	
++	ring_ops->get_ring_info(e2c->ring, &ring_info);
++
++	/* dequeue all messages from tx_completion queue */
++	ring_ops->wr_cmd(e2c->ring, -ring_info.nummsginq);
++
++#ifndef XGENE_TX_SAB_IRQ
++	/* free the TX completion irq */
++	free_irq(e2c->irq, e2c);
++	atomic_set(&e2c->irq_enable, 0);
++#else
++#if 0
++	/* disable sab for TX queue */
++	writel(XGENE_QMTM_MODSAB_CMD(7, 1, 0, 0, 0), c2e->sab_cmd);
++#endif	
++#endif
++	return;
++}
++
++static void xgene_netmap_init_rx_state (struct xgene_netmap_adapter *nm_ad, int ring_no) 
++{
++	struct xgene_netmap_qcontext *c2e = nm_ad->rx_fp_ring[ring_no];
++	struct xgene_netmap_qcontext *e2c = nm_ad->rx_ring[ring_no];
++	register u32 fp_count = c2e->count;
++	register u32 rx_count = e2c->count;
++	uint64_t paddr;
++	struct netmap_slot *slot;
++	unsigned int i, slot_idx;
++	struct SOFTC_T *pdata = nm_ad->pdata;
++	struct netmap_adapter *na = NA(pdata->ndev);
++	void *addr;
++	unsigned int headptr;
++        struct xgene_ring_ops *ring_ops = &pdata->ring_ops;
++	struct xgene_enet_ring_info ring_info;
++	
++	/* initialize the RX queue */
++
++	/* read RX qinfo for headptr */
++	memset(&ring_info, 0, sizeof(ring_info));
++	
++	ring_ops->get_ring_info(e2c->ring, &ring_info);
++
++	/* update the index as per current head ptr */
++	e2c->index = ((unsigned int)ring_info.headptr)/2;
++	
++	/* mark all message slot as empty */
++	for (i = 0; i < rx_count; i++) {
++                struct xgene_enet_desc *desc = (struct xgene_enet_desc *)
++							&e2c->desc[i];
++
++                /* prepare QM message */
++                memset(desc, 0, sizeof(struct xgene_enet_desc));
++
++                /* set empty flag to the slot */
++                ((u64 *)desc)[EMPTY_SLOT_INDEX] = EMPTY_SLOT;
++	}	
++
++	/* initialize the FP queue */
++	memset(&ring_info, 0, sizeof(ring_info));
++
++	ring_ops->get_ring_info(c2e->ring, &ring_info);
++
++	headptr = (unsigned int)ring_info.headptr;
++	
++	c2e->index = (unsigned int)headptr;
++
++	/* Initialize Rx FP Ring */
++	c2e->encode_length = BUF_LEN_CODE_2K;
++
++	slot = netmap_reset(na, NR_RX, ring_no, headptr);
++
++	for (i = 0; i < fp_count; i++) {
++                struct xgene_enet_desc *desc = (struct xgene_enet_desc *) 
++							&c2e->desc16[i];
++
++		/* get corrresponding slot index in kring */
++		slot_idx = netmap_idx_n2k(&na->rx_rings[ring_no], i); 
++
++		/* get the physical address of the buffer from the slot */
++		addr = PNMB(slot + slot_idx, &paddr);
++		
++		/* prepare QM message */ 
++		memset(desc, 0, sizeof(struct xgene_enet_desc16));
++                
++		/* Common fields */
++                ring_ops->set_desc(desc, USERINFO, i);
++                ring_ops->set_desc(desc, FPQNUM, c2e->eqnum);
++                
++		/* stash the contents of all the buffers to L3 cache */
++                ring_ops->set_desc(desc, STASH, 1);
++
++		switch (pdata->intf) {
++                case XGENE_SC_XGENET_0:
++                case XGENE_SC_XGENET_1:
++                case XGENE_SC_SGENET_0:
++                case XGENE_SC_SGENET_1:
++		case XGENE_MN_SGENET_0:
++		case XGENE_MN_SGENET_1:
++                        ring_ops->set_desc(desc, AM, 1);
++                        break;
++                default:
++                        break;
++                }
++
++		/* set data address in the message */
++                ring_ops->set_desc(desc, DATAADDR, paddr);
++                ring_ops->set_desc(desc, BUFDATALEN, c2e->encode_length);
++                ring_ops->set_desc(desc, COHERENT, XGENE_QMTM_COHERENT);
++		
++		print_netmap_desc(desc, 4);
++
++		/* Push the work message to ENET HW */
++                xgene_netmap_cpu_to_le64(desc, 2);
++		
++		/* Force memory writes to complete */
++		wmb();	
++        }
++
++	/* send enqueue command to qm */
++        ring_ops->wr_cmd(c2e->ring, fp_count);
++	
++	/* always Bypass the classifier for netmap RX queue */
++        pdata->mac_ops.cle_bypass(pdata,
++                                       xgene_enet_dst_ring_num(e2c->ring),
++                                       c2e->hw_pbn - 0x20, true);
++
++#ifndef XGENE_RX_SAB_IRQ       
++        /* enable interrupt coleasing for this queue */
++        writel(XGENE_QMTM_MODSAB_CMD(3, 0, 2, 0), e2c->sab_cmd);
++	
++	atomic_set(&e2c->irq_enable, 1);
++	
++	if (request_irq(e2c->irq, xgene_netmap_rx_irq, IRQF_SHARED,
++				e2c->irq_name, (void *)e2c) != 0) {
++		printk("Failed to request_irq %d for netmap RX Frame for interface %s\n",
++				e2c->irq, pdata->ndev->name);
++		return;
++	}
++#else
++#if 0
++	/* register sab interrupts */
++	apm_qm_request_sab_irq(pdata->qm_ip, e2c->hw_qid, xgene_netmap_sab_rx_irq, NULL, (void *)e2c);
++
++        /* enable sab for this queue */
++        writel(XGENE_QMTM_SAB_CMD(6, 1, 0, 0, 1), e2c->sab_cmd);
++#endif
++#endif
++	return;
++}
++
++static void xgene_netmap_deinit_rx_state (struct xgene_netmap_adapter *nm_ad, int ring_no) 
++{
++	struct SOFTC_T *pdata = nm_ad->pdata;
++	struct xgene_netmap_qcontext *c2e = nm_ad->rx_fp_ring[ring_no];
++	struct xgene_netmap_qcontext *e2c = nm_ad->rx_ring[ring_no];
++        struct xgene_ring_ops *ring_ops = &pdata->ring_ops;
++	struct xgene_enet_ring_info ring_info;
++
++	/* read FP qstate for nummsgs */
++	memset(&ring_info, 0, sizeof(ring_info));
++	
++	ring_ops->get_ring_info(c2e->ring, &ring_info);
++
++	/* make queue empty */
++	ring_ops->wr_cmd(c2e->ring, -ring_info.nummsginq);
++
++	/* clear the prefetch buffer corresponding to this FP queue */
++	ring_ops->clear_pb(c2e->ring);
++
++	/* read RX qstate for nummsgs */
++	memset(&ring_info, 0, sizeof(ring_info));
++	
++	ring_ops->get_ring_info(e2c->ring, &ring_info);
++
++	/* make queue empty */
++	ring_ops->wr_cmd(e2c->ring, -ring_info.nummsginq);
++	
++	XGENE_NM_DEBUG("headptr = %d e2c->index = %d \n", (unsigned int)ring_info.headptr,  e2c->index); 
++
++#ifndef CONFIG_XGENE_NET_CLE
++        pdata->mac_ops.cle_bypass(pdata,
++                                  xgene_enet_dst_ring_num(pdata->rx_ring[0]),
++                                  pdata->rx_ring[0]->buf_pool->buf_num - 0x20,
++				  true);
++#else /* CONFIG_XGENE_CLE */
++        pdata->mac_ops.cle_bypass(pdata,
++                                  xgene_enet_dst_ring_num(pdata->rx_ring[0]),
++                                  pdata->rx_ring[0]->buf_pool->buf_num - 0x20,
++				  false);
++#endif
++#ifndef XGENE_RX_SAB_IRQ
++	free_irq(e2c->irq, e2c);
++	atomic_set(&e2c->irq_enable, 0);
++#else
++#if 0
++	 /* disable sab for this queue */
++        writel(XGENE_QMTM_SAB_CMD(6, 1, 0, 0, 0), e2c->sab_cmd);
++#endif
++#endif
++	return;
++}
++
++static void xgene_netmap_init_state (struct xgene_netmap_adapter *nm_ad) 
++{
++	int qindex;
++
++	for (qindex = 0; qindex < MAX_NETMAP_TX_QUEUES; qindex++) {
++		/* initialize TX QM messages with buffers in TX rings */
++		xgene_netmap_init_tx_state(nm_ad, qindex);
++	}
++
++	for (qindex = 0; qindex < MAX_NETMAP_RX_QUEUES; qindex++) {
++		/* initialize RX FP QM messages with buffers in FP rings */
++		xgene_netmap_init_rx_state(nm_ad, qindex);
++	}
++}
++
++static int xgene_netmap_deinit_state (struct xgene_netmap_adapter *nm_ad) 
++{
++	int qindex;
++
++	for (qindex = 0; qindex < MAX_NETMAP_TX_QUEUES; qindex++) {
++		/* Remove all the messages from TX and Tx completion queue */
++		xgene_netmap_deinit_tx_state(nm_ad, qindex);
++	}
++
++	for (qindex = 0; qindex < MAX_NETMAP_RX_QUEUES; qindex++) {
++		/* Remove all the messages from RX and RX FP queue */
++		xgene_netmap_deinit_rx_state(nm_ad, qindex);
++	}
++	return 0;
++}
++
++static int xgene_netmap_qconfig(struct xgene_netmap_adapter *nm_ad)
++{
++	struct SOFTC_T *pdata = nm_ad->pdata;
++        struct xgene_ring_params ring_params;
++        int ret = 0;
++        u32 qindex;
++        struct xgene_netmap_qcontext *e2c;
++        struct xgene_netmap_qcontext *c2e;
++	u8 tx_buf_num = nm_ad->tx_buf_num_start; 
++	u8 rx_buf_num = nm_ad->rx_buf_num_start; 
++	u8 rx_fp_buf_num = nm_ad->rx_fp_buf_num_start; 
++	u16 queue_num = nm_ad->queue_num_start;
++	int irq_num = nm_ad->irq_num_start;
++
++        for (qindex = 0; qindex < MAX_NETMAP_TX_QUEUES; qindex++) {
++                /* Allocate TX Completion queue from ETHx to CPUx */
++                e2c = (struct xgene_netmap_qcontext *)
++			kmalloc(sizeof (struct xgene_netmap_qcontext),
++				GFP_KERNEL | __GFP_ZERO);	
++
++		memset(&ring_params, 0, sizeof(struct xgene_ring_params));
++		ring_params.is_bufpool = false;
++		ring_params.owner = RING_OWNER_CPU;
++		ring_params.buf_num = rx_buf_num++;
++		ring_params.num = queue_num++;
++		ring_params.cfg_size = RING_CFGSIZE_64KB;
++		e2c->irq = irq_num++;
++		e2c->ring = xgene_enet_create_desc_ring(pdata->ndev,
++				&ring_params, e2c->irq);
++		if (IS_ERR_OR_NULL(e2c->ring)) {
++			ret = PTR_ERR(e2c->ring);
++			goto err;
++		}
++
++                /* Setup TX Completion enet_to_cpu info */
++		e2c->ring_num = qindex;
++                e2c->count = (unsigned int)e2c->ring->slots;
++                e2c->index = 0;
++                e2c->desc = e2c->ring->desc;
++                e2c->hw_qid = e2c->ring->num;
++		e2c->hw_pbn = e2c->ring->buf_num;
++		e2c->sab_cmd = e2c->ring->cmd_base + 0x28;
++                e2c->pdata = pdata;
++                snprintf(e2c->irq_name, sizeof(e2c->irq_name), "%s-nm-txcp%d", pdata->ndev->name, qindex);
++                nm_ad->tx_completion_ring[qindex] = e2c;
++	
++                /* Allocate EGRESS work queues from CPUx to ETHx*/
++                c2e = (struct xgene_netmap_qcontext *)
++			kmalloc(sizeof (struct xgene_netmap_qcontext),
++				GFP_KERNEL | __GFP_ZERO);	
++		memset(&ring_params, 0, sizeof(struct xgene_ring_params));
++		ring_params.is_bufpool = false;
++
++                switch(pdata->intf) {
++                case XGENE_SC_XGENET_1:
++                case XGENE_SC_SGENET_1:
++                case XGENE_SM_XGENET_1:
++                case XGENE_MN_SGENET_0:
++                case XGENE_MN_SGENET_1:
++                        ring_params.owner = RING_OWNER_ETH1;
++                        break;
++                default:
++                        ring_params.owner = RING_OWNER_ETH0;
++                        break;
++                }
++
++		ring_params.buf_num = tx_buf_num++;
++		ring_params.num = queue_num++;
++		ring_params.cfg_size = RING_CFGSIZE_64KB;
++		c2e->ring = xgene_enet_create_desc_ring(pdata->ndev,
++				&ring_params, 0);
++		if (IS_ERR_OR_NULL(c2e->ring)) {
++			ret = PTR_ERR(c2e->ring);
++			goto err;
++		}
++
++                /* Setup TX cpu_to_enet info */
++		c2e->ring_num = qindex;
++                c2e->count = (unsigned int)c2e->ring->slots;
++                c2e->index = 0;
++                c2e->desc = c2e->ring->desc;
++                c2e->hw_qid = c2e->ring->num;	
++                c2e->hw_pbn = c2e->ring->buf_num;
++                c2e->eqnum = xgene_enet_dst_ring_num(
++				nm_ad->tx_completion_ring[qindex]->ring);
++		c2e->sab_cmd = c2e->ring->cmd_base + 0x28;
++                c2e->pdata = pdata;
++		nm_ad->tx_ring[qindex] = c2e;
++	}
++
++	for (qindex = 0; qindex < MAX_NETMAP_RX_QUEUES; qindex++) {
++                /* Allocate INGRESS work queue from ETHx to CPUx */
++                e2c = (struct xgene_netmap_qcontext *)
++			kmalloc(sizeof (struct xgene_netmap_qcontext),
++				GFP_KERNEL | __GFP_ZERO);	
++
++		memset(&ring_params, 0, sizeof(struct xgene_ring_params));
++		ring_params.is_bufpool = false;
++		ring_params.owner = RING_OWNER_CPU;
++		ring_params.buf_num = rx_buf_num++;
++		ring_params.num = queue_num++;
++		ring_params.cfg_size = RING_CFGSIZE_64KB;
++		e2c->irq = irq_num++;
++		e2c->ring = xgene_enet_create_desc_ring(pdata->ndev,
++				&ring_params, e2c->irq);
++		if (IS_ERR_OR_NULL(e2c->ring)) {
++			ret = PTR_ERR(e2c->ring);
++			goto err;
++		}
++                
++                /* Setup RX Frame enet_to_cpu info */
++		e2c->ring_num = qindex;
++                e2c->count = (unsigned int)e2c->ring->slots;
++                e2c->index = 0;
++                e2c->desc = e2c->ring->desc;
++                e2c->hw_qid = e2c->ring->num;
++		e2c->hw_pbn = e2c->ring->buf_num;
++                e2c->sab_cmd = e2c->ring->cmd_base + 0x28;
++                e2c->pdata = pdata;
++                snprintf(e2c->irq_name, sizeof(e2c->irq_name), "%s-nm-rx%d", pdata->ndev->name, qindex);
++		nm_ad->rx_ring[qindex] = e2c;
++	
++                /* Allocate free pool for ETHx fro CPUx */
++                c2e = (struct xgene_netmap_qcontext *)
++			kmalloc(sizeof (struct xgene_netmap_qcontext),
++				GFP_KERNEL | __GFP_ZERO);	
++		memset(&ring_params, 0, sizeof(struct xgene_ring_params));
++		ring_params.is_bufpool = true;
++                
++		switch(pdata->intf) {
++                case XGENE_SC_XGENET_1:
++                case XGENE_SC_SGENET_1:
++                case XGENE_SM_XGENET_1:
++                case XGENE_MN_SGENET_0:
++                case XGENE_MN_SGENET_1:
++                        ring_params.owner = RING_OWNER_ETH1;
++                        break;
++                default:
++                        ring_params.owner = RING_OWNER_ETH0;
++                        break;
++                }
++		
++		ring_params.buf_num = rx_fp_buf_num++;
++		ring_params.num = queue_num++;
++		ring_params.cfg_size = RING_CFGSIZE_16KB;
++		c2e->ring = xgene_enet_create_desc_ring(pdata->ndev,
++				&ring_params, 0);
++		if (IS_ERR_OR_NULL(c2e->ring)) {
++			ret = PTR_ERR(c2e->ring);
++			goto err;
++		}
++
++                /* Setup RX SKB Free Pool cpu_to_enet info */
++		c2e->ring_num = qindex;
++                c2e->count = (unsigned int)c2e->ring->slots;
++                c2e->index = 0;
++                c2e->desc16 = c2e->ring->desc16;
++                c2e->hw_qid = c2e->ring->num;	
++                c2e->hw_pbn = c2e->ring->buf_num;
++                c2e->sab_cmd = c2e->ring->cmd_base + 0x28;
++                c2e->pdata = pdata;
++                c2e->eqnum = xgene_enet_dst_ring_num(c2e->ring);
++                nm_ad->rx_fp_ring[qindex] = c2e;
++	}
++
++err:	
++	return ret;
++}
++
++static void xgene_netmap_qdeconfig(struct xgene_netmap_adapter *nm_ad)
++{
++        u32 qindex;
++        struct xgene_netmap_qcontext *e2c;
++        struct xgene_netmap_qcontext *c2e;
++
++        for (qindex = 0; qindex < MAX_NETMAP_TX_QUEUES; qindex++) {
++                /* De-allocate TX Completion queue */
++                e2c = nm_ad->tx_completion_ring[qindex];
++                nm_ad->tx_completion_ring[qindex] = NULL;
++
++                xgene_enet_delete_ring(e2c->ring);
++
++                kfree(e2c);
++	
++                /* De-aAllocate TX queue */
++                c2e = nm_ad->tx_ring[qindex];
++                nm_ad->tx_ring[qindex] = NULL;
++
++                xgene_enet_delete_ring(c2e->ring);
++
++                kfree(c2e);
++	}
++
++	for (qindex = 0; qindex < MAX_NETMAP_RX_QUEUES; qindex++) {
++                /* De-allocate RX queue from ETHx to CPUx */
++                e2c = nm_ad->rx_ring[qindex];
++                nm_ad->rx_ring[qindex] = NULL;
++
++                xgene_enet_delete_ring(e2c->ring);
++
++                kfree(e2c);
++	
++                /* De-aAllocate FP queue */
++                c2e = nm_ad->rx_fp_ring[qindex];
++                nm_ad->rx_fp_ring[qindex] = NULL;
++
++                xgene_enet_delete_ring(c2e->ring);
++
++                kfree(c2e);
++	}
++	
++	return;
++}
++
++/*
++ * Reconcile kernel and user view of the transmit ring.
++ */
++static int
++xgene_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int flags) {
++	struct SOFTC_T *pdata = netdev_priv(ifp);
++        enum xgene_enet_interface intf = pdata->intf;
++        struct xgene_netmap_adapter *nm_ad = xgene_nm_ad[intf];
++	struct xgene_netmap_qcontext *c2e = nm_ad->tx_ring[ring_nr];
++	struct xgene_netmap_qcontext *e2c = nm_ad->tx_completion_ring[ring_nr];
++        struct xgene_ring_ops *ring_ops = &pdata->ring_ops;
++	struct xgene_enet_desc *desc;
++        struct netmap_adapter *na = NA(ifp);
++        struct netmap_kring *kring = &na->tx_rings[ring_nr];
++        struct netmap_ring *ring = kring->ring;
++	u_int j, k, l, n = 0, lim = kring->nkr_num_slots - 1;
++
++        if (!netif_carrier_ok(ifp))
++                return 0;
++
++        /* take a copy of ring->cur now, and never read it again */
++        k = ring->cur;
++        if (k > lim)
++                return netmap_ring_reinit(kring);
++
++        /*
++         * Process new packets to send. j is the current index in the
++         * netmap ring, l is the corresponding index in the NIC ring.
++         */
++        j = kring->nr_hwcur;
++	
++	 if (j != k) {   /* we have new packets to send */
++                l = netmap_idx_k2n(kring, j);
++                for (n = 0; j != k; n++) {
++                        /* slot is the current slot in the netmap ring */
++                        struct netmap_slot *slot = &ring->slot[j];
++                        uint64_t paddr;
++                        void *addr = PNMB(slot, &paddr);
++			u_int len = slot->len;
++			
++			/* get the message pointer */
++			desc = (struct xgene_enet_desc *)&c2e->desc[l];
++				
++                        if (addr == netmap_buffer_base || len > NETMAP_BUF_SIZE) {
++                                return netmap_ring_reinit(kring);
++                        }
++
++                        slot->flags &= ~NS_REPORT;
++                        
++			if (slot->flags & NS_BUF_CHANGED) {
++                                slot->flags &= ~NS_BUF_CHANGED;
++				/* change the buf addres in word 2 and word 3, and set length in word 3 */
++				((unsigned int *)desc)[2] = cpu_to_le32((unsigned int)paddr);
++				((unsigned int *)desc)[3] = cpu_to_le32((XGENE_QMTM_COHERENT << 31) | 
++								(len << 16) | 
++								(((unsigned int)(paddr>>32)) & 0x3ff));
++                        } else {
++				/* set the length to the actual */	
++				((unsigned short *)desc)[7] = cpu_to_le16((XGENE_QMTM_COHERENT << 15) | len);
++			}
++                        
++			j = (j == lim) ? 0 : j + 1;
++                        l = (l == lim) ? 0 : l + 1;
++                }
++
++                kring->nr_hwcur = k; /* the saved ring->cur */
++                kring->nr_hwavail -= n;
++
++		/* issue enqueue command onto the TX queue */
++		ring_ops->wr_cmd(c2e->ring, n);
++        }
++       
++	if (!atomic_read(&e2c->irq_enable)) {
++		unsigned int tx_pkt_count = 0;
++		u_int comp_index = e2c->index;
++		u_int comp_max_count = e2c->count - 1;
++
++		while (1) {
++			desc = &e2c->desc[comp_index];
++
++	                if (unlikely(((u64 *)desc)[EMPTY_SLOT_INDEX] == EMPTY_SLOT))
++				break;
++        		
++			/* place a read memory barrier */	
++			rmb();
++
++			/* set empty flag to the slot */
++	                ((u64 *)desc)[EMPTY_SLOT_INDEX] = EMPTY_SLOT;
++
++			comp_index = (comp_index == comp_max_count) ? 0 : comp_index + 1;
++			tx_pkt_count++;
++		}
++
++		if (tx_pkt_count > 0) {
++			e2c->index = comp_index;		
++
++			/* issue dequeue command to the completion queue */
++			ring_ops->wr_cmd(e2c->ring, -tx_pkt_count);
++
++			kring->nr_hwavail += tx_pkt_count;
++		}
++		
++		/* enable the interrupts again */
++		atomic_set(&e2c->irq_enable, 1);
++		enable_irq(e2c->irq);
++	}
++	
++	/* update avail to what the kernel knows */
++        ring->avail = kring->nr_hwavail;
++	
++	return 0;
++}
++
++/*
++ * Reconcile kernel and user view of the receive ring.
++ */
++static int
++xgene_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int flags) {	
++	struct SOFTC_T *pdata = netdev_priv(ifp);
++        enum xgene_enet_interface intf = pdata->intf;
++        struct xgene_netmap_adapter *nm_ad = xgene_nm_ad[intf];
++        struct xgene_netmap_qcontext *c2e = nm_ad->rx_fp_ring[ring_nr];
++	struct xgene_netmap_qcontext *e2c = nm_ad->rx_ring[ring_nr];
++        struct xgene_ring_ops *ring_ops = &pdata->ring_ops;
++        struct netmap_adapter *na = NA(ifp);
++        struct netmap_kring *kring = &na->rx_rings[ring_nr];
++        struct netmap_ring *ring = kring->ring;
++        u_int j, l, n, lim = kring->nkr_num_slots - 1;
++        int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
++        u_int k = ring->cur, resvd = ring->reserved;
++        
++	if (k > lim)
++                return netmap_ring_reinit(kring);
++
++        /*
++         * Import newly received packets into the netmap ring.
++         * j is an index in the netmap ring, l in the NIC ring.
++         */
++        l = c2e->index;
++        j = netmap_idx_n2k(kring, l);
++
++        if (netmap_no_pendintr || force_update) {
++                uint16_t slot_flags = kring->nkr_slot_flags;
++		u_int rx_index = e2c->index;
++		u_int rx_max_count = e2c->count - 1;
++                
++		for (n = 0; n < 128; n++) {
++			struct xgene_enet_desc *desc = &e2c->desc[rx_index];
++	                
++			if (unlikely(((u64 *)desc)[EMPTY_SLOT_INDEX] == EMPTY_SLOT))
++				break;
++			
++			/* place a read memory barrier */	
++			rmb();
++
++			/* get len from msg.  Remember, though the field is of 15 bits 
++			 * but the data len is only in lower 12 bits
++			 */
++                        ring->slot[j].len = (cpu_to_le16(((unsigned short *)desc)[7]) & 0xfff) - 4;
++			ring->slot[j].flags = slot_flags;
++	
++			/* set empty flag to the slot */
++	                ((u64 *)desc)[EMPTY_SLOT_INDEX] = EMPTY_SLOT;
++
++                        j = (j == lim) ? 0 : j + 1;
++			l = (l == lim) ? 0 : l + 1;
++                        rx_index = (rx_index == rx_max_count) ? 0 : rx_index + 1;	
++                }
++
++                if (n) { /* update the state variables */
++                        e2c->index = rx_index;
++			c2e->index = l;
++                        kring->nr_hwavail += n;
++
++			/* send dequeue command on rx queue */
++			ring_ops->wr_cmd(e2c->ring, -n);
++                } 
++
++		/* check whether interrupts need to be enabled or not */
++		if ((n < 128) && (!atomic_read(&e2c->irq_enable))) {
++				ring_ops->wr_cmd(e2c->ring, 0);
++				atomic_set(&e2c->irq_enable, 1);
++				enable_irq(e2c->irq);
++		}
++		
++		kring->nr_kflags &= ~NKR_PENDINTR;
++        }
++
++        /* skip past packets that userspace has released */
++        j = kring->nr_hwcur; /* netmap ring index */
++        if (resvd > 0) {
++                if (resvd + ring->avail >= lim + 1) {
++                        D("XXX invalid reserve/avail %d %d", resvd, ring->avail);
++                        ring->reserved = resvd = 0; // XXX panic...
++                }
++                k = (k >= resvd) ? k - resvd : k + lim + 1 - resvd;
++        }
++
++        if (j != k) { /* userspace has released some packets. */
++                l = netmap_idx_k2n(kring, j); /* NIC ring index */
++                for (n = 0; j != k; n++) {
++                        struct netmap_slot *slot = &ring->slot[j];
++			struct xgene_enet_desc16 *desc16;
++			uint64_t paddr;
++                        void *addr = PNMB(slot, &paddr);
++			
++                        if (addr == netmap_buffer_base) { /* bad buf */
++                                return netmap_ring_reinit(kring);
++                        }
++			
++			/* get the message pointer */
++			desc16 = (struct xgene_enet_desc16 *)&c2e->desc16[l];
++		
++                        if (slot->flags & NS_BUF_CHANGED) {
++                                // netmap_reload_map(...)
++				/* change the buf addres in word 2 and word 3, and set sength in word 3 */
++                                ((unsigned int *)desc16)[2] = cpu_to_le32((unsigned int)paddr);
++                                ((unsigned int *)desc16)[3] = cpu_to_le32((XGENE_QMTM_COHERENT << 31) |
++                                                                (c2e->encode_length << 16) |
++                                                                (((unsigned int)(paddr>>32)) & 0x3ff));
++                                slot->flags &= ~NS_BUF_CHANGED;
++                        } else {
++				/* set the length to the actual */
++				((unsigned short *)desc16)[7] = cpu_to_le16((XGENE_QMTM_COHERENT << 15) | 
++										c2e->encode_length);
++			}
++
++			j = (j == lim) ? 0 : j + 1;
++                        l = (l == lim) ? 0 : l + 1;
++                }
++                kring->nr_hwavail -= n;
++                kring->nr_hwcur = k;
++		
++		/* send enqueue command on rx_fp queue */
++		ring_ops->wr_cmd(c2e->ring, n);
++        }
++
++        /* tell userspace that there are new packets */
++        ring->avail = kring->nr_hwavail - resvd;
++
++        return 0;
++}
++
++static int
++xgene_netmap_register(struct ifnet *ifp, int onoff)
++{
++        struct netmap_adapter *na = NA(ifp);
++        struct SOFTC_T *pdata = netdev_priv(ifp);
++        int error = 0;
++        enum xgene_enet_interface intf = pdata->intf;
++	struct xgene_netmap_adapter *nm_ad = xgene_nm_ad[intf];
++
++        if (na == NULL || nm_ad == NULL)
++                return EINVAL;
++
++        if (netif_running(ifp)) {
++                 /* Disable TX/RX MAC */
++	        pdata->mac_ops.disable(pdata);
++        }
++
++        if (onoff) { 
++                /* enable netmap mode */
++                ifp->if_capenable |= IFCAP_NETMAP;
++                na->if_transmit = (void *)ifp->netdev_ops;
++                ifp->netdev_ops = &na->nm_ndo;
++
++#ifdef CONFIG_NAPI
++                xgene_netmap_napi_add(nm_ad);
++                xgene_netmap_napi_enable(nm_ad);
++#endif
++                xgene_netmap_init_state(nm_ad);
++                printk("xgene interface %s registered with netmap \n",
++			pdata->ndev->name);
++        } else {
++                ifp->if_capenable &= ~IFCAP_NETMAP;
++                ifp->netdev_ops = (void *)na->if_transmit;
++#ifdef CONFIG_NAPI                
++                xgene_netmap_napi_disable(nm_ad);
++                xgene_netmap_napi_del(nm_ad);
++#endif
++		error = xgene_netmap_deinit_state(nm_ad);
++                printk("xgene interface %s deregistered from netmap \n",
++			pdata->ndev->name);        
++        }
++        
++        if (netif_running(ifp)){
++                 /* Enable TX/RX MAC */
++	        pdata->mac_ops.enable(pdata);
++        }
++
++        return (error);
++}
++
++static int
++xgene_netmap_attach(struct SOFTC_T *pdata)
++{
++	struct netmap_adapter na;
++	struct xgene_netmap_adapter *nm_ad;
++	enum xgene_enet_interface intf = pdata->intf;
++
++	nm_ad = (struct xgene_netmap_adapter *) 
++			kmalloc(sizeof(struct xgene_netmap_adapter), GFP_KERNEL);
++
++	if(!nm_ad)
++		return -1;
++
++	nm_ad->pdata = pdata;
++
++	bzero(&na, sizeof(na));
++
++	switch (intf) {
++	case XGENE_SC_SGENET_0:
++		nm_ad->tx_buf_num_start =
++			XGENE_SC_SGENET0_NM_TX_BUF_NUM_START;
++		nm_ad->rx_buf_num_start =
++			XGENE_SC_SGENET0_NM_RX_BUF_NUM_START;
++		nm_ad->rx_fp_buf_num_start =
++			XGENE_SC_SGENET0_NM_RX_FP_BUF_NUM_START;
++		nm_ad->queue_num_start =
++			XGENE_SC_SGENET0_NM_QUEUE_NUM_START;
++		nm_ad->irq_num_start =
++			XGENE_SC_SGENET0_NM_IRQ_NUM_START;
++		break;
++	case XGENE_SC_SGENET_1:
++		nm_ad->tx_buf_num_start =
++			XGENE_SC_SGENET1_NM_TX_BUF_NUM_START;
++		nm_ad->rx_buf_num_start =
++			XGENE_SC_SGENET1_NM_RX_BUF_NUM_START;
++		nm_ad->rx_fp_buf_num_start =
++			XGENE_SC_SGENET1_NM_RX_FP_BUF_NUM_START;
++		nm_ad->queue_num_start =
++			XGENE_SC_SGENET1_NM_QUEUE_NUM_START;
++		nm_ad->irq_num_start =
++			XGENE_SC_SGENET1_NM_IRQ_NUM_START;
++		break;
++	case XGENE_MN_SGENET_0:
++		nm_ad->tx_buf_num_start =
++			XGENE_MN_SGENET0_NM_TX_BUF_NUM_START;
++		nm_ad->rx_buf_num_start =
++			XGENE_MN_SGENET0_NM_RX_BUF_NUM_START;
++		nm_ad->rx_fp_buf_num_start =
++			XGENE_MN_SGENET0_NM_RX_FP_BUF_NUM_START;
++		nm_ad->queue_num_start =
++			XGENE_MN_SGENET0_NM_QUEUE_NUM_START;
++		nm_ad->irq_num_start =
++			XGENE_MN_SGENET0_NM_IRQ_NUM_START;
++		break;
++	case XGENE_MN_SGENET_1:
++		nm_ad->tx_buf_num_start =
++			XGENE_MN_SGENET1_NM_TX_BUF_NUM_START;
++		nm_ad->rx_buf_num_start =
++			XGENE_MN_SGENET1_NM_RX_BUF_NUM_START;
++		nm_ad->rx_fp_buf_num_start =
++			XGENE_MN_SGENET1_NM_RX_FP_BUF_NUM_START;
++		nm_ad->queue_num_start =
++			XGENE_MN_SGENET1_NM_QUEUE_NUM_START;
++		nm_ad->irq_num_start =
++			XGENE_MN_SGENET1_NM_IRQ_NUM_START;
++		break;
++	default:
++		kfree(nm_ad);
++		return -1;
++	}
++	
++	xgene_qmtm_set_coleascing(pdata);
++
++	if (xgene_netmap_qconfig(nm_ad)){
++		xgene_nm_ad[intf] = NULL;
++		kfree(nm_ad);
++		return -1;
++	}
++	xgene_nm_ad[intf] = nm_ad;
++
++	print_netmap_qcontext(nm_ad->tx_completion_ring[0]);
++	print_netmap_qcontext(nm_ad->tx_ring[0]);
++	print_netmap_qcontext(nm_ad->rx_ring[0]);
++	print_netmap_qcontext(nm_ad->rx_fp_ring[0]);
++
++	na.ifp = pdata->ndev;
++	na.num_tx_desc = nm_ad->tx_ring[0]->count;
++	na.num_rx_desc = nm_ad->rx_fp_ring[0]->count;
++	na.nm_register = xgene_netmap_register;
++	na.nm_txsync = xgene_netmap_txsync;
++	na.nm_rxsync = xgene_netmap_rxsync;
++	netmap_attach(&na, 1);
++	return 0;
++}
++
++static int
++xgene_netmap_detach(struct SOFTC_T *pdata)
++{
++	enum xgene_enet_interface intf = pdata->intf;
++	struct xgene_netmap_adapter *nm_ad = xgene_nm_ad[intf];
++
++	netmap_detach(pdata->ndev);
++	
++	print_netmap_qcontext(nm_ad->tx_completion_ring[0]);
++	print_netmap_qcontext(nm_ad->tx_ring[0]);
++	print_netmap_qcontext(nm_ad->rx_ring[0]);
++	print_netmap_qcontext(nm_ad->rx_fp_ring[0]);
++	
++	xgene_nm_ad[intf] = NULL;
++	
++	xgene_netmap_qdeconfig(nm_ad);
++
++	kfree(nm_ad); 
++
++	return 0;
++}
++/* end of file */
+--- a/LINUX/Makefile	2013-10-19 23:20:24.000000000 +0700
++++ b/LINUX/Makefile	2015-02-13 08:51:00.467262210 +0700
+@@ -14,10 +14,14 @@ CONFIG_E1000E:=m
+ CONFIG_IXGBE:=m
+ CONFIG_IGB:=m
+ CONFIG_BNX2X:=m
+-
++ifdef XGENE_STANDALONE
++CONFIG_XGENE_NETMAP:=m
++MK_XGENE_NET="CONFIG_XGENE_NETMAP=m"
++endif
+ netmap_lin-objs := netmap.o netmap_mem2.o
+ 
+ obj-$(CONFIG_NETMAP) = netmap_lin.o
++
+ ifndef NODRIVERS
+ obj-m += $(DRIVERS)
+ endif
+@@ -56,14 +60,22 @@ LIN_VER = $(shell V=linux/version.h; G=.
+ 	grep LINUX_VERSION_CODE $(KSRC)/include/$${G}/linux/version.h | \
+ 	awk '{printf "%03x%02d", $$3/256, $$3%256} ')
+ 
++ifeq ($(DRIVERS),xgene/)
++DRIVER_SRCS = xgene/
++DRIVER_SUBDIRS = apm/
++EXTRA_CFLAGS += -I$(M)/xgene
++PATCHES := $(shell \
++	    cd $(M)/patches; ls diff--xgene-standalone--* | awk -v v=$(LIN_VER) -F -- '{ \
++	    if ((!$$3 || $$3 <= v) && (!$$4 || v < $$4)) print $0; }')
++else
+ PATCHES := $(shell \
+ 	    cd $(PWD)/patches; ls diff--* | awk -v v=$(LIN_VER) -F -- '{ \
+ 	    if ((!$$3 || $$3 <= v) && (!$$4 || v < $$4)) print $0; }')
+-
+ DRIVERS := $(shell \
+ 	    cd $(PWD)/patches; ls diff--* | awk -v v=$(LIN_VER) -F -- '{ \
+ 	    if ((!$$3 || $$3 <= v) && (!$$4 || v < $$4)) { ; \
+ 	    if (match($$2, ".c")) print $$2 ; else print $$2 "/" } }' )
++endif
+ 
+ ifdef NODRIVERS
+ all: build
+@@ -79,7 +91,8 @@ build:
+ 	$(MAKE) -C $(KSRC) M=$(PWD) CONFIG_NETMAP=m	\
+ 		CONFIG_E1000=m CONFIG_E1000E=m \
+ 		CONFIG_BNX2X=m CONFIG_MLX4=m \
+-		CONFIG_IXGBE=m CONFIG_IGB=m EXTRA_CFLAGS='$(EXTRA_CFLAGS)' \
++		CONFIG_IXGBE=m CONFIG_IGB=m $(MK_XGENE_NET) \
++		EXTRA_CFLAGS='$(EXTRA_CFLAGS)' \
+ 		DRIVERS="$(DRIVERS:%.c=%.o)" modules
+ 	@ls -l `find . -name \*.ko`
+ 
+@@ -116,9 +129,9 @@ get-drivers:
+ 	    [ -d ethernet ] && cd ethernet && s="$(DRIVER_SUBDIRS)" ;	\
+ 	    for i in $$s; do (cd $$i ;					\
+ 		echo "Copying from `pwd` ";				\
+-	    	cp -Rp $(DRIVERS) $(PWD) 2>/dev/null ); done )
++	    	cp -LRp $(DRIVERS) $(PWD) 2>/dev/null ); done )
+ 	-@(for i in $(PATCHES) ; do echo "** use patches/$$i";		\
+-		patch --posix --quiet --force -p1 < patches/$$i; done )
++		patch --quiet --force -p1 < patches/$$i; done )
+ 	@touch get-drivers
+ 	@echo "Building the following drivers: $(obj-m)"
+ 
+--- a/README.xgene	1970-01-01 07:00:00.000000000 +0700
++++ b/README.xgene	2015-02-13 08:51:11.520447803 +0700
+@@ -0,0 +1,52 @@
++0. Prepare kernel source
++Kernel source needs to be prep'ed for building netmap modules.
++At least, the following is to be done:
++
++$ make <defconfig>
++$ make prepare
++$ make scripts
++
++1. Build netmap modules
++-----------------------
++$ export PATH=<aarch64 toolchain path>/bin:$PATH
++$ export CROSS_COMPILE=<aarch64 toolchain prefix>
++$ cd netmap/LINUX
++$ make KSRC=<full path to kernel source> DRIVERS=xgene/ XGENE_STANDALONE=1
++
++You should have netmap_lin.ko in current directory and xgene-netmap.ko
++in xgene directory. Copy netmap_lin.ko and xgene-netmap.ko to your rootfs/ramdisk.
++
++2. Build test application (pkt-gen) 
++-----------------------------------
++$ cd ../examples
++$ export CC=${CROSS_COMPILE}gcc
++$ export CFLAGS="-static -mbig-endian -Wl,-EB"
++$ make
++
++Copy pkt-gen from current directory to your rootfs.
++
++3. Testing netmap on xgene 
++--------------------------
++At Linux prompt
++Load the Netmap and apm ethernet modules as
++root@genericarmv8b:~# insmod <path to module>/netmap_lin.ko
++root@genericarmv8b:~# insmod <path to module>/xgene-netmap.ko
++root@genericarmv8b:~# ifconfig eth0 up
++root@genericarmv8b:~# ifconfig eth1 up
++root@genericarmv8b:~# ifconfig eth2 up
++ 
++To test rx on eth1
++root@genericarmv8b:~# ./pkt-gen -i eth1 -f rx
++
++To test tx on eth1
++root@genericarmv8b:~# ./pkt-gen -i eth1 -f tx
++
++To test rx on eth2
++root@genericarmv8b:~# ./pkt-gen -i eth2 -f rx
++
++To test tx on eth2
++root@genericarmv8b:~# ./pkt-gen -i eth2 -f tx
++
++You can define the size of packet by passing -l flag to pkt-gen
++
++Note: Netmap source is taken from http://info.iet.unipi.it/~luigi/doc/20131019-netmap.tgz
+--- a/sys/dev/netmap/netmap.c	2013-10-19 23:20:24.000000000 +0700
++++ b/sys/dev/netmap/netmap.c	2015-01-27 15:20:18.184208560 +0700
+@@ -167,6 +167,7 @@ __FBSDID("$FreeBSD: head/sys/dev/netmap/
+ #include <machine/bus.h>	/* bus_dmamap_* */
+ #include <sys/endian.h>
+ #include <sys/refcount.h>
++#include <linux/compat.h>
+ 
+ #define prefetch(x)	__builtin_prefetch(x)
+ 
+@@ -3425,6 +3426,10 @@ linux_netmap_ioctl(struct file *file, u_
+ 	return -ret;
+ }
+ 
++long linux_netmap_ioctl32 (struct file *file, unsigned int cmd, unsigned long data)
++{
++	return linux_netmap_ioctl(file, cmd, (u_long) compat_ptr(data));
++}
+ 
+ static int
+ netmap_release(struct inode *inode, struct file *file)
+@@ -3458,6 +3463,7 @@ static struct file_operations netmap_fop
+     .open = linux_netmap_open,
+     .mmap = linux_netmap_mmap,
+     LIN_IOCTL_NAME = linux_netmap_ioctl,
++    .compat_ioctl = linux_netmap_ioctl32,
+     .poll = linux_netmap_poll,
+     .release = netmap_release,
+ };
+--- a/sys/dev/netmap/netmap_mem2.c	2013-10-19 23:20:24.000000000 +0700
++++ b/sys/dev/netmap/netmap_mem2.c	2015-01-27 15:20:18.203208895 +0700
+@@ -1061,7 +1061,7 @@ netmap_mem_if_new(const char *ifname, st
+ 
+ 		ring->cur = kring->nr_hwcur = 0;
+ 		ring->avail = kring->nr_hwavail = 0; /* empty */
+-		*(int *)(uintptr_t)&ring->nr_buf_size =
++		*(uint16_t *)(uintptr_t)&ring->nr_buf_size =
+ 			NETMAP_BDG_BUF_SIZE(na->nm_mem);
+ 		ND("initializing slots for rxring[%d]", i);
+ 		if (netmap_new_bufs(na->nm_mem, nifp, ring->slot, ndesc)) {
+--- a/sys/net/netmap.h	2013-10-08 23:29:14.000000000 +0700
++++ b/sys/net/netmap.h	2015-01-27 15:20:18.226209309 +0700
+@@ -43,6 +43,11 @@
+ #ifndef _NET_NETMAP_H_
+ #define _NET_NETMAP_H_
+ 
++#if __SIZEOF_LONG__ != 8
++/* redefine ssize_t to be compatible with 32bit apps */
++#define ssize_t uint64_t
++#endif
++
+ /*
+  * --- Netmap data structures ---
+  *
+@@ -249,8 +254,10 @@ struct netmap_ring {
+ #define	NR_FORWARD	0x0004		/* enable NS_FORWARD for ring */
+ #define	NR_RX_TSTMP	0x0008		/* set rx timestamp in slots */
+ 
+-	struct timeval	ts;		/* time of last *sync() */
+-
++        struct timeval  ts;             /* time of last *sync(); In kernel, ts is 16 bytes. */
++#if __SIZEOF_LONG__ != 8
++        struct timeval  ts_lo;          /* In 32bit process ts is 8 bytes, add padding */
++#endif
+ 	/* the slots follow. This struct has variable size */
+ 	struct netmap_slot slot[0];	/* array of slots. */
+ };

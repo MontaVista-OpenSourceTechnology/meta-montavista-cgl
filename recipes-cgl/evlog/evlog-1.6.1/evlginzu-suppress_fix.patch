@@ -1,0 +1,13 @@
+--- evlog-1.6.1_org/user/cmd/evlginzu/merge-sources.c	2007-05-29 08:28:21.000000000 -1000
++++ evlog-1.6.1/user/cmd/evlginzu/merge-sources.c	2007-06-01 14:35:09.000000000 -1000
+@@ -370,8 +367,9 @@
+ 		if ( !fifo_duplicate(fifo, log_entry, data) )
+ 		{
+ 			fifo_add(fifo, fifo_entry, log_entry, data);
++		}else {
++			free(fifo_entry);
+ 		}
+-
+ 		return (0);
+ 	}
+ 

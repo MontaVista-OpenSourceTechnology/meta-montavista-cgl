@@ -1,0 +1,12 @@
+diff -Naurp evlog-1.6.1_org/user/libevlsyslog/Makefile.am evlog-1.6.1/user/libevlsyslog/Makefile.am
+--- evlog-1.6.1_org/user/libevlsyslog/Makefile.am	2015-02-13 17:15:39.854568387 +0530
++++ evlog-1.6.1/user/libevlsyslog/Makefile.am	2015-02-13 17:16:17.762560659 +0530
+@@ -23,7 +23,7 @@ AM_CFLAGS = @CFLAGS@
+ # Libraries
+ evlsyslog_sources := libevlsyslog.c
+ 
+-evlsyslogdir := /lib
++evlsyslogdir := @libdir@
+ 
+ # LIBRARIES: static
+ evlsyslog_LIBRARIES = libevlsyslog.a

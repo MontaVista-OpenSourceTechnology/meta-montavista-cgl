@@ -1,0 +1,47 @@
+diff -ur evlog-1.6.1.old/user/include/evlog.h evlog-1.6.1/user/include/evlog.h
+--- evlog-1.6.1.old/user/include/evlog.h.in	2004-12-28 16:37:31.000000000 -0600
++++ evlog-1.6.1/user/include/evlog.h.in	2005-05-07 15:02:30.323778492 -0500
+@@ -31,7 +31,7 @@
+ #include <stdarg.h>
+ #include <string.h>
+ 
+-#include <linux/evl_log.h>
++#include <sys/evl_log.h>
+ 
+ #ifdef __cplusplus
+ extern "C" {
+diff -ur evlog-1.6.1.old/user/include/linux/Makefile.am evlog-1.6.1/user/include/linux/Makefile.am
+--- evlog-1.6.1.old/user/include/linux/Makefile.am	2004-04-07 16:54:06.000000000 -0500
++++ evlog-1.6.1/user/include/linux/Makefile.am	2005-05-07 15:02:10.213322878 -0500
+@@ -1,6 +1,6 @@
+ MAINTAINERCLEANFILES    = Makefile.in
+ 
+-evl_log_includedir := @KERN_HEADER_INCLUDEDIR@
++evl_log_includedir := /usr/include/sys
+ evl_log_include_HEADERS = evl_log.h
+ 
+ noinst_HEADERS = 
+diff -ur evlog-1.6.1.old/user/include/linux/Makefile.in evlog-1.6.1/user/include/linux/Makefile.in
+--- evlog-1.6.1.old/user/include/linux/Makefile.in	2004-12-28 16:27:43.000000000 -0600
++++ evlog-1.6.1/user/include/linux/Makefile.in	2005-05-07 15:02:04.122093534 -0500
+@@ -176,7 +176,7 @@
+ sysconfdir = @sysconfdir@
+ target_alias = @target_alias@
+ MAINTAINERCLEANFILES = Makefile.in
+-evl_log_includedir := @KERN_HEADER_INCLUDEDIR@
++evl_log_includedir := /usr/include/sys
+ evl_log_include_HEADERS = evl_log.h
+ noinst_HEADERS = 
+ all: all-am
+diff -ur evlog-1.6.1.old/user/include/posix_evlog.h evlog-1.6.1/user/include/posix_evlog.h
+--- evlog-1.6.1.old/user/include/posix_evlog.h	2002-09-18 13:18:59.000000000 -0500
++++ evlog-1.6.1/user/include/posix_evlog.h	2005-05-07 15:02:36.725968473 -0500
+@@ -43,7 +43,7 @@
+ #ifdef _POSIX_THREADS
+ #include <pthread.h>
+ #endif
+-#include <linux/evl_log.h>
++#include <sys/evl_log.h>
+ 
+ /* Treat a log descriptor like a file descriptor for now. */
+ typedef struct _log_description *posix_logd_t;

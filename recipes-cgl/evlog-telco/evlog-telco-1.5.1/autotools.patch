@@ -1,0 +1,92 @@
+diff -urN evlog-telco-1.5.1/configure.ac .devel-evlog-telco-1.5.1/configure.ac
+--- evlog-telco-1.5.1/configure.ac	1970-01-01 03:00:00.000000000 +0300
++++ .devel-evlog-telco-1.5.1/configure.ac	2011-02-23 12:38:55.752983002 +0300
+@@ -0,0 +1,40 @@
++#                                               -*- Autoconf -*-
++# Process this file with autoconf to produce a configure script.
++
++AC_PREREQ([2.61])
++AC_INIT([evlog-telco], [1.5.1], [source@mvista.com])
++AC_CONFIG_SRCDIR([evlog-examples/pxlogger.c])
++AC_CONFIG_HEADERS([config.h])
++AM_INIT_AUTOMAKE
++
++# Checks for programs.
++AC_PROG_CC
++AC_PROG_INSTALL
++
++# Checks for standard headers.
++AC_CHECK_HEADERS([errno.h getopt.h netdb.h paths.h stdarg.h stdio.h \
++                  stdlib.h string.h sys/signal.h sys/socket.h sys/stat.h \
++		  sys/syslog.h sys/time.h sys/types.h sys/uio.h \
++		  sys/wait.h time.h unistd.h])
++
++# Checks for EVLog headers.
++AC_CHECK_HEADERS([evlog.h posix_evlog.h posix_evlsup.h sys/evl_log.h])
++
++# Checks for EVLog libraries.
++AC_CHECK_LIB([evl], [posix_log_open])
++
++# Checks for typedefs, structures, and compiler characteristics.
++AC_TYPE_PID_T
++AC_TYPE_SIZE_T
++
++# Checks for library functions.
++AC_FUNC_FORK
++AC_FUNC_MALLOC
++AC_FUNC_REALLOC
++AC_CHECK_FUNCS([dup2 gettimeofday memset strchr strerror strrchr])
++
++AC_CONFIG_FILES([Makefile
++                 evlforward/Makefile
++                 evlog-examples/Makefile
++                 evlsyslog/Makefile])
++AC_OUTPUT
+diff -urN evlog-telco-1.5.1/evlforward/Makefile.am .devel-evlog-telco-1.5.1/evlforward/Makefile.am
+--- evlog-telco-1.5.1/evlforward/Makefile.am	1970-01-01 03:00:00.000000000 +0300
++++ .devel-evlog-telco-1.5.1/evlforward/Makefile.am	2011-02-23 12:11:10.470982846 +0300
+@@ -0,0 +1,10 @@
++sbin_PROGRAMS = evlforward
++evlforward_SOURCES = evlforward.c posix-to-syslog.c syslog-to-posix.c
++evlforward_CFLAGS = -pthread
++evlforward_LDADD = -levl -lnsl -lfl
++man1_MANS = evlforward.1
++EXTRA_DIST = evlforward.init
++
++install-exec-hook:
++	mkdir -p $(DESTDIR)$(sysconfdir)/init.d
++	install -m 755 evlforward.init $(DESTDIR)$(sysconfdir)/init.d/evlforward
+diff -urN evlog-telco-1.5.1/evlog-examples/Makefile.am .devel-evlog-telco-1.5.1/evlog-examples/Makefile.am
+--- evlog-telco-1.5.1/evlog-examples/Makefile.am	1970-01-01 03:00:00.000000000 +0300
++++ .devel-evlog-telco-1.5.1/evlog-examples/Makefile.am	2011-02-23 12:10:38.096982957 +0300
+@@ -0,0 +1,15 @@
++sbin_PROGRAMS = pxtestapp pxlogger
++sbin_SCRIPTS = pxruntests
++pxtestapp_SOURCES = pxtestapp.c
++pxtestapp_CFLAGS = -pthread
++pxtestapp_LDADD = -levl -lnsl -lfl
++pxlogger_SOURCES = pxlogger.c
++pxlogger_CFLAGS = -pthread
++pxlogger_LDADD = -levl -lnsl -lfl
++EXTRA_DIST = tests.txt tests-mvcgl.txt EVLPOSIXTest
++
++install-data-hook:
++	mkdir -p $(DESTDIR)$(datadir)/evlog-telco/examples
++	install -m 644 tests.txt $(DESTDIR)$(datadir)/evlog-telco/examples
++	install -m 644 tests-mvcgl.txt $(DESTDIR)$(datadir)/evlog-telco/examples
++	install -m 644 EVLPOSIXTest $(DESTDIR)$(datadir)/evlog-telco/examples
+diff -urN evlog-telco-1.5.1/evlsyslog/Makefile.am .devel-evlog-telco-1.5.1/evlsyslog/Makefile.am
+--- evlog-telco-1.5.1/evlsyslog/Makefile.am	1970-01-01 03:00:00.000000000 +0300
++++ .devel-evlog-telco-1.5.1/evlsyslog/Makefile.am	2011-02-23 12:12:10.082982930 +0300
+@@ -0,0 +1,5 @@
++sbin_PROGRAMS = evlsyslog
++evlsyslog_SOURCES = evlsyslog.c
++evlsyslog_CFLAGS = -pthread
++evlsyslog_LDADD = -levl -lnsl -lfl
++man1_MANS = evlsyslog.1
+diff -urN evlog-telco-1.5.1/Makefile.am .devel-evlog-telco-1.5.1/Makefile.am
+--- evlog-telco-1.5.1/Makefile.am	1970-01-01 03:00:00.000000000 +0300
++++ .devel-evlog-telco-1.5.1/Makefile.am	2011-02-23 11:47:16.485983011 +0300
+@@ -0,0 +1,2 @@
++SUBDIRS = evlforward evlsyslog evlog-examples
++EXTRA_DIST = README LICENSE

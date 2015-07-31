@@ -1,0 +1,1566 @@
+--- pmtools-20071116/acpidump/acpidump.c	2007-11-16 23:57:17.000000000 +0530
++++ pmtools/acpidump/acpidump.c	2006-10-26 20:49:19.000000000 +0530
+@@ -1,6 +1,5 @@
+ /*
+  * (c) Alexey Starikovskiy, Intel, 2005-2006.
+- * (c) Len Brown, Intel, 2007.
+  * All rights reserved.
+  *
+  * Redistribution and use in source and binary forms, with or without
+@@ -167,40 +166,6 @@ static void acpi_show_data(int fd, u8 *
+ /*
+  * Output ACPI table
+  */
+-
+-#define MAX_TABLES 128
+-int next_table_dump;
+-u64 dumped_tables[MAX_TABLES];
+-
+-void
+-set_table_dumped(u64 address) {
+-	if (next_table_dump >= MAX_TABLES) {
+-		printf("increase MAX_TABLES\n");
+-		exit(1);
+-	}
+-	dumped_tables[next_table_dump++] = address;
+-}
+-
+-/*
+- * list the tables as they are dumped
+- * check the list so that they are not dumped twice.
+- *
+- * this is needed because we follow both the XSDT and RSDT
+- * which generally point to all duplicate tables
+- * except the FADT
+- */
+-int
+-check_table_dumped(u64 address) {
+-	int i;
+-
+-	for (i = 0; i < MAX_TABLES; ++i) {
+-		if (address == dumped_tables[i])
+-			return 1;
+-		if (dumped_tables[i] == 0)
+-			return 0;
+-	}
+-	return 0;
+-}
+ static void acpi_show_table(int fd, struct acpi_table_header *table, unsigned long addr)
+ {
+ 	char buff[80];
+@@ -214,10 +179,6 @@ static void acpi_show_table(int fd, stru
+ static void write_table(int fd, struct acpi_table_header *tbl, unsigned long addr)
+ {
+ 	static int select_done = 0;
+-
+-	if (check_table_dumped((u64)addr))
+-		return;
+-
+ 	if (!select_sig[0]) {
+ 		if (print) {
+ 			acpi_show_table(fd, tbl, addr);
+@@ -236,7 +197,6 @@ static void write_table(int fd, struct a
+ 		}
+ 		select_done = 1;
+ 	}
+-	set_table_dumped((u64) addr);
+ }
+ 
+ static void acpi_dump_FADT(int fd, struct acpi_table_header *tbl, unsigned long xaddr) {
+@@ -293,71 +253,30 @@ no_facs:
+ 	write_table(fd, (struct acpi_table_header *)&x, xaddr);
+ }
+ 
+-
+-static int acpi_dump_RSDT(int fd, struct acpi_rsdp_descriptor *rsdp)
++static int acpi_dump_SDT(int fd, struct acpi_rsdp_descriptor *rsdp)
+ {
+ 	struct acpi_table_header *sdt, *tbl = 0;
+-	int i, num;
+-	char *offset;
+-	unsigned long addr;
+-
+-	tbl = acpi_map_table(rsdp->rsdt_physical_address, "RSDT");
+-	if (!tbl) return 0;
+-
+-	sdt = malloc(tbl->length);
+-	memcpy(sdt, tbl, tbl->length);
+-	acpi_unmap_table(tbl);
+-	if (checksum((u8 *)sdt, sdt->length))
+-		fprintf(stderr, "Wrong checksum for %s!\n", "RSDT");
+-	num = (sdt->length - sizeof(struct acpi_table_header))/sizeof(u32);
+-	offset = (char *)sdt + sizeof(struct acpi_table_header);
+-	for (i = 0; i < num; ++i, offset += sizeof(u32)) {
+-		addr = (unsigned long)(*(u32 *)offset);
+-		if (!addr) continue;
+-		tbl = acpi_map_table(addr, 0);
+-		if (!tbl) continue;
+-		if (!memcmp(tbl->signature, FADT_SIG, 4)) {
+-			acpi_dump_FADT(fd, tbl, addr);
+-		} else {
+-			if (checksum((u8 *)tbl, tbl->length))
+-				fprintf(stderr, "Wrong checksum for %.4s!\n", tbl->signature);
+-			write_table(fd, tbl, addr);
+-		}
+-		acpi_unmap_table(tbl);
+-		if (connect) {
+-			(*(u32*)offset) = lseek(fd, 0, SEEK_CUR);
+-		}
+-	}
+-	addr = (unsigned long)rsdp->rsdt_physical_address;
+-	if (connect) {
+-		rsdp->rsdt_physical_address = lseek(fd, 0, SEEK_CUR);
+-	}
+-	write_table(fd, sdt, addr);
+-	free (sdt);
+-	return 1;
+-}
+-
+-
+-static int acpi_dump_XSDT(int fd, struct acpi_rsdp_descriptor *rsdp)
+-{
+-	struct acpi_table_header *sdt, *tbl = 0;
+-	int i, num;
++	int xsdt = 1, i, num;
+ 	char *offset;
+ 	unsigned long addr;
+ 	if (rsdp->revision > 1 && rsdp->xsdt_physical_address) {
+ 		tbl = acpi_map_table(rsdp->xsdt_physical_address, "XSDT");
+ 	}
++	if (!tbl && rsdp->rsdt_physical_address) {
++		xsdt = 0;
++		tbl = acpi_map_table(rsdp->rsdt_physical_address, "RSDT");
++	}
+ 	if (!tbl) return 0;
+-
+ 	sdt = malloc(tbl->length);
+ 	memcpy(sdt, tbl, tbl->length);
+ 	acpi_unmap_table(tbl);
+ 	if (checksum((u8 *)sdt, sdt->length))
+-		fprintf(stderr, "Wrong checksum for %s!\n", "XSDT");
+-	num = (sdt->length - sizeof(struct acpi_table_header))/sizeof(u64);
++		fprintf(stderr, "Wrong checksum for %s!\n", (xsdt)?"XSDT":"RSDT");
++	num = (sdt->length - sizeof(struct acpi_table_header))/((xsdt)?sizeof(u64):sizeof(u32));
+ 	offset = (char *)sdt + sizeof(struct acpi_table_header);
+-	for (i = 0; i < num; ++i, offset += sizeof(u64)) {
+-		addr = (unsigned long)(*(u64 *)offset);
++	for (i = 0; i < num; ++i, offset += ((xsdt) ? sizeof(u64) : sizeof(u32))) {
++		addr = (xsdt) ? (unsigned long)(*(u64 *)offset):
++				(unsigned long)(*(u32 *)offset);
+ 		if (!addr) continue;
+ 		tbl = acpi_map_table(addr, 0);
+ 		if (!tbl) continue;
+@@ -365,17 +284,27 @@ static int acpi_dump_XSDT(int fd, struct
+ 			acpi_dump_FADT(fd, tbl, addr);
+ 		} else {
+ 			if (checksum((u8 *)tbl, tbl->length))
+-				fprintf(stderr, "Wrong checksum for %.4s\n", tbl->signature);
++				fprintf(stderr, "Wrong checksum for generic table!\n");
+ 			write_table(fd, tbl, addr);
+ 		}
+ 		acpi_unmap_table(tbl);
+ 		if (connect) {
+-			(*(u64*)offset) = lseek(fd, 0, SEEK_CUR);
++			if (xsdt)
++				(*(u64*)offset) = lseek(fd, 0, SEEK_CUR);
++			else
++				(*(u32*)offset) = lseek(fd, 0, SEEK_CUR);
+ 		}
+ 	}
+-	addr = (unsigned long)rsdp->xsdt_physical_address;
+-	if (connect) {
+-		rsdp->xsdt_physical_address = lseek(fd, 0, SEEK_CUR);
++	if (xsdt) {
++		addr = (unsigned long)rsdp->xsdt_physical_address;
++		if (connect) {
++			rsdp->xsdt_physical_address = lseek(fd, 0, SEEK_CUR);
++		}
++	} else {
++		addr = (unsigned long)rsdp->rsdt_physical_address;
++		if (connect) {
++			rsdp->rsdt_physical_address = lseek(fd, 0, SEEK_CUR);
++		}
+ 	}
+ 	write_table(fd, sdt, addr);
+ 	free (sdt);
+@@ -521,12 +450,7 @@ int main(int argc, char **argv)
+ 	if (connect) {
+ 		lseek(fd, sizeof(struct acpi_rsdp_descriptor), SEEK_SET);
+ 	}
+-	if (rsdpx.revision > 1 && rsdpx.xsdt_physical_address) {
+-		/* ACPIDUMP uses xsdt table */
+-		if (!acpi_dump_XSDT(fd, &rsdpx))
+-			goto not_found;
+-	}
+-	if (!acpi_dump_RSDT(fd, &rsdpx))
++	if (!acpi_dump_SDT(fd, &rsdpx))
+ 		goto not_found;
+ 	if (connect) {
+ 		lseek(fd, 0, SEEK_SET);
+--- pmtools-20071116/acpixtract/acpixtract.c	2007-11-17 00:15:44.000000000 +0530
++++ pmtools/acpixtract/acpixtract.c	2010-01-24 00:01:07.000000000 +0530
+@@ -581,8 +581,8 @@ ExtractTables (
+                 OutputFile = NULL;
+                 State = FIND_HEADER;
+ 
+-                printf ("Acpi table [%4.4s] - %d bytes written to %s\n",
+-                    ThisSignature, (int)TotalBytesWritten, Filename);
++                printf ("Acpi table [%4.4s] - %6zd bytes written to %s\n",
++                    ThisSignature, TotalBytesWritten, Filename);
+                 continue;
+             }
+ 
+--- pmtools-20071116/madt/madt.c	2007-11-17 00:20:29.000000000 +0530
++++ pmtools/madt/madt.c	2005-11-11 22:37:04.000000000 +0530
+@@ -26,6 +26,8 @@ typedef unsigned long long u64;
+ 
+ #define printk printf
+ 
++#include "./tables.c"
++
+ //#define INPUT_FILE "madt.dat"
+ //#include <sys/types.h>
+ //#include <sys/stat.h>
+@@ -35,8 +37,6 @@ typedef unsigned long long u64;
+ #include <stdio.h> // fread
+ #include <stdlib.h> // malloc
+ 
+-#include "./tables.c"
+-
+ int verbose = 0;
+ /*
+ /* read standard input
+--- pmtools-20071116/madt/Makefile	2007-11-17 00:18:56.000000000 +0530
++++ pmtools/madt/Makefile	2005-11-11 22:37:04.000000000 +0530
+@@ -1,16 +1,6 @@
+-PROG= madt
+-SRCS=	madt.c
+-
+-all: madt
+-$(PROG) : $(SRCS)
+-	$(CC) $(CFLAGS) $(SRCS) -o $(PROG)
+-
+ test: madt
+-	./madt < example.APIC.dat
+-	./madt < example.APIC.bad.dat
+-
+-CLEANFILES= $(PROG)
+-
+-clean : 
+-	rm -f $(CLEANFILES) $(patsubst %.c,%.o, $(SRCS)) *~
+-
++	./madt < APIC
++madt: madt.c acpi.h tables.c
++	cc -o madt madt.c
++clean:
++	rm madt
+--- pmtools-20071116/madt/README	2007-11-17 00:09:50.000000000 +0530
++++ pmtools/madt/README	2005-11-11 22:37:04.000000000 +0530
+@@ -1,9 +1,7 @@
+ User utility to parse the ACPI MADT
+ Hacked out of Linux kernel code to do the same.
+ 
+-# ./acpidmp > acpidump.txt
+-$ acpixtract -a acpidump.txt
+-$ madt < APIC.dat
++# ./acpidmp | ./acpixtract APIC | ./madt
+ 
+ ACPI: APIC (v001 INTEL  D845EBT2 0x20021021 MSFT 0x00000097) @ 0x(nil)
+ ACPI: LAPIC (acpi_id[0x01] lapic_id[0x00] enabled)
+--- pmtools-20071116/Makefile	2007-11-17 00:16:10.000000000 +0530
++++ pmtools/Makefile	2010-01-23 23:48:18.000000000 +0530
+@@ -1,4 +1,4 @@
+-DIRS = acpidump acpixtract madt
++DIRS = acpidump acpixtract turbostat
+ 
+ all:
+ 	for i in $(DIRS); do $(MAKE) -C $$i $@; done
+--- pmtools-20071116/README	2007-11-17 00:24:27.000000000 +0530
++++ pmtools/README	2010-04-16 20:53:50.000000000 +0530
+@@ -1,11 +1,13 @@
+-Power management tools (ACPI tools, really)
+--------------------------------------------
++Power management tools
++----------------------
+ This is a small collection of power management test and
+-investigation tools.
+-
+-See http://www.lesswatts.org/projects/acpi/
++investigation tools.  See http://lesswatts.org/projects/acpi/
+ for more information on ACPI for Linux.
+ 
++.turbostat/turbostat
++--------------------
++see comments in turbostat.c source file
++
+ ./acpidump/acpidump
+ -------------------
+ This utility dumps a system's ACPI tables to an ASCII file.
+@@ -13,22 +15,13 @@ This utility dumps a system's ACPI table
+ Typically it is used to dump all the ACPI tables
+ to attach to a bug report for later examination:
+ 
+-	# ./acpidump > acpidump.txt
+-
+-
+-Note that acpidump is a simple "KVM reader" that
+-reads the BIOS ACPI tables like the kernel would.
+-It does not rely on the operation of the kernel's
+-ACPI support to access the tables.  This is why
+-it works even when the kernel is booted with "acpi=off"
+-and it is why the output doesn't change when different
+-kernels are booted.
++    # ./acpidump > acpidump.out
+ 
+ ./acpidump/acpixtract
+ --------------------
+ Convert ASCII acpidump output to raw binary tables:
+ 
+-	$ acpixtract/acpixtract -a acpidump.txt
++	$ acpixtract/acpixtract -a acpidump.out
+ 	Acpi table [DSDT] -  15974 bytes written to DSDT.dat
+ 	Acpi table [FACS] -     64 bytes written to FACS.dat
+ 	Acpi table [FACP] -    116 bytes written to FACP.dat
+@@ -44,16 +37,6 @@ Convert ASCII acpidump output to raw bin
+ 	Acpi table [RSDT] -     76 bytes written to RSDT.dat
+ 	Acpi table [RSDP] -     20 bytes written to RSDP.dat
+ 
+-./madt/madt
+------------
+-See ./madt/README
+-This is a parser for APIC.dat above, based on the code
+-in the Linux kernel that parses the same table.
+-
+-# madt < APIC.dat > APIC.txt
+-
+-However, iasl can now dis-assemble an APIC table, so unless
+-you really need to to see what the kernel would do, see below.
+ 
+ Disassembler
+ ------------
+@@ -63,28 +46,26 @@ http://www.intel.com/technology/IAPC/acp
+ 
+ Which creates DSDT.dsl this way:
+ 
+-	$ iasl -d DSDT.dat
++	$ iasl -a *.dat
+ 	...
+-	Disassembly completed, written to "DSDT.dsl"
+-
+-It can be used on any table, eg the FADT:
++	creates *.dsl
+ 
+-	$ iasl -d FACP.dat
+-	...
+-	Acpi Data Table [FACP] decoded, written to "FACP.dsl"
++pmtest -- does not work
++------
++This utility can be used by Linux kernel developers to test
++power management support in their drivers.  It consists of
++an installable kernel module and a Perl script to drive
++the module.
+ 
++Example: pmtest -d3 VGA
+ 
+ Change Log
+ ----------
+-20070511 - lenb
++20100123
++	add turbostat program
++	acpixtract: change %6d printf conversion string %6zd 
++	tweak this README
++
++20070511
+ 	delete acpitbl script
+ 	it is obsoleted by iasl -d
+-20070714 - lenb
+-	update acpidump to dump RSDT
+-	and its unique tables (eg. ACPI 1.0 FADT)
+-	even if XSDT (and ACPI 2.0 FADT) is present.
+-20071116
+-	Yakui fixed Len's change above to work
+-	on systems w/o an XSDT.
+-	Len removed pmtest driver, add madt to Makefile.
+-
+--- /dev/null	2012-10-08 10:37:31.154732021 +0530
++++ pmtools/madt/APIC	2005-11-11 22:37:04.000000000 +0530
+@@ -0,0 +1,3 @@
++APICh   ´INTEL D845EBT2! MSFT—     àþ                
++       
++ 		       Àþ    
+\ No newline at end of file
+--- /dev/null	2012-10-08 10:37:31.154732021 +0530
++++ pmtools/madt/APIC.bad	2005-11-11 22:37:04.000000000 +0530
+@@ -0,0 +1,3 @@
++APICf   DELL  WS 410     ASL a     àþ               Àþ    
++       
++ 		    
+\ No newline at end of file
+--- pmtools-20071116/madt/example.APIC.bad.dat	2005-11-11 22:37:04.000000000 +0530
++++ /dev/null	2012-10-08 10:37:31.154732021 +0530
+@@ -1,3 +0,0 @@
+-APICf   DELL  WS 410     ASL a     àþ               Àþ    
+-       
+- 		    
+\ No newline at end of file
+--- pmtools-20071116/madt/example.APIC.dat	2005-11-11 22:37:04.000000000 +0530
++++ /dev/null	2012-10-08 10:37:31.154732021 +0530
+@@ -1,3 +0,0 @@
+-APICh   ´INTEL D845EBT2! MSFT—     àþ                
+-       
+- 		       Àþ    
+\ No newline at end of file
+diff -Naurp pmtools-20071116/turbostat/Makefile pmtools/turbostat/Makefile
+--- pmtools-20071116/turbostat/Makefile	1970-01-01 05:30:00.000000000 +0530
++++ pmtools/turbostat/Makefile	2010-01-23 23:49:32.000000000 +0530
+@@ -0,0 +1,13 @@
++PROG= turbostat
++SRCS=	turbostat.c
++
++all: turbostat
++
++$(PROG) : $(SRCS)
++	$(CC) $(CFLAGS) $(SRCS) -o $(PROG)
++
++CLEANFILES= $(PROG)
++
++clean : 
++	rm -f $(CLEANFILES) $(patsubst %.c,%.o, $(SRCS)) *~
++
+diff -Naurp pmtools-20071116/turbostat/turbostat.c pmtools/turbostat/turbostat.c
+--- pmtools-20071116/turbostat/turbostat.c	1970-01-01 05:30:00.000000000 +0530
++++ pmtools/turbostat/turbostat.c	2010-05-13 12:30:11.000000000 +0530
+@@ -0,0 +1,760 @@
++/*
++ * turbostat -- show CPU frequency and C-state residency
++ * on modern Intel turbo-capable processors.
++ *
++ * Copyright (c) 2010, Intel Corporation.
++ * Len Brown <len.brown@intel.com>
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ *
++ * You should have received a copy of the GNU General Public License along with
++ * this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++/*
++ * Works properly on Nehalem and newer processors, since
++ * Nehalem features an always-running TSC, plus hardware
++ * C-state residency MSRs.
++ *
++ * Works poorly on systems before Nehalem with
++ * a TSC that stops in deep C-states.
++ *
++ * Works properly on Linux-2.6.30 and later.
++ * Works poorly Linux-2.6.29 and earlier, as acpi-cpufreq
++ * used to clear APERF/MPERF counters on access.
++ *
++ * APERF, MPERF count non-halted cycles.
++ * Although it is not guaranteed by the architecture, we assume
++ * here that they count at TSC rate, which is true for Nehalem.
++ *
++ * References:
++ * "IntelÂ® Turbo Boost Technology
++ * in IntelÂ® Coreâ„¢ Microarchitecture (Nehalem) Based Processors"
++ * http://download.intel.com/design/processor/applnots/320354.pdf
++ *
++ * "IntelÂ® 64 and IA-32 Architectures Software Developer's Manual
++ * Volume 3B: System Programming Guide"
++ * http://www.intel.com/products/processor/manuals/
++ */
++
++/*
++ * usage:
++ * # turbostat [-v verbosity] [-i interval_sec] [command [arg]...]
++ *
++ * examples:
++ *
++ * [root@nehalem lenb]# ./turbostat
++ *  CPU   GHz    TSC    %c0    %c1    %c3    %c6   %pc3   %pc6   %pc7 
++ *  avg   2.11   2.93   0.14   0.24  87.49  12.13   0.00   0.00   0.00
++ *    0   1.71   2.93   0.06   0.12  74.97  24.85   0.00   0.00   0.00
++ *    1   1.71   2.93   0.01   0.02  86.65  13.32   0.00   0.00   0.00
++ *    2   2.29   2.93   0.79   0.22  88.68  10.31   0.00   0.00   0.00
++ *    3   1.70   2.93   0.20   0.12  99.63   0.05   0.00   0.00   0.00
++ *    4   1.60   2.93   0.02   0.16  74.98  24.85   0.00   0.00   0.00
++ *    5   1.67   2.93   0.01   0.02  86.66  13.31   0.00   0.00   0.00
++ *    6   1.60   2.93   0.02   0.98  88.68  10.31   0.00   0.00   0.00
++ *    7   1.60   2.93   0.02   0.30  99.63   0.05   0.00   0.00   0.00 
++ *
++ *
++ * Without any parameters, turbostat prints out counters ever 5 seconds.
++ * (override interval with "-i sec" option).
++ *
++ * CPU is the cpu number according to Linux, ala /dev/cpu
++ * The first row "avg" is the average of all the following lines
++ * to give a system-wide summary.
++ *
++ * %c0 is the percent of the interval that the core retired instructions.
++ *
++ * GHz is the average clock rate while the core was in c0 state.
++ *
++ * TSC is the average GHz that the TSC ran during the entire interval.
++ *
++ * %c1, %c3, %c6 show the residency in hardware CPU core idle states.
++ * Note that these may not equal the software states requested by Linux.
++ *
++ * pc3%, pc6%, pc7% show package idle C-states, which are disabled
++ * by the BIOS for the stepping in this example.
++ *
++ * The "-v" option adds verbosity to the output: eg.
++ *
++ * CPUID GenuineIntel 11 levels family:model:stepping 6:26:4
++ * Nehalem multiplier 22, TSC frequency 2933 MHz
++ * Nehalem 4 cores active: 23 mult, max turbo frequency = 3067 MHz
++ * Nehalem 3 cores active: 23 mult, max turbo frequency = 3067 MHz
++ * Nehalem 2 cores active: 23 mult, max turbo frequency = 3067 MHz
++ * Nehalem 1 core active: 24 mult, max turbo frequency = 3200 MHz
++ *
++ * This tells you what you should be able to get, given nominal
++ * cooling and electrical capacity.  Note that NHM-EX does
++ * not tell us these max turbo frequencies like NHM and NHM-EP do.
++ *
++ * If turbostat is invoked with a command, it will fork that command
++ * and output the statistics gathered while that command was running.
++ * eg. Here a cycle soaker is run on 1 CPU (see %c0) for a few seconds
++ * until ^C while the others are mostly idle:
++ * 
++ * [root@nehalem lenb]# ./turbostat cat /dev/zero > /dev/null 
++ *^C CPU   GHz    TSC    %c0    %c1    %c3    %c6   %pc3   %pc6   %pc7 
++ * avg   3.14   2.93  13.58  18.20  53.86  14.37   0.00   0.00   0.00
++ *   0   3.04   2.93   0.77   2.50  58.24  38.48   0.00   0.00   0.00
++ *   1   2.94   2.93   0.02  99.96   0.00   0.02   0.00   0.00   0.00
++ *   2   3.04   2.93   1.01   2.74  77.58  18.66   0.00   0.00   0.00
++ *   3   3.03   2.93   6.63  13.47  79.61   0.30   0.00   0.00   0.00
++ *   4   2.99   2.93   0.31   2.97  58.23  38.49   0.00   0.00   0.00
++ *   5   3.15   2.93  99.52   0.46   0.01   0.01   0.00   0.00   0.00
++ *   6   2.98   2.93   0.10   3.66  77.59  18.66   0.00   0.00   0.00
++ *   7   2.97   2.93   0.25  19.84  79.61   0.30   0.00   0.00   0.00
++ *
++ * Above the cycles soaker drives cpu5 up to almost to its 3.2Ghz limit
++ * while the other processors are generally in various states of idle.
++ *
++ * Note that the arithmetic average of the GHz column above is 3.01.
++ * But turbostat shows avg 3.14.  This is a weighted average --
++ * where the weight is %c0.  ie. it is the total number of
++ * unhalted cycles elapsed per time divided by the number of CPUs.
++ *
++ * Note that turbostat reads hardware counters, but doesn't write them.
++ * So it will not interfere with the OS or other programs, including
++ * multiple invocations of itself.
++ *
++ * turbostat depends on the Linux msr driver for /dev/cpu/.../msr
++ */
++
++#include <stdio.h>
++#include <unistd.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <sys/resource.h>
++#include <fcntl.h>
++#include <signal.h>
++#include <sys/time.h>
++#include <stdlib.h>
++
++#define MSR_TSC	0x10
++#define MSR_NEHALEM_PLATFORM_INFO	0xCE
++#define MSR_NEHALEM_TURBO_RATIO_LIMIT	0x1AD
++#define MSR_APERF	0xE8
++#define MSR_MPERF	0xE7
++#define MSR_PKG_C3_RESIDENCY	0x3F8
++#define MSR_PKG_C6_RESIDENCY	0x3F9
++#define MSR_PKG_C7_RESIDENCY	0x3FA
++#define MSR_CORE_C3_RESIDENCY	0x3FC
++#define MSR_CORE_C3_RESIDENCY	0x3FC
++#define MSR_CORE_C3_RESIDENCY	0x3FC
++#define MSR_CORE_C6_RESIDENCY	0x3FD
++
++unsigned int interval_sec = 5;	/* set with -i interval_sec */
++unsigned int verbose;		/* set with -v */
++unsigned int debug;		/* set with -d */
++unsigned int do_c0, skip_c0;
++unsigned int do_c1, skip_c1;
++unsigned int do_c3;
++unsigned int do_c6;
++unsigned int do_pkg;
++unsigned int do_aperf = 1;	/* TBD set with CPUID */
++unsigned int iterations;
++unsigned int units = 1000000000.0;	/* Ghz etc */
++unsigned int do_non_stop_tsc;
++unsigned int do_nehalem_c_state_residency;
++unsigned int do_nehalem_platform_info;
++unsigned int do_nehalem_turbo_ratio_limit;
++unsigned int do_nehalem_c_state_residency;
++
++int aperf_mperf_unstable;
++int backwards_count;
++char *progname;
++
++int num_cpus;
++int *fd_msr;
++
++typedef struct per_core_counters {
++	unsigned long long tsc;
++	unsigned long long c1;
++	unsigned long long c3;
++	unsigned long long c6;
++	unsigned long long aperf;
++	unsigned long long mperf;
++	unsigned long long pc3;
++	unsigned long long pc6;
++	unsigned long long pc7;
++} PCC;
++
++PCC *pcc_even;
++PCC *pcc_odd;
++PCC *pcc_delta;
++PCC *pcc_average;
++struct timeval tv_even;
++struct timeval tv_odd;
++struct timeval tv_delta;
++
++unsigned long long get_msr(int cpu, off_t offset)
++{
++	ssize_t retval;
++	unsigned long long msr;
++
++	retval = pread(fd_msr[cpu], &msr, sizeof msr, offset);
++	if (retval != sizeof msr) {
++		fprintf(stderr, "pread cpu%d 0x%x = %d\n", cpu, offset, retval);
++		_exit(-2);
++	}
++	return msr;
++}
++void print_header()
++{
++	fprintf(stderr, " CPU");
++	fprintf(stderr, "   GHz ");
++	fprintf(stderr, "   TSC ");
++	if (do_c0) fprintf(stderr, "   %%c0 ");
++	if (do_c1) fprintf(stderr, "   %%c1 ");
++	if (do_c3) fprintf(stderr, "   %%c3 ");
++	if (do_c6) fprintf(stderr, "   %%c6 ");
++	if (do_pkg) fprintf(stderr, "  %%pc3 ");
++	if (do_pkg) fprintf(stderr, "  %%pc6 ");
++	if (do_pkg) fprintf(stderr, "  %%pc7 ");
++
++	putc('\n', stderr);
++}
++void dump_counters(PCC *c, int max)
++{
++	int i;
++
++	fprintf(stderr, "TSC: ");
++	for (i = 0; i < max; ++i) {
++		fprintf(stderr, "%llX ", c[i].tsc);
++	}
++	putc('\n', stderr);
++
++	fprintf(stderr, "c3: ");
++	for (i = 0; i < max; ++i) {
++		fprintf(stderr, "%llX ", c[i].c3);
++	}
++	putc('\n', stderr);
++
++	fprintf(stderr, "c6: ");
++	for (i = 0; i < max; ++i) {
++		fprintf(stderr, "%llX ", c[i].c6);
++	}
++	putc('\n', stderr);
++
++	fprintf(stderr, "aperf: ");
++	for (i = 0; i < max; ++i) {
++		fprintf(stderr, "%llX ", c[i].aperf);
++	}
++	putc('\n', stderr);
++
++	fprintf(stderr, "mperf: ");
++	for (i = 0; i < max; ++i) {
++		fprintf(stderr, "%llX ", c[i].mperf);
++	}
++	putc('\n', stderr);
++
++	fprintf(stderr, "pc3: ");
++	for (i = 0; i < max; ++i) {
++		fprintf(stderr, "%llX ", c[i].pc3);
++	}
++	putc('\n', stderr);
++
++	fprintf(stderr, "pc6: ");
++	for (i = 0; i < max; ++i) {
++		fprintf(stderr, "%llX ", c[i].pc6);
++	}
++	putc('\n', stderr);
++
++	fprintf(stderr, "pc7: ");
++	for (i = 0; i < max; ++i) {
++		fprintf(stderr, "%llX ", c[i].pc7);
++	}
++	putc('\n', stderr);
++}
++void print_counters(PCC *cnt, PCC *avg) 
++{
++	int i;
++	double interval_float;
++
++	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
++
++	if (debug)
++		fprintf(stderr, "%.6f sec\n", interval_float);
++
++	print_header();
++
++	for (i = -1; i < num_cpus; ++i) {
++		PCC *p;
++
++
++		if (i == -1) {
++			p = avg;
++			fprintf(stderr, " avg");
++		} else {
++			p = &cnt[i];
++			fprintf(stderr, "%4d", i);
++		}
++
++
++		if (do_aperf) {
++			if (!aperf_mperf_unstable) {
++				fprintf(stderr, "%7.2f",
++					1.0 * p->tsc / units * p->aperf /
++					p->mperf / interval_float);
++			} else {
++				if (p->aperf > p->tsc || p->mperf > p->tsc) {
++					fprintf(stderr, "   ****");
++				} else {
++					fprintf(stderr, "%6.1f*",
++						1.0 * p->tsc / units * p->aperf /
++						p->mperf / interval_float);
++				}
++			}
++		}
++
++		fprintf(stderr, "%7.2f", 1.0 * p->tsc/units/interval_float);
++
++		if (do_c0) {
++			if (!skip_c0)
++				fprintf(stderr, "%7.2f", 100.0 * p->mperf/p->tsc);
++			else
++				fprintf(stderr, "   ****");
++		}
++		if (do_c1) {
++			if (!skip_c1)
++				fprintf(stderr, "%7.2f", 100.0 * p->c1/p->tsc);
++			else
++				fprintf(stderr, "   ****");
++		}
++		if (do_c3)
++			fprintf(stderr, "%7.2f", 100.0 * p->c3/p->tsc);
++		if (do_c6)
++			fprintf(stderr, "%7.2f", 100.0 * p->c6/p->tsc);
++		if (do_pkg)
++			fprintf(stderr, "%7.2f", 100.0 * p->pc3/p->tsc);
++		if (do_pkg)
++			fprintf(stderr, "%7.2f", 100.0 * p->pc6/p->tsc);
++		if (do_pkg)
++			fprintf(stderr, "%7.2f", 100.0 * p->pc7/p->tsc);
++		putc('\n', stderr);
++	}
++}
++
++
++#define SUBTRACT_COUNTER(after, before, delta) (delta = (after - before), (before > after))
++
++
++compute_delta(PCC *after, PCC *before)
++{
++	int i;
++	int error, error1, error2;
++
++	skip_c0 = skip_c1 = 0;
++
++	for (i = 0; i < num_cpus; ++i) {
++		error = SUBTRACT_COUNTER(after[i].tsc, before[i].tsc, pcc_delta[i].tsc);
++		if (error) {
++			fprintf(stderr, "TSC went backwards %llX to %llX\n",
++				after[i].tsc, before[i].tsc);
++		}
++		if (pcc_delta[i].tsc < (1000 * 1000) ) { /* check for TSC < 1 Mcycles over interval */
++			fprintf(stderr, "Insanely slow TSC rate, TSC stops in idle?\n");
++			fprintf(stderr, "You can disable all c-states by booting with \"idle=poll\"\n");
++			fprintf(stderr, "or just the deep ones with \"processor.max_cstate=1\"\n");
++			_exit(-3);
++		}
++		error1 = SUBTRACT_COUNTER(after[i].c3, before[i].c3, pcc_delta[i].c3);
++		error2 = SUBTRACT_COUNTER(after[i].c6, before[i].c6, pcc_delta[i].c6);
++		if (error1 || error2) {
++			fprintf(stderr, "c3 or c6 residency counter went backwards\n");
++			_exit(-1);
++		}
++		error = SUBTRACT_COUNTER(after[i].pc3, before[i].pc3, pcc_delta[i].pc3);
++		error1 = SUBTRACT_COUNTER(after[i].pc6, before[i].pc6, pcc_delta[i].pc6);
++		error2 = SUBTRACT_COUNTER(after[i].pc7, before[i].pc7, pcc_delta[i].pc7);
++		if (error || error1 || error2) {
++			fprintf(stderr, "package residency counter went backwards\n");
++			_exit(-1);
++		}
++
++		error1 = SUBTRACT_COUNTER(after[i].aperf, before[i].aperf, pcc_delta[i].aperf);
++		error2 = SUBTRACT_COUNTER(after[i].mperf, before[i].mperf, pcc_delta[i].mperf);
++		if (error1 || error2) {
++			if (!aperf_mperf_unstable) {
++				fprintf(stderr, "%s: APERF or MPERF went backwards *\n", progname);
++				fprintf(stderr, "* Frequency results do not cover entire interval *\n");
++				fprintf(stderr, "* fix this by running Linux-2.6.30 or later *\n");
++
++				aperf_mperf_unstable = 1;
++			}
++			/*
++			 * mperf delta is likely a huge "positive" number
++			 * can not use it for calculating c0 time
++			 */
++			skip_c0 = 1;
++			skip_c1 = 1;
++		}
++
++		/*
++ 		 * As mperf and tsc collection are not atomic,
++ 		 * it is possible for mperf's non-halted cycles
++ 		 * to exceed TSC's all cycles: show c1l = 0% in that case.
++ 		 */
++		if (pcc_delta[i].mperf > pcc_delta[i].tsc)
++			pcc_delta[i].c1 = 0;
++		else /* normal case, derive c1 */
++			pcc_delta[i].c1 = pcc_delta[i].tsc - pcc_delta[i].mperf - pcc_delta[i].c3 - pcc_delta[i].c6;
++
++		if (pcc_delta[i].mperf == 0)
++			pcc_delta[i].mperf = 1;	/* divide by 0 protection */
++	}
++}
++
++void
++compute_average(PCC *delta, PCC *avg)
++{
++	int i;
++	PCC *sum;
++
++	sum = calloc(1, sizeof(PCC));
++	if (sum == NULL) {
++		perror("calloc sum");
++		_exit(-1);
++	}
++
++	for (i = 0; i < num_cpus; ++i)
++	{
++		sum->tsc += delta[i].tsc;
++		sum->c1 += delta[i].c1;
++		sum->c3 += delta[i].c3;
++		sum->c6 += delta[i].c6;
++		sum->aperf += delta[i].aperf;
++		sum->mperf += delta[i].mperf;
++		sum->pc3 += delta[i].pc3;
++		sum->pc6 += delta[i].pc6;
++		sum->pc7 += delta[i].pc7;
++	}
++	avg->tsc = sum->tsc/num_cpus;
++	avg->c1 = sum->c1/num_cpus;
++	avg->c3 = sum->c3/num_cpus;
++	avg->c6 = sum->c6/num_cpus;
++	avg->aperf = sum->aperf/num_cpus;
++	avg->mperf = sum->mperf/num_cpus;
++	avg->pc3 = sum->pc3/num_cpus;
++	avg->pc6 = sum->pc6/num_cpus;
++	avg->pc7 = sum->pc7/num_cpus;
++
++	free(sum);
++}
++
++
++void get_counters(PCC *c)
++{
++	int i;
++
++	for (i = 0; i < num_cpus; ++i)
++	{
++		c[i].tsc = get_msr(i, MSR_TSC);
++		if (do_c3) c[i].c3 = get_msr(i, MSR_CORE_C3_RESIDENCY);
++		if (do_c6) c[i].c6 = get_msr(i, MSR_CORE_C6_RESIDENCY);
++		if (do_aperf) c[i].aperf = get_msr(i, MSR_APERF);
++		if (do_aperf) c[i].mperf = get_msr(i, MSR_MPERF);
++		if (do_pkg) c[i].pc3 = get_msr(i, MSR_PKG_C3_RESIDENCY);
++		if (do_pkg) c[i].pc6 = get_msr(i, MSR_PKG_C6_RESIDENCY);
++		if (do_pkg) c[i].pc7 = get_msr(i, MSR_PKG_C7_RESIDENCY);
++	}
++
++}
++print_nehalem_info()
++{
++	unsigned long long msr;
++	unsigned int ratio;
++
++	if (!do_nehalem_platform_info)
++		return;
++
++	msr = get_msr(0, MSR_NEHALEM_PLATFORM_INFO);
++
++	ratio = (msr >> 8) & 0xFF;
++	fprintf(stderr, "Nehalem multiplier %d, TSC frequency %.0f MHz\n", ratio, ratio * 133.33);
++
++	if (debug)
++		fprintf(stderr, "MSR_NEHALEM_PLATFORM_INFO: 0x%llx\n", msr);
++
++	if (!do_nehalem_turbo_ratio_limit)
++		return;
++
++	msr = get_msr(0, MSR_NEHALEM_TURBO_RATIO_LIMIT);
++
++	ratio = (msr >> 24) & 0xFF;
++	fprintf(stderr, "Nehalem 4 cores active: %d mult, max turbo frequency = %.0f MHz\n", ratio, ratio * 133.33);
++
++	ratio = (msr >> 16) & 0xFF;
++	fprintf(stderr, "Nehalem 3 cores active: %d mult, max turbo frequency = %.0f MHz\n", ratio, ratio * 133.33);
++
++	ratio = (msr >> 8) & 0xFF;
++	fprintf(stderr, "Nehalem 2 cores active: %d mult, max turbo frequency = %.0f MHz\n", ratio, ratio * 133.33);
++
++	ratio = (msr >> 0) & 0xFF;
++	fprintf(stderr, "Nehalem 1 core active: %d mult, max turbo frequency = %.0f MHz\n", ratio, ratio * 133.33);
++
++}
++void turbostat_loop()
++{
++	get_counters(pcc_even);
++	gettimeofday(&tv_even, (struct timezone *)NULL);
++
++	for (iterations = 1; ; iterations++) {
++		sleep(interval_sec);
++		get_counters(pcc_odd);
++		gettimeofday(&tv_odd, (struct timezone *)NULL);
++
++		compute_delta(pcc_odd, pcc_even);
++		timersub(&tv_odd, &tv_even, &tv_delta);
++		compute_average(pcc_delta, pcc_average);
++		print_counters(pcc_delta, pcc_average);
++
++		sleep(interval_sec);
++		get_counters(pcc_even);
++		gettimeofday(&tv_even, (struct timezone *)NULL);
++		compute_delta(pcc_even, pcc_odd);
++		timersub(&tv_even, &tv_odd, &tv_delta);
++		compute_average(pcc_delta, pcc_average);
++		print_counters(pcc_delta, pcc_average);
++	}
++}
++
++check_dev_msr() {
++	struct stat sb;
++
++	if (stat("/dev/cpu/0/msr", &sb)) {
++		fprintf(stderr, "no /dev/cpu/0/msr\n");
++		fprintf(stderr, "Please load the msr driver\n");
++		_exit(-5);
++	}
++}
++
++/*
++ * TBD -- instead check nonstop TSC bit in CPUID
++ */
++int has_non_stop_tsc(unsigned int family, unsigned int model)
++{
++	if (family != 6)
++		return 0;
++
++	switch(model) {
++	case 0x1A:	/* Core i7, Xeon 5500 series */
++	case 0x1E:	/* Core i7 and i5 Processor */
++	case 0x1F:	/* Core i7 and i5 Processor */
++	case 0x2E:	/* Nehalem Xeon */
++	case 0x25:	/* Westmere */
++	case 0x2C:	/* Westmere */
++		return 1;
++	default:
++		return 0;
++	}
++}
++
++
++int has_nehalem_turbo_ratio_limit(unsigned int family, unsigned int model)
++{
++	if (family != 6)
++		return 0;
++
++	switch(model) {
++	case 0x1A:	/* Core i7, Xeon 5500 series - Nehalem */
++	case 0x1E:	/* Core i7 and i5 Processor - Lynnfield, Jasper Forest */
++	case 0x1F:	/* Core i7 and i5 Processor - Nehalem */
++	case 0x25:	/* Westmere */
++	case 0x2C:	/* Westmere */
++		return 1;
++	case 0x2E:	/* Nehalem-EX Xeon */
++	default:
++		return 0;
++	}
++}
++void do_cpuid()
++{
++	unsigned int eax, ebx, ecx, edx, max_level;
++	char brand[16];
++	unsigned int fms, family, model, stepping, ht_capable;
++
++	eax = ebx = ecx = edx = 0;
++
++	asm("cpuid" : "=a" (max_level), "=b" (ebx), "=c" (ecx), "=d" (edx) : "a" (0));
++
++	sprintf(brand, "%.4s%.4s%.4s", &ebx, &edx, &ecx);
++
++	if (strncmp(brand, "GenuineIntel", 12)) {
++		fprintf(stderr, "CPUID: %s GenuineIntel\n", brand);
++		_exit(-1);
++	}
++
++	asm("cpuid" : "=a" (fms), "=c" (ecx), "=d" (edx) : "a" (1) : "ebx");
++	family = (fms >> 8) & 0xf;
++	model = (fms >> 4) & 0xf;
++	stepping = fms & 0xf;
++	if (family == 6 || family == 0xf)
++		model += ((fms >> 16) & 0xf) << 4;
++
++	if (!(edx & (1 << 5))) {
++		fprintf(stderr, "CPUID: no MSR\n");
++		_exit(-1);
++	}
++
++	ht_capable = edx & (1 << 28);
++
++	if (verbose)
++		fprintf(stderr, "CPUID %s %d levels family:model:stepping %d:%d:%d\n",
++			brand, max_level, family, model, stepping);
++
++	do_non_stop_tsc = has_non_stop_tsc(family, model);
++	do_nehalem_platform_info = do_non_stop_tsc;
++	do_nehalem_c_state_residency =  do_non_stop_tsc;
++
++	do_nehalem_turbo_ratio_limit = has_nehalem_turbo_ratio_limit(family, model);
++}
++
++
++usage() {
++	fprintf(stderr, "%s: [-v verbosity] [-i interval_sec] [command [arg]...]\n",
++		progname);
++}
++
++void turbostat_init()
++{
++	int i;
++	struct rlimit rl;
++
++	num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
++
++	if (debug)
++		fprintf(stderr, "num_cpus %d\n", num_cpus);
++
++	getrlimit(RLIMIT_NOFILE, &rl);
++	if (rl.rlim_cur < num_cpus) {
++		/*
++		 * We have more cpus than available file descriptors.
++		 * Increase the number of file descriptors to prevent
++		 * open(msr_path, O_RDONLY) from failing with EMFILE
++		 * "Too many open files".
++		 */
++		if (rl.rlim_max < num_cpus)
++			fprintf(stderr, "More cpus (%d) than file descriptors (%d).  Cpus will be limited\n", num_cpus, rl.rlim_max);
++		rl.rlim_cur = rl.rlim_max;
++		setrlimit(RLIMIT_NOFILE, &rl);
++	}
++
++	fd_msr = (int *)calloc(num_cpus, sizeof(int));
++	pcc_even = (PCC *)calloc(num_cpus, sizeof(PCC));
++	pcc_odd = (PCC *)calloc(num_cpus, sizeof(PCC));
++	pcc_delta = (PCC *)calloc(num_cpus, sizeof(PCC));
++	pcc_average = (PCC *)calloc(1, sizeof(PCC));
++
++	if ((fd_msr == 0) || (pcc_even == 0) || (pcc_odd == 0) ||
++	    (pcc_delta == 0) || (pcc_average == 0)) {
++		perror("calloc");
++		_exit(-1);
++	}
++
++	do_cpuid();
++
++	do_c0 = do_c1 = do_c3 = do_c6 = do_pkg = do_nehalem_c_state_residency;
++
++	check_dev_msr();
++
++	for (i = 0; i < num_cpus; ++i) {
++		char msr_path[32];
++
++		sprintf(msr_path, "/dev/cpu/%d/msr", i);
++		fd_msr[i] = open(msr_path, O_RDONLY);
++		if (fd_msr[i] < 0) {
++			perror(msr_path);
++			break;
++		}
++	}
++	num_cpus = i;
++	if (num_cpus == 0)
++		_exit(-1);
++
++	if (verbose)
++		print_nehalem_info();
++}
++
++int fork_it(char **argv) {
++	pid_t child_pid;
++	get_counters(pcc_even);
++	gettimeofday(&tv_even, (struct timezone *)NULL);
++
++	child_pid = fork();
++	if (!child_pid) {
++		/* child */
++		execvp(argv[0], argv);
++	} else  {
++		int status;
++
++		/* parent */
++		if (child_pid == -1) {
++			perror("fork");
++			_exit(-1);
++		}
++	
++		signal(SIGINT, SIG_IGN);
++		signal(SIGQUIT, SIG_IGN);
++		if (waitpid(child_pid, &status, 0) == -1) {
++			perror("wait");
++			_exit(-1);
++		}
++	}
++	get_counters(pcc_odd);
++	gettimeofday(&tv_odd, (struct timezone *)NULL);
++	compute_delta(pcc_odd, pcc_even);
++	timersub(&tv_odd, &tv_even, &tv_delta);
++	compute_average(pcc_delta, pcc_average);
++	print_counters(pcc_delta, pcc_average);
++
++	return 0;
++}
++
++cmdline(int argc, char **argv) {
++	int opt;
++
++	progname = argv[0];
++
++	while((opt = getopt(argc, argv, "+vdi:")) != -1) {
++		switch (opt) {
++		case 'v':
++			verbose = 1;
++			break;
++		case 'i':
++			interval_sec = atoi(optarg);
++			break;
++		case 'd':
++			debug = 1;
++			fprintf(stderr, "turbostat May 13, 2010 - Len Brown <lenb@kernel.org>\n");
++			break;
++		default:
++			usage();
++			_exit(-1);
++		}
++	}
++}
++int main(int argc, char **argv)
++{
++	cmdline(argc, argv);
++
++	turbostat_init();
++
++	/*
++ 	 * if any params left, it must be a command to fork
++ 	 */
++	if (argc - optind)
++		return fork_it(argv + optind);
++	else
++		turbostat_loop();
++
++	return 0;
++}
+diff -Narpu pmtools-20071116/pmtest/Makefile pmtools/pmtest/Makefile
+--- pmtools-20071116/pmtest/Makefile	1970-01-01 05:30:00.000000000 +0530
++++ pmtools/pmtest/Makefile	2005-11-11 22:37:04.000000000 +0530
+@@ -0,0 +1,12 @@
++KERNEL_INCLUDE := /usr/src/linux/include
++
++CC = gcc
++
++CFLAGS := -Wall -fno-strength-reduce -fomit-frame-pointer
++CFLAGS := $(CFLAGS) -D__KERNEL__ -DMODULE -I$(KERNEL_INCLUDE)
++CFLAGS := $(CFLAGS) -Wall -Wno-unused -Wno-multichar
++
++all: pmtest.o
++
++clean:
++	$(RM) *.o
+diff -Narpu pmtools-20071116/pmtest/pmtest pmtools/pmtest/pmtest
+--- pmtools-20071116/pmtest/pmtest	1970-01-01 05:30:00.000000000 +0530
++++ pmtools/pmtest/pmtest	2005-11-11 22:37:04.000000000 +0530
+@@ -0,0 +1,201 @@
++#!/usr/bin/perl
++#
++# pmtest - driver power management tester
++#
++
++($ME = $0) =~ s|.*/||;
++
++$PM_MODULE = "pmtest.o";
++$PM_PROC = "/proc/driver/pmtest";
++$PM_DEVICE_LIST = "$PM_PROC/devices";
++$PM_DEVICE_CTRL = "$PM_PROC/control";
++
++%pm_types = (0, "unknown",
++	     1, "system",
++	     2, "PCI",
++	     3, "USB",
++	     4, "SCSI",
++	     5, "ISA");
++$PM_SYS_DEV = 1;
++%pm_sys_ids = (0x41d00303, "keyboard",
++	       0x41d00500, "serial",
++	       0x41d00510, "IRDA",
++	       0x41d00700, "floppy",
++	       0x41d00900, "VGA",
++	       0x41d00e00, "PCMCIA");
++
++$cmd = shift(@ARGV);
++if($cmd =~ m/^-[dD](\d)$/)
++{
++    #
++    # resume/suspend selected device
++    #
++    my($state) = int($1);
++    my($type, $id) = &get_type_id($ARGV[0], $ARGV[1]);
++    if(&load_module)
++    {
++	if(open(PROC, "> $PM_DEVICE_CTRL"))
++	{
++	    print PROC sprintf("%d 0x%x %d\n", $type, $id, $state);
++	    close(PROC);
++	}
++	else
++	{
++	    print "$ME: $PM_DEVICE_CTRL: $!\n";
++	    exit(1);
++	}
++	&unload_module;
++    }
++}
++elsif(!$cmd || $cmd =~ m/^-l/)
++{
++    #
++    # list selected device(s)
++    #
++    my($match_type, $match_id) = &get_type_id($ARGV[0], $ARGV[1]);
++    if(&load_module)
++    {
++	if(open(PROC, $PM_DEVICE_LIST))
++	{
++	    while(<PROC>)
++	    {
++		my($type, $id, $state) = split(/\s+/);
++		$type = int($type);
++		$id = hex($id);
++		$state = int($state);
++
++		if((!$match_type || $type == $match_type)
++		   && (!$match_id || $id == $match_id))
++		{
++		    &print_type_id_state($type, $id, $state);
++		}
++	    }
++	    close(PROC);
++	}
++	else
++	{
++	    print "$ME: $PM_DEVICE_LIST: $!\n";
++	    exit(1);
++	}
++	&unload_module;
++    }
++}
++else
++{
++    print "Usage: $ME [OPTION] [TYPE] [ID]\n";
++    print "  -l                   list devices (default)\n";
++    print "  -d0                  resume device (ACPI D0)\n";
++    print "  -d1, -d2, -d3        suspend device (ACPI D1-D3)\n";
++    print "\nExamples:\n";
++    print "  $ME -l PCI           list all registered PCI devices\n";
++    print "  $ME -d0 VGA          resume (unblank) the console\n";
++    print "  $ME -d3 PCI 0x1234   suspend a PCI device\n";
++    exit(1);
++}
++
++exit(0);
++
++#
++# Parse device type and ID from the command line
++#
++sub
++get_type_id
++{
++    local($type, $id) = @_;
++    my($key, $value);
++    my($sys) = 0;
++
++    $type = uc($type);
++    $id = uc($id);
++
++    while(($key, $value) = each(%pm_sys_ids))
++    {
++	if(uc($value) eq $type)
++	{
++	    $type = $PM_SYS_DEV;
++	    $id = $key;
++	    $sys = 1;
++	    last;
++	}
++    }
++
++    if(!$sys)
++    {
++	while(($key, $value) = each(%pm_types))
++	{
++	    if(uc($value) eq $type)
++	    {
++		$type = int($key);
++		$id = hex(lc($id));
++		last;
++	    }
++	}
++    }
++
++    return ($type, $id);
++}
++
++#
++# Output device type, ID, and suspend state
++#
++sub
++print_type_id_state
++{
++    local($type, $id, $state) = @_;
++    if($type == $PM_SYS_DEV && $pm_sys_ids{$id})
++    {
++	print "  $pm_sys_ids{$id} (D$state)\n";
++    }
++    else
++    {
++	print sprintf("  $pm_types{$type} 0x%x (D$state)\n", $id);
++    }
++}
++
++#
++# Find and load the kernel module
++#
++sub
++load_module
++{
++    if(! -d $PM_PROC)
++    {
++	#
++        # hopefully, pmtest.o is in the same directory as pmtest
++	#
++	my($path) = $0;
++	$path =~ s|(.*)/.*|$1|;
++	$path = "." if(!$path);
++	$path = "$path/$PM_MODULE";
++
++	if(! -f $path)
++	{
++	    print "$ME: cannot find $path\n";
++	    exit(1);
++	}
++
++	print `insmod $path 2>&1`;
++	if($? >> 8)
++	{
++	    print "$ME: cannot load kernel module (running as root?)\n";
++	    exit(1);
++	}
++    }
++    return 1;
++}
++
++#
++# Unload the kernel module
++#
++sub
++unload_module
++{
++    if(-d $PM_PROC)
++    {
++	my($mod) = $PM_MODULE;
++	$mod =~ s|\.o$||;
++	`rmmod $mod 2>&1`;
++	return !($? >> 8);
++    }
++    return 1;
++}
+diff -Narpu pmtools-20071116/pmtest/pmtest.c pmtools/pmtest/pmtest.c
+--- pmtools-20071116/pmtest/pmtest.c	1970-01-01 05:30:00.000000000 +0530
++++ pmtools/pmtest/pmtest.c	2005-11-11 22:37:04.000000000 +0530
+@@ -0,0 +1,148 @@
++/*
++ *  pmtest.c - Driver power management tester
++ *
++ *  Copyright (C) 2000 Andrew Henroid
++ *
++ *  This program is free software; you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation; either version 2 of the License, or
++ *  (at your option) any later version.
++ *
++ *  This program is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ *  You should have received a copy of the GNU General Public License
++ *  along with this program; if not, write to the Free Software
++ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++ */
++
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/proc_fs.h>
++#include <linux/pm.h>
++#include <asm/uaccess.h>
++
++#define PMTEST_MAX_ENTRY 32
++
++static struct proc_dir_entry *pmtest_proc = NULL;
++
++/*
++ * Handle read from /proc/drivers/pmtest/devices
++ */
++static int pmtest_devices(char *page,
++			  char **start,
++			  off_t offset,
++			  int count,
++			  int *eof,
++			  void *data)
++{
++	struct pm_dev *pmdev = NULL;
++	char *i = page;
++
++	while ((i - page) < (PAGE_SIZE - PMTEST_MAX_ENTRY))
++	{
++		pmdev = pm_find(PM_UNKNOWN_DEV, pmdev);
++		if (!pmdev)
++			break;
++		i += sprintf(i, "%d 0x%lx %d\n",
++			     pmdev->type,
++			     pmdev->id,
++			     pmdev->state);
++	}
++	*start = NULL;
++	*eof = 1;
++	return (i - page);
++}
++
++/*
++ * Send suspend/resume request to matching devices
++ */
++static int pmtest_send(int type,
++		       unsigned long id,
++		       pm_request_t rqst,
++		       unsigned long state)
++{
++	struct pm_dev *pmdev = NULL;
++	for (;;)
++	{
++		pmdev = pm_find(type, pmdev);
++		if (!pmdev)
++			break;
++		if (!id || pmdev->id == id)
++		{
++			printk(KERN_INFO "pmtest: %s %d 0x%lx\n",
++			       state ? "suspending":"resuming",
++			       pmdev->type,
++			       pmdev->id);
++			pm_send(pmdev, rqst, (void*) state);
++		}
++	}
++	return 0;
++}
++
++/*
++ * Handle write to /proc/drivers/pmtest/control
++ */
++static int pmtest_control(struct file *file,
++			  const char *buffer,
++			  unsigned long count,
++			  void *data)
++{
++	char info[PMTEST_MAX_ENTRY], *i;
++	int size, type;
++	unsigned long id, state;
++
++	size = count;
++	if (size >= sizeof(info))
++		size = sizeof(info) - 1;
++	copy_from_user(info, buffer, size);
++	info[size] = '\0';
++
++	i = info + strspn(info, " \t\n");
++	type = (int) simple_strtoul(i, &i, 0);
++	i += strspn(i, " \t\n");
++	id = simple_strtoul(i, &i, 0);
++	i += strspn(i, " \t\n");
++	state = simple_strtoul(i, &i, 0);
++
++	if(state < 4)
++		pmtest_send(type, id, state ? PM_SUSPEND:PM_RESUME, state);
++
++	return count;
++}
++
++/*
++ * Setup /proc/drivers/pmtest entries
++ */
++static int pmtest_init(void)
++{
++	struct proc_dir_entry *entry;
++
++	pmtest_proc = proc_mkdir("pmtest", proc_root_driver);
++	if(pmtest_proc)
++	{
++		entry = create_proc_entry("devices", 0, pmtest_proc);
++		if (entry)
++			entry->read_proc = pmtest_devices;
++		entry = create_proc_entry("control", 0, pmtest_proc);
++		if (entry)
++			entry->write_proc = pmtest_control;
++	}
++	return 0;
++}
++
++/*
++ * Destroy /proc/drivers/pmtest entries
++ */
++static void pmtest_exit(void)
++{
++	remove_proc_entry("control", pmtest_proc);
++	remove_proc_entry("devices", pmtest_proc);
++	remove_proc_entry("pmtest", proc_root_driver);
++}
++
++module_init(pmtest_init);
++module_exit(pmtest_exit);

@@ -1,0 +1,13 @@
+Index: evlog-1.6.1/user/cmd/evltc/evltc.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evltc/evltc.c
++++ evlog-1.6.1/user/cmd/evltc/evltc.c
+@@ -228,7 +228,7 @@ static char *
+ cppSrcToTmpFile(const char *fileName, evl_list_t *cppOpts)
+ {
+ #ifndef CPPPATH
+-#define CPPPATH "/lib/cpp"
++#define CPPPATH "/usr/bin/cpp"
+ #endif
+ 	char *tempFile, *tempDir;
+ 	char *result;

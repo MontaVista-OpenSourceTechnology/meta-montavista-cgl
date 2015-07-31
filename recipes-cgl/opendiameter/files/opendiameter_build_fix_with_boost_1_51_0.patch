@@ -1,0 +1,144 @@
+--- opendiameter-1.0.7-i_org/configure.in	2013-04-04 13:33:16.000000000 +0530
++++ opendiameter-1.0.7-i/configure.in	2013-04-04 13:33:44.000000000 +0530
+@@ -93,7 +93,7 @@ case $host in
+      AC_SUBST(L_CPPFLAGS, ["-Wall -I$ACE_ROOT -I$BOOST_ROOT -g -fno-strict-aliasing"])
+      AC_SUBST(L_CXXFLAGS, ["-Wall -I$ACE_ROOT -I$BOOST_ROOT -g -fno-strict-aliasing"])
+      AC_SUBST(L_LDFLAGS, ["-L$ACE_ROOT/ace"])
+-     AC_SUBST(L_LIBS, ["-lssl -lcrypto -lACE_SSL -lACE -lACEXML -lACEXML_Parser"])
++     AC_SUBST(L_LIBS, ["-lssl -lcrypto -lACE_SSL -lACE -lACEXML -lACEXML_Parser -lboost_system"])
+      AC_SUBST(HOST_OS, [OS_LINUX])
+   ;;
+   *)
+--- opendiameter-1.0.7-i_org/libdiamparser/include/aaa_parser_avpvalue.h	2013-04-04 13:33:16.000000000 +0530
++++ opendiameter-1.0.7-i/libdiamparser/include/aaa_parser_avpvalue.h	2013-04-04 13:39:44.000000000 +0530
+@@ -46,9 +46,13 @@
+ #include "aaa_parser_q_avplist.h"
+ #include "aaa_q_avplist.h"
+ #include "aaa_g_avplist.h"
+-#include <boost/spirit/core.hpp>
+-#include <boost/spirit/utility/loops.hpp>
+-#include <boost/spirit/dynamic/for.hpp>
++//Using old namespace to build opendiameter
++#if !defined(BOOST_SPIRIT_USE_OLD_NAMESPACE)
++#define BOOST_SPIRIT_USE_OLD_NAMESPACE
++#endif
++#include <boost/spirit/include/classic_core.hpp>
++#include <boost/spirit/include/classic_loops.hpp>
++#include <boost/spirit/include/classic_for.hpp>
+ #include <boost/pool/detail/mutex.hpp>
+ using namespace boost::spirit;
+ 
+--- opendiameter-1.0.7-i_org/libdiameter/Makefile.am	2013-04-04 13:33:16.000000000 +0530
++++ opendiameter-1.0.7-i/libdiameter/Makefile.am	2013-04-04 13:35:21.000000000 +0530
+@@ -118,37 +118,37 @@
+ ## -lssl -lACEXML_Parser -lACEXML -lACE_SSL -lACE
+ aaa_test_agent_LDADD = $(top_builddir)/libdiameter/libdiameter.la \
+ 	$(top_builddir)/libdiamparser/libdiamparser.la $(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE_SSL \
+-	-lACE -lssl
++	-lACE -lssl -lboost_system
+ aaa_test_client2_LDADD = $(top_builddir)/libdiameter/libdiameter.la\
+ 	$(top_builddir)/libdiamparser/libdiamparser.la\
+ 	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE\
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+ aaa_test_client3_LDADD = $(top_builddir)/libdiameter/libdiameter.la \
+ 	$(top_builddir)/libdiamparser/libdiamparser.la $(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE \
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+ aaa_test_client4_LDADD = $(top_builddir)/libdiameter/libdiameter.la \
+ 	$(top_builddir)/libdiamparser/libdiamparser.la $(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE \
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+ aaa_test_client5_LDADD = $(top_builddir)/libdiameter/libdiameter.la\
+ 	$(top_builddir)/libdiamparser/libdiamparser.la\
+ 	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE\
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+ aaa_test_server1_LDADD = $(top_builddir)/libdiameter/libdiameter.la \
+ 	$(top_builddir)/libdiamparser/libdiamparser.la $(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE \
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+ aaa_test_server2_LDADD = $(top_builddir)/libdiameter/libdiameter.la\
+ 	$(top_builddir)/libdiamparser/libdiamparser.la\
+ 	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE\
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+ aaa_test_server3_LDADD = $(top_builddir)/libdiameter/libdiameter.la\
+ 	$(top_builddir)/libdiamparser/libdiamparser.la\
+ 	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE\
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+ aaa_test_server4_LDADD = $(top_builddir)/libdiameter/libdiameter.la\
+ 	$(top_builddir)/libdiamparser/libdiamparser.la\
+ 	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE\
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+ aaa_test_server6_LDADD = $(top_builddir)/libdiameter/libdiameter.la\
+ 	$(top_builddir)/libdiamparser/libdiamparser.la\
+ 	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE\
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+--- opendiameter-1.0.7-i_org/libdiametereap/Makefile.am	2013-04-04 13:33:16.000000000 +0530
++++ opendiameter-1.0.7-i/libdiametereap/Makefile.am	2013-04-04 13:36:06.000000000 +0530
+@@ -83,8 +83,8 @@
+ client_test_LDADD = $(top_builddir)/libdiametereap/libdiametereap.la \
+ 	$(top_builddir)/libdiameter/libdiameter.la $(top_builddir)/libdiamparser/libdiamparser.la \
+ 	$(top_builddir)/libodutl/libodutl.la $(top_builddir)/libeap/libeap.la $(top_builddir)/libeap/libeaparchie.la \
+-	-lACEXML_Parser -lACEXML -lACE -lACE_SSL -lssl
++	-lACEXML_Parser -lACEXML -lACE -lACE_SSL -lssl -lboost_system
+ server_test_LDADD = $(top_builddir)/libdiametereap/libdiametereap.la \
+ 	$(top_builddir)/libdiameter/libdiameter.la $(top_builddir)/libdiamparser/libdiamparser.la \
+ 	$(top_builddir)/libodutl/libodutl.la $(top_builddir)/libeap/libeap.la $(top_builddir)/libeap/libeaparchie.la \
+-	-lACEXML_Parser -lACEXML -lACE -lACE_SSL -lssl
++	-lACEXML_Parser -lACEXML -lACE -lACE_SSL -lssl -lboost_system
+--- opendiameter-1.0.7-i_org/libdiametermip4/Makefile.am	2013-04-04 13:33:16.000000000 +0530
++++ opendiameter-1.0.7-i/libdiametermip4/Makefile.am	2013-04-04 13:36:27.000000000 +0530
+@@ -92,19 +92,19 @@
+ 	$(top_builddir)/libdiameter/libdiameter.la\
+ 	$(top_builddir)/libdiamparser/libdiamparser.la\
+ 	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE\
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+ fac_test_LDADD = $(top_builddir)/libdiametermip4/libdiametermip4.la\
+ 	$(top_builddir)/libdiameter/libdiameter.la\
+ 	$(top_builddir)/libdiamparser/libdiamparser.la\
+ 	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE\
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+ hac_test_LDADD = $(top_builddir)/libdiametermip4/libdiametermip4.la\
+ 	$(top_builddir)/libdiameter/libdiameter.la\
+ 	$(top_builddir)/libdiamparser/libdiamparser.la\
+ 	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE\
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+ has_test_LDADD = $(top_builddir)/libdiametermip4/libdiametermip4.la\
+ 	$(top_builddir)/libdiameter/libdiameter.la\
+ 	$(top_builddir)/libdiamparser/libdiamparser.la\
+ 	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE\
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+--- opendiameter-1.0.7-i_org/libdiameternasreq/Makefile.am	2013-04-04 13:33:16.000000000 +0530
++++ opendiameter-1.0.7-i/libdiameternasreq/Makefile.am	2013-04-04 13:36:49.000000000 +0530
+@@ -61,9 +61,9 @@
+ 	$(top_builddir)/libdiameter/libdiameter.la\
+ 	$(top_builddir)/libdiamparser/libdiamparser.la\
+ 	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE\
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+ server_test_LDADD = $(top_builddir)/libdiameternasreq/libdiameternasreq.la\
+ 	$(top_builddir)/libdiameter/libdiameter.la\
+ 	$(top_builddir)/libdiamparser/libdiamparser.la\
+ 	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE\
+-	-lACE_SSL -lssl
++	-lACE_SSL -lssl -lboost_system
+--- opendiameter-1.0.7-i_org/applications/aaa/Makefile.am	2013-04-04 13:33:16.000000000 +0530
++++ opendiameter-1.0.7-i/applications/aaa/Makefile.am	2013-04-04 13:37:56.000000000 +0530
+@@ -38,7 +38,7 @@
+ aaad_LDADD = $(top_builddir)/libeap/libeap.la \
+ 	$(top_builddir)/libeap/libeaparchie.la $(top_builddir)/libdiametereap/libdiametereap.la \
+ 	$(top_builddir)/libdiameter/libdiameter.la $(top_builddir)/libdiamparser/libdiamparser.la \
+-	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE -lACE_SSL -lssl
++	$(top_builddir)/libodutl/libodutl.la -lACEXML_Parser -lACEXML -lACE -lACE_SSL -lssl -lboost_system
+ 
+ EXTRA_DIST = config
+ 

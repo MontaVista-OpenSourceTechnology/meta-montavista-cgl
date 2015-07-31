@@ -1,0 +1,4936 @@
+Index: cron3.0pl1/compat.c
+===================================================================
+--- cron3.0pl1.orig/compat.c	1994-02-28 20:39:14.000000000 -0600
++++ cron3.0pl1/compat.c	2011-07-25 15:47:19.606808888 -0500
+@@ -53,7 +53,10 @@
+ {
+ 	char	*temp;
+ 
+-	temp = malloc(strlen(str) + 1);
++	if ((temp = malloc(strlen(str) + 1)) == NULL) {
++		errno = ENOMEM;
++		return NULL;
++	}
+ 	(void) strcpy(temp, str);
+ 	return temp;
+ }
+@@ -73,7 +76,7 @@
+ 		return sys_errlist[error];
+ 	}
+ 
+-	sprintf(buf, "Unknown error: %d", error);
++	snprintf(buf, 32, "Unknown error: %d", error);
+ 	return buf;
+ }
+ #endif
+@@ -218,16 +221,18 @@
+ 	int overwrite;
+ {
+ 	char *tmp;
++ 	int tmp_size;
+ 
+ 	if (overwrite && getenv(name))
+ 		return -1;
+ 
+-	if (!(tmp = malloc(strlen(name) + strlen(value) + 2))) {
++	tmp_size = strlen(name) + strlen(value) + 2;
++ 	if (!(tmp = malloc(tmp_size))) {
+ 		errno = ENOMEM;
+ 		return -1;
+ 	}
+ 
+-	sprintf("%s=%s", name, value);
++ 	snprintf(tmp, tmp_size, "%s=%s", name, value);
+ 	return putenv(tmp);	/* intentionally orphan 'tmp' storage */
+ }
+ #endif
+Index: cron3.0pl1/compat.h
+===================================================================
+--- cron3.0pl1.orig/compat.h	2011-07-22 09:34:50.000000000 -0500
++++ cron3.0pl1/compat.h	2011-07-25 15:51:02.546808819 -0500
+@@ -62,8 +62,8 @@
+ #endif
+ 
+ #ifndef POSIX
+-# if (BSD >= 199103) || defined(__linux) || defined(ultrix) || defined(AIX) ||\
+-	defined(HPUX) || defined(CONVEX) || defined(IRIX)
++# if (BSD >= 199103) || defined(__linux__) || defined(__GNU__) || defined(ultrix) ||\
++        defined(AIX) || defined(HPUX) || defined(CONVEX) || defined(IRIX) || defined(__GLIBC__)
+ #  define POSIX
+ # endif
+ #endif
+@@ -76,17 +76,17 @@
+ 
+ /*****************************************************************/
+ 
+-#if !defined(BSD) && !defined(HPUX) && !defined(CONVEX) && !defined(__linux)
++#if !defined(BSD) && !defined(HPUX) && !defined(CONVEX) && !defined(__linux__) && !defined(__GNU__)
+ # define NEED_VFORK
+ #endif
+ 
+-#if (!defined(BSD) || (BSD < 198902)) && !defined(__linux) && \
+-	!defined(IRIX) && !defined(NeXT) && !defined(HPUX)
++#if (!defined(BSD) || (BSD < 198902)) && !defined(__linux__) && \
++	!defined(IRIX) && !defined(NeXT) && !defined(HPUX) && !defined(__GNU__) && !defined(__GLIBC__)
+ # define NEED_STRCASECMP
+ #endif
+ 
+-#if (!defined(BSD) || (BSD < 198911)) && !defined(__linux) &&\
+-	!defined(IRIX) && !defined(UNICOS) && !defined(HPUX)
++#if (!defined(BSD) || (BSD < 198911)) && !defined(__linux__) &&\
++	!defined(IRIX) && !defined(UNICOS) && !defined(HPUX) && !defined(__GNU__) && !defined(__GLIBC__)
+ # define NEED_STRDUP
+ #endif
+ 
+@@ -102,15 +102,15 @@
+ # define NEED_SETSID
+ #endif
+ 
+-#if (defined(POSIX) && !defined(BSD)) && !defined(__linux)
++#if (defined(POSIX) && !defined(BSD)) && !defined(__linux) && !defined(__GNU__) && !defined(__GLIBC__)
+ # define NEED_GETDTABLESIZE
+ #endif
+ 
+-#if (BSD >= 199103)
++#if (BSD >= 199103) || defined(__linux)
+ # define HAVE_SAVED_UIDS
+ #endif
+ 
+-#if !defined(ATT) && !defined(__linux) && !defined(IRIX) && !defined(UNICOS)
++#if !defined(ATT) && !defined(__linux) && !defined(__GNU__) && !defined(IRIX) && !defined(UNICOS) && !defined(__GLIBC__)
+ # define USE_SIGCHLD
+ #endif
+ 
+Index: cron3.0pl1/cron.8
+===================================================================
+--- cron3.0pl1.orig/cron.8	1994-02-28 20:39:16.000000000 -0600
++++ cron3.0pl1/cron.8	2011-07-25 15:47:19.636808888 -0500
+@@ -17,28 +17,87 @@
+ .\" 
+ .\" $Id: cron.8,v 2.2 1993/12/28 08:34:43 vixie Exp $
+ .\" 
+-.TH CRON 8 "20 December 1993"
++.TH CRON 8 "19 April 2010"
+ .UC 4
+ .SH NAME
+ cron \- daemon to execute scheduled commands (Vixie Cron)
+ .SH SYNOPSIS
+ cron
++.RB [ -f ]
++.RB [ -l ]
++.RB [ -L
++.IR loglevel ]
+ .SH DESCRIPTION
+-.I Cron
+-should be started from /etc/rc or /etc/rc.local.  It will return immediately,
+-so you don't need to start it with '&'.
+-.PP
+-.I Cron
+-searches /var/cron/tabs for crontab files which are named after accounts in
+-/etc/passwd; crontabs found are loaded into memory.
+-.I Cron
+-also searches for /etc/crontab which is in a different format (see
+-.IR crontab(5)).
+-.I Cron
+-then wakes up every minute, examining all stored crontabs, checking each
+-command to see if it should be run in the current minute.  When executing
+-commands, any output is mailed to the owner of the crontab (or to the user
+-named in the MAILTO environment variable in the crontab, if such exists).
++.I cron
++is started automatically from /etc/init.d on entering multi-user
++runlevels.
++.SH OPTIONS
++.TP 8
++.B -f
++Stay in foreground mode, don't daemonize.
++.TP
++.B -l
++Enable LSB compliant names for /etc/cron.d files
++.TP
++.B -L loglevel
++Sets the loglevel for cron. The standard logging level (1) will log 
++the start of all the cron jobs. A higher loglevel (2) will cause
++cron to log also the end of all cronjobs, which can be useful to
++audit the behaviour of tasks run by cron. Logging will be disabled
++if the \fIloglevel\fR is set to zero (0).
++.SH NOTES
++.PP
++.I cron
++searches its spool area (/var/spool/cron/crontabs) for crontab
++files (which are named after accounts in
++/etc/passwd); crontabs found are loaded into memory.  Note that
++crontabs in this directory should not be accessed directly -
++the
++.I crontab
++command should be used to access and update them.
++
++.I cron
++also reads /etc/crontab, which is in a slightly different format (see
++.IR crontab(5) ). 
++Additionally,
++.I cron
++reads the files in /etc/cron.d: it
++treats the files in /etc/cron.d as in the same way as the /etc/crontab file (they
++follow the special format of that file, i.e. they include the 
++.I user
++field). However, they are independent of /etc/crontab: they do not, for 
++example, inherit environment variable settings from it. The intended purpose
++of this feature is to allow packages that require
++finer control of their scheduling than the /etc/cron.{daily,weekly,monthly} 
++directories to add a crontab file to /etc/cron.d. Such files
++should be named after the package that supplies them. Files must
++conform to the same naming convention as used by 
++.IR run-parts(8) :
++they
++must consist solely of upper- and lower-case letters, digits, underscores,
++and hyphens. If the 
++.B -l
++option is specified, then they must conform to the LSB namespace specification,
++exactly as in the
++.B --lsbsysinit
++option in 
++.IR run-parts .
++
++Like /etc/crontab, the files in the /etc/cron.d directory are
++monitored for changes. In general, the admin should not use /etc/cron.d/,
++but use the standard system crontab /etc/crontab.
++
++In contrast to the spool area, files in /etc/cron.d may be symlinks, provided
++that both the symlink and the file it points to are owned by root.
++
++.I cron
++then wakes up every minute, examining all stored crontabs, checking
++each command to see if it should be run in the current minute.  When
++executing commands, any output is mailed to the owner of the crontab
++(or to the user named in the MAILTO environment variable in the
++crontab, if such exists).  The children copies of cron running these
++processes have their name coerced to uppercase, as will be seen in the
++syslog and ps output.
+ .PP
+ Additionally,
+ .I cron
+@@ -51,9 +110,54 @@
+ changed.  Thus
+ .I cron
+ need not be restarted whenever a crontab file is modified.  Note that the
+-.IR Crontab (1)
++.IR crontab (1)
+ command updates the modtime of the spool directory whenever it changes a
+ crontab.
++.PP
++Special considerations exist when the clock is changed by less than 3
++hours, for example at the beginning and end of daylight savings
++time. If the time has moved forwards, those jobs which would have
++run in the time that was skipped will be run soon after the change. 
++Conversely, if the time has moved backwards by less than 3 hours,
++those jobs that fall into the repeated time will not be re-run.
++.PP
++Only jobs that run at a particular time (not specified as
++@hourly, nor with '*' in the hour or minute specifier) are
++affected. Jobs which are specified with wildcards are run based on the
++new time immediately.
++.PP
++Clock changes of more than 3 hours are considered to be corrections to
++the clock, and the new time is used immediately.
++.PP
++.I cron
++logs its action to the syslog facility 'cron', and logging may be
++controlled using the standard syslogd(8) facility.
++.SH ENVIRONMENT
++If configured in
++.I /etc/default/cron
++in Debian systems, the
++.I cron
++daemon localisation settings environment can be managed through the use of 
++.I /etc/environment
++or through the use of
++.I /etc/default/locale
++with values from the latter overriding values from the former. These
++files are read and they will be used to setup the LANG, LC_ALL, and
++LC_CTYPE environment variables. These variables are then used to set the
++charset of mails, which defaults to 'C'.
++.PP
++This does
++.B NOT
++affect the environment of tasks running under cron. For more information
++on how to modify the environment of tasks, consult crontab(5).
++.PP
++The daemon will use, if present, the definition from
++.I /etc/timezone
++for the timezone.
++.PP
++The environment can be redefined in user's crontab definitions but
++.I cron
++will only handle tasks in a single timezone.
+ .SH "SEE ALSO"
+ crontab(1), crontab(5)
+ .SH AUTHOR
+Index: cron3.0pl1/cron.c
+===================================================================
+--- cron3.0pl1.orig/cron.c	1994-02-28 20:39:16.000000000 -0600
++++ cron3.0pl1/cron.c	2011-07-25 15:47:19.636808888 -0500
+@@ -24,19 +24,16 @@
+ 
+ 
+ #include "cron.h"
+-#include <sys/signal.h>
+-#if SYS_TIME_H
+-# include <sys/time.h>
+-#else
+-# include <time.h>
+-#endif
++#include <signal.h>
+ 
++#include <sys/types.h>
++#include <fcntl.h>
+ 
+ static	void	usage __P((void)),
+ 		run_reboot_jobs __P((cron_db *)),
+-		cron_tick __P((cron_db *)),
+-		cron_sync __P((void)),
+-		cron_sleep __P((void)),
++		find_jobs __P((time_min, cron_db *, int, int)),
++		set_time __P((int)),
++		cron_sleep __P((time_min)),
+ #ifdef USE_SIGCHLD
+ 		sigchld_handler __P((int)),
+ #endif
+@@ -46,7 +43,16 @@
+ 
+ static void
+ usage() {
+-	fprintf(stderr, "usage:  %s [-x debugflag[,...]]\n", ProgramName);
++#if DEBUGGING
++	char **dflags;
++
++	fprintf(stderr, "usage:  %s [-x [", ProgramName);
++	for(dflags = DebugFlagNames; *dflags; dflags++)
++		fprintf(stderr, "%s%s", *dflags, dflags[1] ? "," : "]");
++	fprintf(stderr, "]\n");
++#else
++	fprintf(stderr, "usage: %s\n", ProgramName);
++#endif
+ 	exit(ERROR_EXIT);
+ }
+ 
+@@ -57,6 +63,7 @@
+ 	char	*argv[];
+ {
+ 	cron_db	database;
++	char *cs;
+ 
+ 	ProgramName = argv[0];
+ 
+@@ -74,6 +81,13 @@
+ #endif
+ 	(void) signal(SIGHUP, sighup_handler);
+ 
++        /* Reopen stdin in case some idiot closed it before starting
++           us - it will only be closed, but not having it open here
++           screws up other things that will be opened */
++        if (fdopen(0,"r") == NULL) {
++            (void) open("dev/null", 0);
++        }
++
+ 	acquire_daemonlock(0);
+ 	set_cron_uid();
+ 	set_cron_cwd();
+@@ -82,6 +96,20 @@
+ 	setenv("PATH", _PATH_DEFPATH, 1);
+ #endif
+ 
++       /* Get the default locale character set for the mail
++        * "Content-Type: ...; charset=" header
++        */
++       setlocale(LC_ALL,""); /* set locale to system defaults or to
++                                that specified by any  LC_* env vars */
++       setlocale(LC_COLLATE, "C"); /* Except for collation, since load_database() uses a-z */
++       /* Except that "US-ASCII" is preferred to "ANSI_x3.4-1968" in MIME,
++        * even though "ANSI_x3.4-1968" is the official charset name. */
++       if ( ( cs = nl_langinfo( CODESET ) ) != 0L && 
++               strcmp(cs, "ANSI_x3.4-1968") != 0 )
++           strncpy( cron_default_mail_charset, cs, MAX_ENVSTR );
++       else
++           strcpy( cron_default_mail_charset, "US-ASCII" );
++
+ 	/* if there are no debug flags turned on, fork as a daemon should.
+ 	 */
+ # if DEBUGGING
+@@ -90,7 +118,7 @@
+ 	if (0) {
+ # endif
+ 		(void) fprintf(stderr, "[%d] cron started\n", getpid());
+-	} else {
++	} else if (!stay_foreground) {
+ 		switch (fork()) {
+ 		case -1:
+ 			log_it("CRON",getpid(),"DEATH","can't fork");
+@@ -100,6 +128,9 @@
+ 			/* child process */
+ 			log_it("CRON",getpid(),"STARTUP","fork ok");
+ 			(void) setsid();
++			freopen("/dev/null", "r", stdin);
++			freopen("/dev/null", "w", stdout);
++			freopen("/dev/null", "w", stderr);
+ 			break;
+ 		default:
+ 			/* parent process should just die */
+@@ -110,28 +141,139 @@
+ 	acquire_daemonlock(0);
+ 	database.head = NULL;
+ 	database.tail = NULL;
+-	database.mtime = (time_t) 0;
++	database.sys_mtime = (time_t) 0;
++	database.user_mtime = (time_t) 0;
++#ifdef DEBIAN
++	database.sysd_mtime = (time_t) 0;
++#endif
+ 	load_database(&database);
++
++	set_time(TRUE);
+ 	run_reboot_jobs(&database);
+-	cron_sync();
++	timeRunning = virtualTime = clockTime;
++
++	/*
++	 * too many clocks, not enough time (Al. Einstein)
++	 * These clocks are in minutes since the epoch (time()/60).
++	 * virtualTime: is the time it *would* be if we woke up
++	 * promptly and nobody ever changed the clock. It is
++	 * monotonically increasing... unless a timejump happens.
++	 * At the top of the loop, all jobs for 'virtualTime' have run.
++	 * timeRunning: is the time we last awakened.
++	 * clockTime: is the time when set_time was last called.
++	 */
+ 	while (TRUE) {
+-# if DEBUGGING
+-		if (!(DebugFlags & DTEST))
+-# endif /*DEBUGGING*/
+-			cron_sleep();
++		time_min timeDiff;
++		int wakeupKind;
++
++		/* ... wait for the time (in minutes) to change ... */
++		do {
++			cron_sleep(timeRunning + 1);
++			set_time(FALSE);
++		} while (clockTime == timeRunning);
++		timeRunning = clockTime;
+ 
+ 		load_database(&database);
+ 
+-		/* do this iteration
++		/*
++		 * ... calculate how the current time differs from
++		 * our virtual clock. Classify the change into one
++		 * of 4 cases
+ 		 */
+-		cron_tick(&database);
++		timeDiff = timeRunning - virtualTime;
+ 
+-		/* sleep 1 minute
+-		 */
+-		TargetTime += 60;
++		Debug(DSCH, ("[%d] pulse: %d = %d - %d\n",
++            	    getpid(), timeDiff, timeRunning, virtualTime));
++
++		/* shortcut for the most common case */
++		if (timeDiff == 1) {
++			virtualTime = timeRunning;
++			find_jobs(virtualTime, &database, TRUE, TRUE);
++		} else {
++			wakeupKind = -1;
++			if (timeDiff > -(3*MINUTE_COUNT))
++				wakeupKind = 0;
++			if (timeDiff > 0)
++				wakeupKind = 1;
++			if (timeDiff > 5)
++				wakeupKind = 2;
++			if (timeDiff > (3*MINUTE_COUNT))
++				wakeupKind = 3;
++
++			switch (wakeupKind) {
++			case 1:
++				/*
++				 * case 1: timeDiff is a small positive number
++				 * (wokeup late) run jobs for each virtual minute
++				 * until caught up.
++				 */
++				Debug(DSCH, ("[%d], normal case %d minutes to go\n",
++				    getpid(), timeRunning - virtualTime))
++				do {
++					if (job_runqueue())
++						sleep(10);
++					virtualTime++;
++					find_jobs(virtualTime, &database, TRUE, TRUE);
++				} while (virtualTime< timeRunning);
++				break;
++
++			case 2:
++				/*
++				 * case 2: timeDiff is a medium-sized positive number,
++				 * for example because we went to DST run wildcard
++				 * jobs once, then run any fixed-time jobs that would
++				 * otherwise be skipped if we use up our minute
++				 * (possible, if there are a lot of jobs to run) go
++				 * around the loop again so that wildcard jobs have
++				 * a chance to run, and we do our housekeeping
++				 */
++				Debug(DSCH, ("[%d], DST begins %d minutes to go\n",
++				    getpid(), timeRunning - virtualTime))
++				/* run wildcard jobs for current minute */
++				find_jobs(timeRunning, &database, TRUE, FALSE);
++	
++				/* run fixed-time jobs for each minute missed */ 
++				do {
++					if (job_runqueue())
++						sleep(10);
++					virtualTime++;
++					find_jobs(virtualTime, &database, FALSE, TRUE);
++					set_time(FALSE);
++				} while (virtualTime< timeRunning &&
++				    clockTime == timeRunning);
++				break;
++	
++			case 0:
++				/*
++				 * case 3: timeDiff is a small or medium-sized
++				 * negative num, eg. because of DST ending just run
++				 * the wildcard jobs. The fixed-time jobs probably
++				 * have already run, and should not be repeated
++				 * virtual time does not change until we are caught up
++				 */
++				Debug(DSCH, ("[%d], DST ends %d minutes to go\n",
++				    getpid(), virtualTime - timeRunning))
++				find_jobs(timeRunning, &database, TRUE, FALSE);
++				break;
++			default:
++				/*
++				 * other: time has changed a *lot*,
++				 * jump virtual time, and run everything
++				 */
++				Debug(DSCH, ("[%d], clock jumped\n", getpid()))
++				virtualTime = timeRunning;
++				find_jobs(timeRunning, &database, TRUE, TRUE);
++			}
++		}
++		/* jobs to be run (if any) are loaded. clear the queue */
++		job_runqueue();
+ 	}
+ }
+ 
++#ifdef DEBIAN
++#include <sys/stat.h>
++#include <fcntl.h>
++#endif
+ 
+ static void
+ run_reboot_jobs(db)
+@@ -139,7 +281,31 @@
+ {
+ 	register user		*u;
+ 	register entry		*e;
++    int rbfd;
++#ifdef DEBIAN
++#define REBOOT_FILE "/var/run/crond.reboot"
++	/* Run on actual reboot, rather than cron restart */
++	if (access(REBOOT_FILE, F_OK) == 0) {
++	        /* File exists, return */
++     	        log_it("CRON", getpid(),"INFO",
++		       "Skipping @reboot jobs -- not system startup");
++	        return;
++	}
++	/* Create the file */
++	if ((rbfd = creat(REBOOT_FILE, S_IRUSR&S_IWUSR)) < 0) {
++		/* Bad news, bail out */
++	        log_it("CRON",getpid(),"DEATH","Can't create reboot check file");
++		exit(0);
++	} else {
++		close(rbfd);
++		log_it("CRON", getpid(),"INFO", "Running @reboot jobs");
++	}
++      
+ 
++        Debug(DMISC, ("[%d], Debian running reboot jobs\n",getpid()));
++    
++#endif
++        Debug(DMISC, ("[%d], vixie running reboot jobs\n", getpid()));
+ 	for (u = db->head;  u != NULL;  u = u->next) {
+ 		for (e = u->crontab;  e != NULL;  e = e->next) {
+ 			if (e->flags & WHEN_REBOOT) {
+@@ -152,10 +318,14 @@
+ 
+ 
+ static void
+-cron_tick(db)
++find_jobs(vtime, db, doWild, doNonWild)
++	time_min vtime;
+ 	cron_db	*db;
++	int doWild;
++	int doNonWild;
+ {
+- 	register struct tm	*tm = localtime(&TargetTime);
++	time_t   virtualSecond  = vtime * SECONDS_PER_MINUTE;
++	register struct tm 	*tm = gmtime(&virtualSecond);
+ 	register int		minute, hour, dom, month, dow;
+ 	register user		*u;
+ 	register entry		*e;
+@@ -168,8 +338,9 @@
+ 	month = tm->tm_mon +1 /* 0..11 -> 1..12 */ -FIRST_MONTH;
+ 	dow = tm->tm_wday -FIRST_DOW;
+ 
+-	Debug(DSCH, ("[%d] tick(%d,%d,%d,%d,%d)\n",
+-		getpid(), minute, hour, dom, month, dow))
++	Debug(DSCH, ("[%d] tick(%d,%d,%d,%d,%d) %s %s\n",
++		getpid(), minute, hour, dom, month, dow,
++		doWild?" ":"No wildcard",doNonWild?" ":"Wildcard only"))
+ 
+ 	/* the dom/dow situation is odd.  '* * 1,15 * Sun' will run on the
+ 	 * first and fifteenth AND every Sunday;  '* * * * Sun' will run *only*
+@@ -180,73 +351,72 @@
+ 	for (u = db->head;  u != NULL;  u = u->next) {
+ 		for (e = u->crontab;  e != NULL;  e = e->next) {
+ 			Debug(DSCH|DEXT, ("user [%s:%d:%d:...] cmd=\"%s\"\n",
+-					  env_get("LOGNAME", e->envp),
+-					  e->uid, e->gid, e->cmd))
+-			if (bit_test(e->minute, minute)
+-			 && bit_test(e->hour, hour)
+-			 && bit_test(e->month, month)
+-			 && ( ((e->flags & DOM_STAR) || (e->flags & DOW_STAR))
++			    env_get("LOGNAME", e->envp),
++			    e->uid, e->gid, e->cmd))
++			if (bit_test(e->minute, minute) &&
++			    bit_test(e->hour, hour) &&
++			    bit_test(e->month, month) &&
++			    ( ((e->flags & DOM_STAR) || (e->flags & DOW_STAR))
+ 			      ? (bit_test(e->dow,dow) && bit_test(e->dom,dom))
+-			      : (bit_test(e->dow,dow) || bit_test(e->dom,dom))
+-			    )
+-			   ) {
+-				job_add(e, u);
++			      : (bit_test(e->dow,dow) || bit_test(e->dom,dom)))) {
++				if ((doNonWild && !(e->flags & (MIN_STAR|HR_STAR)))
++				    || (doWild && (e->flags & (MIN_STAR|HR_STAR))))
++					job_add(e, u);
+ 			}
+ 		}
+ 	}
+ }
+ 
+ 
+-/* the task here is to figure out how long it's going to be until :00 of the
+- * following minute and initialize TargetTime to this value.  TargetTime
+- * will subsequently slide 60 seconds at a time, with correction applied
+- * implicitly in cron_sleep().  it would be nice to let cron execute in
+- * the "current minute" before going to sleep, but by restarting cron you
+- * could then get it to execute a given minute's jobs more than once.
+- * instead we have the chance of missing a minute's jobs completely, but
+- * that's something sysadmin's know to expect what with crashing computers..
++/*
++ * Set StartTime and clockTime to the current time.
++ * These are used for computing what time it really is right now.
++ * Note that clockTime is a unix wallclock time converted to minutes.
+  */
+ static void
+-cron_sync() {
+- 	register struct tm	*tm;
++set_time(int initialize)
++{
++    struct tm tm;
++    static int isdst;
+ 
+-	TargetTime = time((time_t*)0);
+-	tm = localtime(&TargetTime);
+-	TargetTime += (60 - tm->tm_sec);
+-}
++    StartTime = time(NULL);
+ 
++    /* We adjust the time to GMT so we can catch DST changes. */
++    tm = *localtime(&StartTime);
++    if (initialize || tm.tm_isdst != isdst) {
++       isdst = tm.tm_isdst;
++       GMToff = get_gmtoff(&StartTime, &tm);
++       Debug(DSCH, ("[%d] GMToff=%ld\n",
++           getpid(), (long)GMToff))
++    }
++    clockTime = (StartTime + GMToff) / (time_t)SECONDS_PER_MINUTE;
++}
+ 
++/*
++ * try to just hit the next minute
++ */
+ static void
+-cron_sleep() {
+-	register int	seconds_to_wait;
++cron_sleep(target)
++	time_min target;
++{
++	time_t t;
++	int seconds_to_wait;
+ 
+-	do {
+-		seconds_to_wait = (int) (TargetTime - time((time_t*)0));
+-		Debug(DSCH, ("[%d] TargetTime=%ld, sec-to-wait=%d\n",
+-			getpid(), TargetTime, seconds_to_wait))
+-
+-		/* if we intend to sleep, this means that it's finally
+-		 * time to empty the job queue (execute it).
+-		 *
+-		 * if we run any jobs, we'll probably screw up our timing,
+-		 * so go recompute.
+-		 *
+-		 * note that we depend here on the left-to-right nature
+-		 * of &&, and the short-circuiting.
+-		 */
+-	} while (seconds_to_wait > 0 && job_runqueue());
++	t = time(NULL) + GMToff;
+ 
+-	while (seconds_to_wait > 0) {
+-		Debug(DSCH, ("[%d] sleeping for %d seconds\n",
+-			getpid(), seconds_to_wait))
+-		seconds_to_wait = (int) sleep((unsigned int) seconds_to_wait);
+-	}
++	seconds_to_wait = (int)(target * SECONDS_PER_MINUTE - t) + 1;
++	Debug(DSCH, ("[%d] TargetTime=%ld, sec-to-wait=%d\n",
++	    getpid(), (long)target*SECONDS_PER_MINUTE, seconds_to_wait))
++
++        if (seconds_to_wait > 0 && seconds_to_wait < 65)
++            sleep((unsigned int) seconds_to_wait);
+ }
+ 
+ 
+ #ifdef USE_SIGCHLD
+ static void
+ sigchld_handler(x) {
++	int save_errno = errno;
+ 	WAIT_T		waiter;
+ 	PID_T		pid;
+ 
+@@ -260,10 +430,12 @@
+ 		case -1:
+ 			Debug(DPROC,
+ 				("[%d] sigchld...no children\n", getpid()))
++			errno = save_errno;
+ 			return;
+ 		case 0:
+ 			Debug(DPROC,
+ 				("[%d] sigchld...no dead kids\n", getpid()))
++			errno = save_errno;
+ 			return;
+ 		default:
+ 			Debug(DPROC,
+@@ -271,6 +443,7 @@
+ 				getpid(), pid, WEXITSTATUS(waiter)))
+ 		}
+ 	}
++	errno = save_errno;
+ }
+ #endif /*USE_SIGCHLD*/
+ 
+@@ -278,6 +451,10 @@
+ static void
+ sighup_handler(x) {
+ 	log_close();
++
++	/* we should use sigaction for proper signal blocking as this 
++	   has a race, but... */
++	signal(SIGHUP, sighup_handler);
+ }
+ 
+ 
+@@ -288,14 +465,26 @@
+ {
+ 	int	argch;
+ 
+-	while (EOF != (argch = getopt(argc, argv, "x:"))) {
++	stay_foreground = 0;
++        lsbsysinit_mode = 0;
++
++	while (EOF != (argch = getopt(argc, argv, "lfx:L:"))) {
+ 		switch (argch) {
+ 		default:
+ 			usage();
++		case 'f':
++			stay_foreground = 1;
++			break;
+ 		case 'x':
+ 			if (!set_debug_flags(optarg))
+ 				usage();
+ 			break;
++                case 'l':
++                    lsbsysinit_mode = 1;
++                    break;
++		case 'L':
++		    log_level = atoi(optarg);
++		    break;
+ 		}
+ 	}
+ }
+Index: cron3.0pl1/cron.h
+===================================================================
+--- cron3.0pl1.orig/cron.h	1994-02-28 20:39:17.000000000 -0600
++++ cron3.0pl1/cron.h	2011-07-25 15:47:19.636808888 -0500
+@@ -40,6 +40,20 @@
+ #include "config.h"
+ #include "externs.h"
+ 
++#if SYS_TIME_H
++# include <sys/time.h>
++#else
++# include <time.h>
++#endif
++
++
++#ifdef WITH_SELINUX
++#include <selinux/selinux.h>
++#endif
++
++#define SYSUSERNAME "root"
++
++
+ 	/* these are really immutable, and are
+ 	 *   defined for symbolic convenience only
+ 	 * TRUE, FALSE, and ERR must be distinct
+@@ -66,8 +80,8 @@
+ #define	OK_EXIT		0	/* exit() with this is considered 'normal' */
+ #define	MAX_FNAME	100	/* max length of internally generated fn */
+ #define	MAX_COMMAND	1000	/* max length of internally generated cmd */
+-#define	MAX_ENVSTR	1000	/* max length of envvar=value\0 strings */
+-#define	MAX_TEMPSTR	100	/* obvious */
++#define	MAX_TEMPSTR	1000	/* max length of envvar=value\0 strings */
++#define	MAX_ENVSTR	MAX_TEMPSTR	/* DO NOT change - buffer overruns otherwise */
+ #define	MAX_UNAME	20	/* max length of username, should be overkill */
+ #define	ROOT_UID	0	/* don't change this, it really must be root */
+ #define	ROOT_USER	"root"	/* ditto */
+@@ -105,7 +119,7 @@
+ 
+ #if DEBUGGING
+ # define Debug(mask, message) \
+-			if ( (DebugFlags & (mask) ) == (mask) ) \
++			if ( (DebugFlags & (mask) )  ) \
+ 				printf message;
+ #else /* !DEBUGGING */
+ # define Debug(mask, message) \
+@@ -118,6 +132,10 @@
+ 			 LineNumber = ln; \
+ 			}
+ 
++typedef int time_min;
++
++#define SECONDS_PER_MINUTE 60
++
+ #define	FIRST_MINUTE	0
+ #define	LAST_MINUTE	59
+ #define	MINUTE_COUNT	(LAST_MINUTE - FIRST_MINUTE + 1)
+@@ -160,6 +178,8 @@
+ #define	DOM_STAR	0x01
+ #define	DOW_STAR	0x02
+ #define	WHEN_REBOOT	0x04
++#define MIN_STAR	0x08
++#define HR_STAR		0x10
+ } entry;
+ 
+ 			/* the crontab database will be a list of the
+@@ -174,11 +194,18 @@
+ 	char		*name;
+ 	time_t		mtime;		/* last modtime of crontab */
+ 	entry		*crontab;	/* this person's crontab */
++#ifdef WITH_SELINUX
++        security_context_t scontext;    /* SELinux security context */
++#endif
+ } user;
+ 
+ typedef	struct _cron_db {
+ 	user		*head, *tail;	/* links */
+-	time_t		mtime;		/* last modtime on spooldir */
++	time_t		user_mtime;     /* last modtime on spooldir */
++	time_t		sys_mtime;      /* last modtime on system crontab */
++#ifdef DEBIAN
++	time_t		sysd_mtime;     /* last modtime on system crondir */
++#endif
+ } cron_db;
+ 
+ 
+@@ -205,12 +232,15 @@
+ 		get_char __P((FILE *)),
+ 		get_string __P((char *, int, FILE *, char *)),
+ 		swap_uids __P((void)),
++		swap_uids_back __P((void)),
+ 		load_env __P((char *, FILE *)),
+ 		cron_pclose __P((FILE *)),
+ 		strcmp_until __P((char *, char *, int)),
+ 		allowed __P((char *)),
+ 		strdtb __P((char *));
+ 
++long            get_gmtoff(time_t *, struct tm *);
++
+ char		*env_get __P((char *, char **)),
+ 		*arpadate __P((time_t *)),
+ 		*mkprints __P((unsigned char *, unsigned int)),
+@@ -219,13 +249,13 @@
+ 		**env_copy __P((char **)),
+ 		**env_set __P((char **, char *));
+ 
+-user		*load_user __P((int, struct passwd *, char *)),
++user		*load_user __P((int, struct passwd *, char *, char *, char *)),
+ 		*find_user __P((cron_db *, char *));
+ 
+ entry		*load_entry __P((FILE *, void (*)(),
+ 				 struct passwd *, char **));
+ 
+-FILE		*cron_popen __P((char *, char *));
++FILE		*cron_popen __P((char *, char *, entry *));
+ 
+ 
+ 				/* in the C tradition, we only create
+@@ -254,7 +284,16 @@
+ 
+ char	*ProgramName;
+ int	LineNumber;
+-time_t	TargetTime;
++time_t	StartTime;
++time_min timeRunning;
++time_min virtualTime;
++time_min clockTime;
++static long GMToff;
++
++int	stay_foreground;
++int     lsbsysinit_mode;
++int     log_level = 1;
++char    cron_default_mail_charset[MAX_ENVSTR] = "";
+ 
+ # if DEBUGGING
+ int	DebugFlags;
+@@ -268,8 +307,14 @@
+ 		*MonthNames[],
+ 		*DowNames[],
+ 		*ProgramName;
++extern  int     lsbsysinit_mode;
++extern  int     log_level;
+ extern	int	LineNumber;
+-extern	time_t	TargetTime;
++extern	time_t	StartTime;
++extern  time_min timeRunning;
++extern  time_min virtualTime;
++extern  time_min clockTime;
++extern  char     cron_default_mail_charset[MAX_ENVSTR];
+ # if DEBUGGING
+ extern	int	DebugFlags;
+ extern	char	*DebugFlagNames[];
+Index: cron3.0pl1/crontab.1
+===================================================================
+--- cron3.0pl1.orig/crontab.1	1994-02-28 20:39:17.000000000 -0600
++++ cron3.0pl1/crontab.1	2011-07-25 15:47:19.636808888 -0500
+@@ -17,40 +17,54 @@
+ .\"
+ .\" $Id: crontab.1,v 2.4 1993/12/31 10:47:33 vixie Exp $
+ .\"
+-.TH CRONTAB 1 "29 December 1993"
++.TH CRONTAB 1 "19 April 2010"
+ .UC 4
+ .SH NAME
+-crontab \- maintain crontab files for individual users (V3)
++crontab \- maintain crontab files for individual users (Vixie Cron)
+ .SH SYNOPSIS
+-crontab [ -u user ] file
++crontab [ \-u user ] file
+ .br
+-crontab [ -u user ] { -l | -r | -e }
++crontab [ \-u user ] [ \-i ] { \-e | \-l | \-r }
+ .SH DESCRIPTION
+-.I Crontab
++.I crontab
+ is the program used to install, deinstall or list the tables
+ used to drive the
+ .IR cron (8)
+ daemon in Vixie Cron.  Each user can have their own crontab, and though
+-these are files in /var, they are not intended to be edited directly.
++these are files in /var/spool/cron/crontabs,
++they are not intended to be edited directly.
+ .PP
+ If the
+-.I allow
+-file exists, then you must be listed therein in order to be allowed to use
+-this command.  If the
+-.I allow
++.I /etc/cron.allow
++file exists, then you must be listed (one user per line) therein in order to be
++allowed to use this command.  If the
++.I /etc/cron.allow
+ file does not exist but the
+-.I deny
++.I /etc/cron.deny
+ file does exist, then you must \fBnot\fR be listed in the
+-.I deny
+-file in order to use this command.  If neither of these files exists, then
+-depending on site-dependent configuration parameters, only the super user
+-will be allowed to use this command, or all users will be able to use this
+-command.
++.I /etc/cron.deny
++file in order to use this command. 
++.PP
++If neither of these files exists, then depending on site-dependent
++configuration parameters, only the super user will be allowed to use this
++command, or all users will be able to use this command. 
++.PP
++If both files exist then 
++.I /etc/cron.allow
++takes precedence. Which means that 
++.I /etc/cron.deny
++is not considered and your user must be listed in 
++.I /etc/cron.allow
++in order to be able to use the crontab.
++.PP
++Regardless of the existance of any of these files, the root administrative
++user is always allowed to setup a crontab.  For standard Debian systems, all
++users may use this command.
+ .PP
+ If the
+ .I -u
+ option is given, it specifies the name of the user whose crontab is to be
+-tweaked.  If this option is not given,
++used (when listing) or modified (when editing). If this option is not given,
+ .I crontab
+ examines "your" crontab, i.e., the crontab of the person executing the
+ command.  Note that
+@@ -58,7 +72,7 @@
+ can confuse
+ .I crontab
+ and that if you are running inside of
+-.IR su (8)
++.IR su (8) 
+ you should always use the
+ .I -u
+ option for safety's sake.
+@@ -68,7 +82,10 @@
+ .PP
+ The
+ .I -l
+-option causes the current crontab to be displayed on standard output.
++option causes the current crontab to be displayed on standard output. See
++the note under 
++.B DEBIAN SPECIFIC
++below.
+ .PP
+ The
+ .I -r
+@@ -77,24 +94,69 @@
+ The
+ .I -e
+ option is used to edit the current crontab using the editor specified by
+-the \s-1VISUAL\s+1 or \s-1EDITOR\s+1 environment variables.  After you exit
+-from the editor, the modified crontab will be installed automatically.
++the \s-1VISUAL\s+1 or \s-1EDITOR\s+1 environment variables.
++After you exit
++from the editor, the modified crontab will be installed automatically. If
++neither of the environment variables is defined, then the
++default editor /usr/bin/editor is used.
++.PP
++The
++.I -i
++option modifies the \-r option to prompt the user for a 'y/Y' response
++before actually removing the crontab.
++.SH DEBIAN SPECIFIC
++The "out-of-the-box" behaviour for
++.I crontab -l
++is to display the three line "DO NOT EDIT THIS FILE" header 
++that is placed at the
++beginning of the crontab when it is installed. The problem is that
++it makes the sequence
++.PP
++crontab \-l | crontab \-
++.PP
++non-idempotent -- you keep adding copies of the header. This causes
++pain to scripts that use sed to edit a crontab. Therefore, the default
++behaviour of the 
++.B -l
++option has been changed to not output such header. You may obtain the
++original behaviour by setting the environment variable 
++.B CRONTAB_NOHEADER
++to 'N', which will cause the
++.I crontab -l
++command to emit the extraneous header.
+ .SH "SEE ALSO"
+ crontab(5), cron(8)
+ .SH FILES
+ .nf
+-/var/cron/allow
+-/var/cron/deny
++/etc/cron.allow
++/etc/cron.deny
++/var/spool/cron/crontabs
+ .fi
++.PP
++There is one file for each user's crontab under the /var/spool/cron/crontabs
++directory. Users are not allowed to edit the files under that directory
++directly to ensure that only users allowed by the system to run periodic tasks
++can add them, and only syntactically correct crontabs will be written there.
++This is enforced by having the directory writable only by the
++.I crontab
++group and configuring
++.I crontab
++command with the setgid bid set for that specific group.
+ .SH STANDARDS
+ The
+ .I crontab
+ command conforms to IEEE Std1003.2-1992 (``POSIX'').  This new command syntax
+ differs from previous versions of Vixie Cron, as well as from the classic
+ SVR3 syntax.
++
+ .SH DIAGNOSTICS
+ A fairly informative usage message appears if you run it with a bad command
+ line.
++
++cron requires that each entry in a crontab end in a newline character. If the
++last entry in a crontab is missing the newline, cron will consider the crontab
++(at least partially) broken and refuse to install it.
++
+ .SH AUTHOR
+ .nf
+ Paul Vixie <paul@vix.com>
+Index: cron3.0pl1/crontab.5
+===================================================================
+--- cron3.0pl1.orig/crontab.5	1994-02-28 20:41:27.000000000 -0600
++++ cron3.0pl1/crontab.5	2011-07-25 15:47:19.646808888 -0500
+@@ -17,7 +17,7 @@
+ .\"
+ .\" $Id: crontab.5,v 2.4 1994/01/15 20:43:43 vixie Exp $
+ .\" 
+-.TH CRONTAB 5 "24 January 1994"
++.TH CRONTAB 5 "19 April 2010"
+ .UC 4
+ .SH NAME
+ crontab \- tables for driving cron
+@@ -34,7 +34,7 @@
+ as part of a cron command.
+ .PP
+ Blank lines and leading spaces and tabs are ignored.  Lines whose first
+-non-space character is a pound-sign (#) are comments, and are ignored.
++non-space character is a hash-sign (#) are comments, and are ignored.
+ Note that comments are not allowed on the same line as cron commands, since
+ they will be taken to be part of the command.  Similarly, comments are not
+ allowed on the same line as environment variable settings.
+@@ -52,15 +52,41 @@
+ The
+ .I value
+ string may be placed in quotes (single or double, but matching) to preserve
+-leading or trailing blanks.
++leading or trailing blanks. To define an empty variable, quotes
++.B must
++be used. The  
++.I value
++string is 
++.B not
++parsed for environmental substitutions or replacement of variables, thus lines
++like
++.PP
++    PATH = $HOME/bin:$PATH
++.PP
++will not work as you might expect. And neither will this work
++.PP
++    A=1
++    B=2
++    C=$A $B
++.PP
++There will not be any subsitution for the defined variables in the
++last value.
+ .PP
+-Several environment variables are set up
+-automatically by the
++An alternative for setting up the commands path is using the fact that
++many shells will treat the tilde(~) as substitution of $HOME, so if you use 
++.I bash
++for your tasks you can use this:
++.PP
++     SHELL=/bin/bash
++     PATH=~/bin:/usr/bin/:/bin
++.PP
++Several environment variables are set up automatically by the
+ .IR cron (8)
+ daemon.
+ SHELL is set to /bin/sh, and LOGNAME and HOME are set from the /etc/passwd 
+-line of the crontab's owner.
+-HOME and SHELL may be overridden by settings in the crontab; LOGNAME may not.
++line of the crontab's owner. PATH is set to "/usr/bin:/bin".
++HOME, SHELL, and PATH may be overridden by settings in the crontab;
++LOGNAME is the user that the job is running from, and may not be changed.
+ .PP
+ (Another note: the LOGNAME variable is sometimes called USER on BSD systems...
+ on these systems, USER will be set also.)
+@@ -69,16 +95,47 @@
+ .IR cron (8)
+ will look at MAILTO if it has any reason to send mail as a result of running
+ commands in ``this'' crontab.  If MAILTO is defined (and non-empty), mail is
+-sent to the user so named.  If MAILTO is defined but empty (MAILTO=""), no
+-mail will be sent.  Otherwise mail is sent to the owner of the crontab.  This
+-option is useful if you decide on /bin/mail instead of /usr/lib/sendmail as
+-your mailer when you install cron -- /bin/mail doesn't do aliasing, and UUCP
+-usually doesn't read its mail.
++sent to the user so named.  MAILTO may also be used to direct mail to multiple
++recipients by separating recipient users with a comma. If MAILTO is defined
++but empty (MAILTO=""), no mail will be sent.  Otherwise mail is sent to the
++owner of the crontab.
++.PP
++On the Debian GNU/Linux system, cron supports the
++.B pam_env
++module, and loads the environment specified by 
++.IR /etc/environment
++and
++.IR /etc/security/pam_env.conf .
++It also reads locale information from
++.IR /etc/default/locale .
++However, the PAM settings do
++.B NOT
++override the settings described above nor any settings in the 
++.I crontab
++file itself. Note in particular that if you want a PATH other than
++"/usr/bin:/bin", you will need to set it in the crontab file.
++.PP
++By default, cron will send mail using the mail "Content-Type:" header of
++"text/plain" with the "charset=" parameter set to the charmap / codeset of the
++locale in which
++.IR crond (8)
++is started up - ie. either the default system locale, if no LC_* environment
++variables are set, or the locale specified by the LC_* environment variables 
++( see
++.IR locale (7) ).
++You can use different character encodings for mailed cron job output by
++setting the CONTENT_TYPE and CONTENT_TRANSFER_ENCODING variables in crontabs,
++to the correct values of the mail headers of those names.
+ .PP
+ The format of a cron command is very much the V7 standard, with a number of
+ upward-compatible extensions.  Each line has five time and date fields,
+-followed by a user name if this is the system crontab file,
+-followed by a command.  Commands are executed by
++followed by a command, followed by a newline character ('\\n').  
++The system crontab (/etc/crontab) uses the same format, except that
++the username for the command is specified after the time and
++date fields and before the command. The fields may be separated
++by spaces or tabs.
++.PP
++Commands are executed by
+ .IR cron (8)
+ when the minute, hour, and month of year fields match the current time,
+ .I and
+@@ -97,9 +154,9 @@
+ .br
+ hour	0-23
+ .br
+-day of month	0-31
++day of month	1-31
+ .br
+-month	0-12 (or names, see below)
++month	1-12 (or names, see below)
+ .br
+ day of week	0-7 (0 or 7 is Sun, or use names)
+ .br
+@@ -131,26 +188,53 @@
+ run.
+ The entire command portion of the line, up to a newline or %
+ character, will be executed by /bin/sh or by the shell
+-specified in the SHELL variable of the cronfile.
++specified in the SHELL variable of the crontab file.
+ Percent-signs (%) in the command, unless escaped with backslash
+ (\\), will be changed into newline characters, and all data
+ after the first % will be sent to the command as standard
+-input.
++input. There is no way to split a single command line onto multiple
++lines, like the shell's trailing "\\".
+ .PP
+ Note: The day of a command's execution can be specified by two
+ fields \(em day of month, and day of week.  If both fields are
+-restricted (ie, aren't *), the command will be run when
++restricted (i.e., aren't *), the command will be run when
+ .I either
+ field matches the current time.  For example,
+ .br
+ ``30 4 1,15 * 5''
+ would cause a command to be run at 4:30 am on the 1st and 15th of each
+-month, plus every Friday.
++month, plus every Friday. One can, however, achieve the desired result
++by adding a test to the command (see the last example in EXAMPLE CRON FILE
++below).
++.PP
++Instead of the first five fields, one of eight special strings may appear:
++.IP
++.ta 1.5i
++string	meaning
++.br
++------	-------
++.br
++@reboot	Run once, at startup.
++.br
++@yearly	Run once a year, "0 0 1 1 *".
++.br
++@annually	(same as @yearly)
++.br
++@monthly	Run once a month, "0 0 1 * *".
++.br
++@weekly	Run once a week, "0 0 * * 0".
++.br
++@daily	Run once a day, "0 0 * * *".
++.br
++@midnight	(same as @daily)
++.br
++@hourly	Run once an hour, "0 * * * *".
++.br
+ .SH EXAMPLE CRON FILE
+ .nf
+ 
+-# use /bin/sh to run commands, no matter what /etc/passwd says
+-SHELL=/bin/sh
++# use /bin/bash to run commands, instead of the default /bin/sh
++SHELL=/bin/bash
+ # mail any output to `paul', no matter whose crontab this is
+ MAILTO=paul
+ #
+@@ -159,30 +243,73 @@
+ # run at 2:15pm on the first of every month -- output mailed to paul
+ 15 14 1 * *     $HOME/bin/monthly
+ # run at 10 pm on weekdays, annoy Joe
+-0 22 * * 1-5	mail -s "It's 10pm" joe%Joe,%%Where are your kids?%
++0 22 * * 1-5    mail \-s "It's 10pm" joe%Joe,%%Where are your kids?%
+ 23 0-23/2 * * * echo "run 23 minutes after midn, 2am, 4am ..., everyday"
+ 5 4 * * sun     echo "run at 5 after 4 every sunday"
++# Run on every second Saturday of the month
++0 4 8-14 * *    test $(date +%u) -eq 6 && echo "2nd Saturday"
++.fi
++.SH EXAMPLE SYSTEM CRON FILE
++This has the username field, as used by /etc/crontab.
++.nf
++# /etc/crontab: system-wide crontab
++# Unlike any other crontab you don't have to run the `crontab'
++# command to install the new version when you edit this file
++# and files in /etc/cron.d. These files also have username fields,
++# that none of other the crontabs do.
++
++SHELL=/bin/sh
++PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
++
++# m h dom mon dow user    command
++42 6 * * *        root    run-parts \-\-report /etc/cron.daily
++47 6 * * 7        root    run-parts \-\-report /etc/cron.weekly
++52 6 1 * *        root    run-parts \-\-report /etc/cron.monthly
++#
++# Removed invocation of anacron, as this is now handled by a 
++# /etc/cron.d file
+ .fi
+ .SH SEE ALSO
+ cron(8), crontab(1)
+ .SH EXTENSIONS
+ When specifying day of week, both day 0 and day 7 will be considered Sunday.
+-BSD and ATT seem to disagree about this.
++BSD and AT&T seem to disagree about this.
+ .PP
+ Lists and ranges are allowed to co-exist in the same field.  "1-3,7-9" would
+-be rejected by ATT or BSD cron -- they want to see "1-3" or "7,8,9" ONLY.
++be rejected by AT&T or BSD cron -- they want to see "1-3" or "7,8,9" ONLY.
+ .PP
+ Ranges can include "steps", so "1-9/2" is the same as "1,3,5,7,9".
+ .PP
+-Names of months or days of the week can be specified by name.
++Months or days of the week can be specified by name.
+ .PP
+-Environment variables can be set in the crontab.  In BSD or ATT, the
++Environment variables can be set in the crontab.  In BSD or AT&T, the
+ environment handed to child processes is basically the one from /etc/rc.
+ .PP
+ Command output is mailed to the crontab owner (BSD can't do this), can be
+ mailed to a person other than the crontab owner (SysV can't do this), or the
+ feature can be turned off and no mail will be sent at all (SysV can't do this
+ either).
++.PP
++All of the `@' commands that can appear in place of the first five fields
++are extensions.
++.SH LIMITATIONS
++The
++.I cron
++daemon runs with a defined timezone. It currently does not support 
++per-user timezones. All the tasks: system's and user's will be run based on the
++configured timezone. Even if a user specifies the 
++.I TZ
++environment variable in his
++.I crontab
++this will affect only the commands executed in the crontab, not the execution
++of the crontab tasks themselves.
++
++.SH DIAGNOSTICS
++cron requires that each entry in a crontab end in a newline character. If the
++last entry in a crontab is missing a newline (ie, terminated by EOF), cron will
++consider the crontab (at least partially) broken. A warning will be written to
++syslog.
++
+ .SH AUTHOR
+ .nf
+ Paul Vixie <paul@vix.com>
+Index: cron3.0pl1/crontab.c
+===================================================================
+--- cron3.0pl1.orig/crontab.c	1994-02-28 20:41:27.000000000 -0600
++++ cron3.0pl1/crontab.c	2011-07-25 15:47:19.646808888 -0500
+@@ -31,6 +31,7 @@
+ #include "cron.h"
+ #include <errno.h>
+ #include <fcntl.h>
++#include <signal.h>
+ #include <sys/file.h>
+ #include <sys/stat.h>
+ #ifdef USE_UTIMES
+@@ -46,7 +47,6 @@
+ 
+ #define NHEADER_LINES 3
+ 
+-
+ enum opt_t	{ opt_unknown, opt_list, opt_delete, opt_edit, opt_replace };
+ 
+ #if DEBUGGING
+@@ -55,10 +55,12 @@
+ 
+ 
+ static	PID_T		Pid;
+-static	char		User[MAX_UNAME], RealUser[MAX_UNAME];
++static	char		*User, *RealUser;
+ static	char		Filename[MAX_FNAME];
+-static	FILE		*NewCrontab;
++static	char		Directory[MAX_FNAME];
++static	FILE		*NewCrontab = NULL;
+ static	int		CheckErrorCount;
++static  int             PromptOnDelete;
+ static	enum opt_t	Option;
+ static	struct passwd	*pw;
+ static	void		list_cmd __P((void)),
+@@ -69,6 +71,10 @@
+ 			parse_args __P((int c, char *v[]));
+ static	int		replace_cmd __P((void));
+ 
++/* Support edit command */
++static  int             create_tmp_crontab __P((void));
++static  int             open_tmp_crontab __P((struct stat *fsbuf));
++static  void            cleanup_tmp_crontab __P((void));
+ 
+ static void
+ usage(msg)
+@@ -76,11 +82,12 @@
+ {
+ 	fprintf(stderr, "%s: usage error: %s\n", ProgramName, msg);
+ 	fprintf(stderr, "usage:\t%s [-u user] file\n", ProgramName);
+-	fprintf(stderr, "\t%s [-u user] { -e | -l | -r }\n", ProgramName);
++	fprintf(stderr, "\t%s [ -u user ] [ -i ] { -e | -l | -r }\n", ProgramName);
+ 	fprintf(stderr, "\t\t(default operation is replace, per 1003.2)\n");
+ 	fprintf(stderr, "\t-e\t(edit user's crontab)\n");
+ 	fprintf(stderr, "\t-l\t(list user's crontab)\n");
+ 	fprintf(stderr, "\t-r\t(delete user's crontab)\n");
++        fprintf(stderr, "\t-i\t(prompt before deleting user's crontab)\n");
+ 	exit(ERROR_EXIT);
+ }
+ 
+@@ -102,15 +109,25 @@
+ #if defined(BSD)
+ 	setlinebuf(stderr);
+ #endif
++	if (argv[1] == NULL) {
++		argv[1] = "-";
++	}	
+ 	parse_args(argc, argv);		/* sets many globals, opens a file */
+-	set_cron_uid();
+ 	set_cron_cwd();
+ 	if (!allowed(User)) {
+-		fprintf(stderr,
+-			"You (%s) are not allowed to use this program (%s)\n",
+-			User, ProgramName);
+-		fprintf(stderr, "See crontab(1) for more information\n");
+-		log_it(RealUser, Pid, "AUTH", "crontab command not allowed");
++                if ( getuid() != 0 ) {
++                    fprintf(stderr,
++                            "You (%s) are not allowed to use this program (%s)\n",
++                            User, ProgramName);
++                    fprintf(stderr, "See crontab(1) for more information\n");
++                    log_it(RealUser, Pid, "AUTH", "crontab command not allowed");
++                } else {
++                /* If the user is not allowed but root is running the
++                 * program warn but do not log */
++                    fprintf(stderr,
++                            "The user %s cannot use this program (%s)\n",
++                            User, ProgramName);
++                }
+ 		exit(ERROR_EXIT);
+ 	}
+ 	exitstatus = OK_EXIT;
+@@ -124,11 +141,23 @@
+ 	case opt_replace:	if (replace_cmd() < 0)
+ 					exitstatus = ERROR_EXIT;
+ 				break;
++				/* The following was added to shut
++				 -Wall up, but it will never be hit,
++				 because the option parser will catch
++				 it */
++	case opt_unknown: usage("unknown option specified");
++	                  break;
+ 	}
+-	exit(0);
++	exit(exitstatus);
+ 	/*NOTREACHED*/
+ }
+ 	
++#if DEBUGGING
++char *getoptarg = "u:lerix:";
++#else
++char *getoptarg = "u:leri";
++#endif
++
+ 
+ static void
+ parse_args(argc, argv)
+@@ -136,6 +165,7 @@
+ 	char	*argv[];
+ {
+ 	int		argch;
++	struct stat	statbuf;
+ 
+ 	if (!(pw = getpwuid(getuid()))) {
+ 		fprintf(stderr, "%s: your UID isn't in the passwd file.\n",
+@@ -143,30 +173,43 @@
+ 		fprintf(stderr, "bailing out.\n");
+ 		exit(ERROR_EXIT);
+ 	}
+-	strcpy(User, pw->pw_name);
+-	strcpy(RealUser, User);
++	if (((User=strdup(pw->pw_name)) == NULL) ||
++	    ((RealUser=strdup(pw->pw_name)) == NULL)) {
++	        fprintf(stderr, "Memory allocation error\n");
++		exit(ERROR_EXIT);
++	}
+ 	Filename[0] = '\0';
+ 	Option = opt_unknown;
+-	while (EOF != (argch = getopt(argc, argv, "u:lerx:"))) {
++        PromptOnDelete = 0;
++
++	while (EOF != (argch = getopt(argc, argv, getoptarg))) {
+ 		switch (argch) {
++#if DEBUGGING
+ 		case 'x':
+ 			if (!set_debug_flags(optarg))
+ 				usage("bad debug option");
++			usage("unrecognized option");
+ 			break;
++#endif
+ 		case 'u':
+-			if (getuid() != ROOT_UID)
++			if (!(pw = getpwnam(optarg)))
++			{
++				fprintf(stderr, "%s:  user `%s' unknown\n",
++					ProgramName, optarg);
++				exit(ERROR_EXIT);
++			}
++			if ((getuid() != ROOT_UID) &&
++			    (getuid() != pw->pw_uid))
+ 			{
+ 				fprintf(stderr,
+ 					"must be privileged to use -u\n");
+ 				exit(ERROR_EXIT);
+ 			}
+-			if (!(pw = getpwnam(optarg)))
+-			{
+-				fprintf(stderr, "%s:  user `%s' unknown\n",
+-					ProgramName, optarg);
++			free(User);
++			if ((User=strdup(pw->pw_name)) == NULL) {
++			        fprintf(stderr, "Memory allocation error\n");
+ 				exit(ERROR_EXIT);
+ 			}
+-			(void) strcpy(User, optarg);
+ 			break;
+ 		case 'l':
+ 			if (Option != opt_unknown)
+@@ -183,6 +226,9 @@
+ 				usage("only one operation permitted");
+ 			Option = opt_edit;
+ 			break;
++		case 'i':
++                        PromptOnDelete = 1;
++			break;
+ 		default:
+ 			usage("unrecognized option");
+ 		}
+@@ -197,7 +243,9 @@
+ 	} else {
+ 		if (argv[optind] != NULL) {
+ 			Option = opt_replace;
+-			(void) strcpy (Filename, argv[optind]);
++			(void) strncpy (Filename, argv[optind], (sizeof Filename)-1);
++			Filename[(sizeof Filename)-1] = '\0';
++
+ 		} else {
+ 			usage("file name must be specified for replace");
+ 		}
+@@ -227,7 +275,16 @@
+ 				perror(Filename);
+ 				exit(ERROR_EXIT);
+ 			}
+-			if (swap_uids() < OK) {
++			/* Make sure we opened a normal file. */
++			if (fstat(fileno(NewCrontab), &statbuf) < 0) {
++				perror("fstat");
++				exit(ERROR_EXIT);
++			}
++			if (!S_ISREG(statbuf.st_mode)) {
++				fprintf(stderr, "%s: Not a regular file.\n", Filename);
++				exit(ERROR_EXIT);
++			}
++			if (swap_uids_back() < OK) {
+ 				perror("swapping uids back");
+ 				exit(ERROR_EXIT);
+ 			}
+@@ -244,20 +301,49 @@
+ 	char	n[MAX_FNAME];
+ 	FILE	*f;
+ 	int	ch;
++#ifdef DEBIAN
++	int     x;
++	char    *ctnh;
++#endif
+ 
+ 	log_it(RealUser, Pid, "LIST", User);
+-	(void) sprintf(n, CRON_TAB(User));
++	(void) snprintf(n, MAX_FNAME, CRON_TAB(User));
+ 	if (!(f = fopen(n, "r"))) {
+-		if (errno == ENOENT)
++		if (errno == ENOENT) 
+ 			fprintf(stderr, "no crontab for %s\n", User);
+-		else
+-			perror(n);
++		else {
++                        fprintf(stderr, "%s/: fopen: %s\n", n, strerror(errno));
++                }
+ 		exit(ERROR_EXIT);
+ 	}
+ 
+ 	/* file is open. copy to stdout, close.
+ 	 */
+ 	Set_LineNum(1)
++#ifdef DEBIAN
++	  /* DEBIAN: Don't list header lines unless CRONTAB_NOHEADER is
++	     'N'. */
++	  /* ignore the top few comments since we probably put them there.
++	   */
++	  if (!(ctnh = getenv("CRONTAB_NOHEADER")) ||
++	      toupper(*ctnh) != 'N') 
++	    {
++	    for (x = 0;  x < NHEADER_LINES;  x++) {
++	      ch = get_char(f);
++	      if (EOF == ch)
++		break;
++	      if ('#' != ch) {
++		putchar(ch);
++		break;
++	      }
++	      while (EOF != (ch = get_char(f)))
++		if (ch == '\n')
++		  break;
++	      if (EOF == ch)
++		break;
++	    }
++	  }
++#endif
+ 	while (EOF != (ch = get_char(f)))
+ 		putchar(ch);
+ 	fclose(f);
+@@ -267,14 +353,45 @@
+ static void
+ delete_cmd() {
+ 	char	n[MAX_FNAME];
++        char    q[MAX_TEMPSTR];
++        int     ans;
++	struct stat fsbuf;
++
++        /* Check if the user has a crontab file first */
++	(void) snprintf(n, MAX_FNAME, CRON_TAB(User));
++	if (stat(n, &fsbuf) < 0) {
++            fprintf(stderr, "no crontab for %s\n", User);
++            exit(ERROR_EXIT);
++	}
++
++        if( PromptOnDelete == 1 )
++        {
++            printf("crontab: really delete %s's crontab? (y/n) ", User);
++            fflush(stdout);
++            ans = 0;
++            q[0] = '\0';
++            while ( ans == 0 ) {
++                (void) fgets(q, sizeof q, stdin);
++                switch (islower(q[0]) ? q[0] : tolower(q[0])) {
++                    case 'y':
++                    case 'n':
++                        ans = 1;
++                        break;
++                    default:
++                        fprintf(stderr, "Please enter Y or N: ");
++                }
++            }
++            if ( (q[0] == 'N') || (q[0] == 'n') )
++                exit(OK_EXIT);
++        }
+ 
+ 	log_it(RealUser, Pid, "DELETE", User);
+-	(void) sprintf(n, CRON_TAB(User));
+ 	if (unlink(n)) {
+ 		if (errno == ENOENT)
+ 			fprintf(stderr, "no crontab for %s\n", User);
+-		else
+-			perror(n);
++		else {
++                        fprintf(stderr, "%s/: unlink: %s\n", CRONDIR, strerror(errno));
++                }
+ 		exit(ERROR_EXIT);
+ 	}
+ 	poke_daemon();
+@@ -290,21 +407,158 @@
+ }
+ 
+ 
++/* The next several function implement 'crontab -e' */
++
++/* Returns -1 on error, or fd to tempfile. */
++static int
++create_tmp_crontab()
++{
++        const char *template = "/crontab.XXXXXX";
++        int nfd;
++        char *tmp;
++
++        /* Create the temp directory. Note that since crontab is
++           setuid(root), TMPDIR only work for root. */
++	if ((tmp=getenv("TMPDIR")) && strlen(tmp) < MAX_FNAME) {
++	  strcpy(Directory, tmp);
++	} else {
++	  strcpy(Directory,"/tmp");
++	}
++
++        if (strlen(Directory) + strlen(template) < MAX_FNAME) {
++                strcat(Directory, template);
++        } else {
++                fprintf(stderr, "TMPDIR value is to long -- exiting\n");
++                Directory[0] = '\0';
++                return -1;
++        }
++
++        if (!mkdtemp(Directory)) {
++                perror(Directory);
++                Directory[0] = '\0';
++                return -1;
++        }
++
++        /* Now create the actual temporary crontab file */
++        if (snprintf(Filename, MAX_FNAME, "%s/crontab", Directory)
++            >= MAX_FNAME) {
++                fprintf(stderr, "Temporary filename too long - aborting\n");
++                Filename[0] = '\0';
++                return -1;
++        }
++        if ((nfd=open(Filename, O_CREAT|O_EXCL|O_WRONLY, 0600)) == -1) {
++                perror(Filename);
++                Filename[0] = '\0';
++                return -1;
++        }
++        return nfd;
++}
++
++/* Re-open the new (temporary) crontab, and check to make sure that
++   no-one is playing games. Return 0 on success, -1 on error. (Why not
++   just fopen() and stat()? Because there's no guarantee that you
++   fopen()ed the file you stat()ed.) */
++static int
++open_tmp_crontab(fsbuf)
++      struct stat *fsbuf;
++{
++        int t;
++        struct stat statbuf;
++
++        if ((t=open(Filename, O_RDONLY)) < 0) {
++                perror("Can't open tempfile after edit");
++                return -1;
++        }
++
++	if (fstat(t, &statbuf) < 0) {
++		perror("fstat");
++		return -1;
++	}
++	if (statbuf.st_uid != getuid()) {
++		fprintf(stderr, "Temporary crontab no longer owned by you.\n");
++		return -1;;
++	}
++
++        if (!S_ISREG(statbuf.st_mode)) {
++                fprintf(stderr, "The temporary crontab must remain a regular file");
++                return -1;
++        }
++
++        if (statbuf.st_mtime == fsbuf->st_mtime) {
++                return 1; /* No change to file */
++        }
++
++        NewCrontab = fdopen(t, "r");
++        if (!NewCrontab) {
++                perror("fdopen(): after edit");
++                return -1;
++        }
++        return 0;
++}
++
++/* We can't just delete Filename, because the editor might have
++   created other temporary files in there. If there's an error, we
++   just bail, and let the user/admin deal with it.*/
++
++static void
++cleanup_tmp_crontab(void) 
++{
++        DIR *dp;
++        struct dirent *ep;
++        char fname[MAX_FNAME];
++
++        if (Directory[0] == '\0') {
++                return;
++        }
++
++        /* Delete contents */
++        dp = opendir (Directory);
++        if (dp == NULL) {
++                perror(Directory);
++                return;
++        }
++
++        while ((ep = readdir (dp))) {
++                if (!strcmp(ep->d_name, ".") ||
++                    !strcmp(ep->d_name, "..")) {
++                        continue;
++                }
++                if (snprintf(fname, MAX_FNAME, "%s/%s",
++                             Directory, ep->d_name) >= MAX_FNAME) {
++                        fprintf(stderr, "filename too long to delete: %s/%s",
++                                Directory, ep->d_name);
++                        return;
++                }
++                if (unlink(fname)) {
++                        perror(ep->d_name);
++                        return;
++                }
++        }
++        (void) closedir (dp);
++
++        if (rmdir(Directory)) {
++                perror(Directory);
++                return;
++        }
++        return;
++}
++
+ static void
+ edit_cmd() {
+ 	char		n[MAX_FNAME], q[MAX_TEMPSTR], *editor;
+ 	FILE		*f;
+ 	int		ch, t, x;
+-	struct stat	statbuf;
+-	time_t		mtime;
++	struct stat     fsbuf;
+ 	WAIT_T		waiter;
+ 	PID_T		pid, xpid;
++	mode_t		um;
++	int             add_help_text = 0;
+ 
+ 	log_it(RealUser, Pid, "BEGIN EDIT", User);
+-	(void) sprintf(n, CRON_TAB(User));
++	(void) snprintf(n, MAX_FNAME, CRON_TAB(User));
+ 	if (!(f = fopen(n, "r"))) {
+ 		if (errno != ENOENT) {
+-			perror(n);
++                        fprintf(stderr, "%s/: fdopen: %s", n, strerror(errno));
+ 			exit(ERROR_EXIT);
+ 		}
+ 		fprintf(stderr, "no crontab for %s - using an empty one\n",
+@@ -313,28 +567,52 @@
+ 			perror("/dev/null");
+ 			exit(ERROR_EXIT);
+ 		}
++		add_help_text = 1;
+ 	}
+ 
+-	(void) sprintf(Filename, "/tmp/crontab.%d", Pid);
+-	if (-1 == (t = open(Filename, O_CREAT|O_EXCL|O_RDWR, 0600))) {
+-		perror(Filename);
+-		goto fatal;
+-	}
+-#ifdef HAS_FCHOWN
+-	if (fchown(t, getuid(), getgid()) < 0) {
+-#else
+-	if (chown(Filename, getuid(), getgid()) < 0) {
+-#endif
+-		perror("fchown");
++	um = umask(077);
++
++        if ((t=create_tmp_crontab()) < 0) {
++                fprintf(stderr, "Creation of temporary crontab file failed - aborting\n");
++                (void) umask(um);
+ 		goto fatal;
+ 	}
+-	if (!(NewCrontab = fdopen(t, "r+"))) {
++
++	(void) umask(um);
++	if (!(NewCrontab = fdopen(t, "w"))) {
+ 		perror("fdopen");
+ 		goto fatal;
+ 	}
+ 
+ 	Set_LineNum(1)
+ 
++	if (add_help_text) {
++		fprintf(NewCrontab, 
++"# Edit this file to introduce tasks to be run by cron.\n"
++"# \n"
++"# Each task to run has to be defined through a single line\n"
++"# indicating with different fields when the task will be run\n"
++"# and what command to run for the task\n"
++"# \n"
++"# To define the time you can provide concrete values for\n"
++"# minute (m), hour (h), day of month (dom), month (mon),\n"
++"# and day of week (dow) or use '*' in these fields (for 'any')."
++"# \n"
++"# Notice that tasks will be started based on the cron's system\n"
++"# daemon's notion of time and timezones.\n"
++"# \n"
++"# Output of the crontab jobs (including errors) is sent through\n"
++"# email to the user the crontab file belongs to (unless redirected).\n"
++"# \n"
++"# For example, you can run a backup of all your user accounts\n"
++"# at 5 a.m every week with:\n"
++"# 0 5 * * 1 tar -zcf /var/backups/home.tgz /home/\n"
++"# \n"
++"# For more information see the manual pages of crontab(5) and cron(8)\n" 
++"# \n"
++"# m h  dom mon dow   command\n" );
++	}
++
+ 	/* ignore the top few comments since we probably put them there.
+ 	 */
+ 	for (x = 0;  x < NHEADER_LINES;  x++) {
+@@ -358,37 +636,44 @@
+ 		while (EOF != (ch = get_char(f)))
+ 			putc(ch, NewCrontab);
+ 	fclose(f);
+-	if (fflush(NewCrontab) < OK) {
+-		perror(Filename);
+-		exit(ERROR_EXIT);
+-	}
+- again:
+-	rewind(NewCrontab);
++
+ 	if (ferror(NewCrontab)) {
+ 		fprintf(stderr, "%s: error while writing new crontab to %s\n",
+ 			ProgramName, Filename);
+- fatal:		unlink(Filename);
+-		exit(ERROR_EXIT);
+ 	}
+-	if (fstat(t, &statbuf) < 0) {
+-		perror("fstat");
++
++	if (fstat(t, &fsbuf) < 0) {
++		perror("unable to stat temp file");
+ 		goto fatal;
+ 	}
+-	mtime = statbuf.st_mtime;
+ 
+-	if ((!(editor = getenv("VISUAL")))
+-	 && (!(editor = getenv("EDITOR")))
++
++
++        /* Okay, edit the file */
++
++	if ((!((editor = getenv("VISUAL")) && strlen(editor)))
++	 && (!((editor = getenv("EDITOR")) && strlen(editor)))
+ 	    ) {
+ 		editor = EDITOR;
+ 	}
+ 
+-	/* we still have the file open.  editors will generally rewrite the
+-	 * original file rather than renaming/unlinking it and starting a
+-	 * new one; even backup files are supposed to be made by copying
+-	 * rather than by renaming.  if some editor does not support this,
+-	 * then don't use it.  the security problems are more severe if we
+-	 * close and reopen the file around the edit.
+-	 */
++
++        /*  Close before cleanup_tmp_crontab is called or otherwise
++         *  (on NFS mounted /) will get renamed on unlink */
++	if (fclose(NewCrontab) != 0) {
++		perror(Filename);
++                goto fatal;
++	}
++
++again: /* Loop point for retrying edit after error */
++
++	/* Turn off signals. */
++	(void)signal(SIGHUP, SIG_IGN);
++	(void)signal(SIGINT, SIG_IGN);
++	(void)signal(SIGQUIT, SIG_IGN);
++
++        /* Give up privileges while editing */
++        swap_uids();
+ 
+ 	switch (pid = fork()) {
+ 	case -1:
+@@ -396,10 +681,14 @@
+ 		goto fatal;
+ 	case 0:
+ 		/* child */
+-		if (setuid(getuid()) < 0) {
+-			perror("setuid(getuid())");
+-			exit(ERROR_EXIT);
+-		}
++                if (setgid(getgid()) < 0) {
++                        perror("setgid(getgid())");
++                        exit(ERROR_EXIT);
++                }
++                if (setuid(getuid()) < 0) {
++                        perror("setuid(getuid())");
++                        exit(ERROR_EXIT);
++                }
+ 		if (chdir("/tmp") < 0) {
+ 			perror("chdir(/tmp)");
+ 			exit(ERROR_EXIT);
+@@ -409,7 +698,7 @@
+ 				ProgramName);
+ 			exit(ERROR_EXIT);
+ 		}
+-		sprintf(q, "%s %s", editor, Filename);
++		snprintf(q, MAX_TEMPSTR, "%s %s", editor, Filename);
+ 		execlp(_PATH_BSHELL, _PATH_BSHELL, "-c", q, NULL);
+ 		perror(editor);
+ 		exit(ERROR_EXIT);
+@@ -420,40 +709,60 @@
+ 	}
+ 
+ 	/* parent */
+-	xpid = wait(&waiter);
+-	if (xpid != pid) {
+-		fprintf(stderr, "%s: wrong PID (%d != %d) from \"%s\"\n",
+-			ProgramName, xpid, pid, editor);
+-		goto fatal;
+-	}
+-	if (WIFEXITED(waiter) && WEXITSTATUS(waiter)) {
+-		fprintf(stderr, "%s: \"%s\" exited with status %d\n",
+-			ProgramName, editor, WEXITSTATUS(waiter));
+-		goto fatal;
+-	}
+-	if (WIFSIGNALED(waiter)) {
+-		fprintf(stderr,
+-			"%s: \"%s\" killed; signal %d (%score dumped)\n",
+-			ProgramName, editor, WTERMSIG(waiter),
+-			WCOREDUMP(waiter) ?"" :"no ");
+-		goto fatal;
+-	}
+-	if (fstat(t, &statbuf) < 0) {
+-		perror("fstat");
+-		goto fatal;
+-	}
+-	if (mtime == statbuf.st_mtime) {
+-		fprintf(stderr, "%s: no changes made to crontab\n",
+-			ProgramName);
+-		goto remove;
+-	}
++	while (1) {
++		xpid = waitpid(pid, &waiter, WUNTRACED);
++		if (xpid == -1) {
++			fprintf(stderr, "%s: waitpid() failed waiting for PID %d from \"%s\": %s\n",
++				ProgramName, pid, editor, strerror(errno));
++		} else if (xpid != pid) {
++			fprintf(stderr, "%s: wrong PID (%d != %d) from \"%s\"\n",
++				ProgramName, xpid, pid, editor);
++			goto fatal;
++		} else if (WIFSTOPPED(waiter)) {
++		        /* raise(WSTOPSIG(waiter)); Not needed and breaks in job control shell*/
++		} else if (WIFEXITED(waiter) && WEXITSTATUS(waiter)) {
++			fprintf(stderr, "%s: \"%s\" exited with status %d\n",
++				ProgramName, editor, WEXITSTATUS(waiter));
++			goto fatal;
++		} else if (WIFSIGNALED(waiter)) {
++			fprintf(stderr,
++				"%s: \"%s\" killed; signal %d (%score dumped)\n",
++				ProgramName, editor, WTERMSIG(waiter),
++				WCOREDUMP(waiter) ?"" :"no ");
++			goto fatal;
++		} else
++			break;
++	}
++	(void)signal(SIGHUP, SIG_DFL);
++	(void)signal(SIGINT, SIG_DFL);
++	(void)signal(SIGQUIT, SIG_DFL);
++	(void)signal(SIGTSTP, SIG_DFL);
++
++        /* Need privs again */
++        swap_uids_back();
++
++        switch (open_tmp_crontab(&fsbuf)) {
++        case -1:
++                fprintf(stderr, "Error while editing crontab\n");
++                goto fatal;
++        case 1:
++                fprintf(stderr, "No modification made\n");
++                goto remove;
++        case 0:
++                break;
++        default:
++                fprintf(stderr,
++                        "cron@packages.debian.org fscked up. Send him a nasty note\n");
++                break;
++        }
++
+ 	fprintf(stderr, "%s: installing new crontab\n", ProgramName);
+ 	switch (replace_cmd()) {
+ 	case 0:
+ 		break;
+ 	case -1:
+ 		for (;;) {
+-			printf("Do you want to retry the same edit? ");
++			printf("Do you want to retry the same edit? (y/n) ");
+ 			fflush(stdout);
+ 			q[0] = '\0';
+ 			(void) fgets(q, sizeof q, stdin);
+@@ -473,15 +782,33 @@
+ 			ProgramName, Filename);
+ 		goto done;
+ 	default:
+-		fprintf(stderr, "%s: panic: bad switch() in replace_cmd()\n");
++		fprintf(stderr, "%s: panic: bad switch() in replace_cmd()\n",
++		    ProgramName);
+ 		goto fatal;
+ 	}
++
++       if (fclose(NewCrontab) != 0) {
++               perror(Filename);
++       }
++
+  remove:
+-	unlink(Filename);
++        cleanup_tmp_crontab();
+  done:
+ 	log_it(RealUser, Pid, "END EDIT", User);
++        return;
++ fatal:
++        cleanup_tmp_crontab();
++        unlink(Filename);
++        exit(ERROR_EXIT);
+ }
+-	
++
++static char tn[MAX_FNAME];
++
++static void sig_handler(int x)
++{
++	unlink(tn);
++	exit(1);
++}	
+ 
+ /* returns	0	on success
+  *		-1	on syntax error
+@@ -489,20 +816,44 @@
+  */
+ static int
+ replace_cmd() {
+-	char	n[MAX_FNAME], envstr[MAX_ENVSTR], tn[MAX_FNAME];
++	char	n[MAX_FNAME], envstr[MAX_ENVSTR];
+ 	FILE	*tmp;
+-	int	ch, eof;
++	int	ch, eof, fd;
++	int	nl = FALSE;
+ 	entry	*e;
+ 	time_t	now = time(NULL);
+ 	char	**envp = env_init();
++	mode_t	um;
+ 
+-	(void) sprintf(n, "tmp.%d", Pid);
+-	(void) sprintf(tn, CRON_TAB(n));
+-	if (!(tmp = fopen(tn, "w+"))) {
+-		perror(tn);
++	if (envp == NULL) {
++		fprintf(stderr, "%s: Cannot allocate memory.\n", ProgramName);
+ 		return (-2);
+ 	}
+ 
++
++	/* Assumes Linux-style signal handlers (takes int, returns void) */
++	/* Signal handlers, to ensure we do not leave temp files in the
++	   spool dir.  We don't remove these on exiting this function;
++	   but that's OK, we exit immediately afterwards anyway. */
++	signal(SIGHUP, sig_handler);
++	signal(SIGINT, sig_handler);
++	signal(SIGQUIT, sig_handler);
++	signal(SIGTSTP, SIG_IGN);
++
++	(void) snprintf(tn, MAX_FNAME, CRON_TAB("tmp.XXXXXX"));
++	um = umask(077);
++	fd = mkstemp(tn);
++	if (fd < 0) {
++                fprintf(stderr, "%s/: mkstemp: %s\n", CRONDIR, strerror(errno));
++		return(-2);
++	}
++	tmp = fdopen(fd, "w+");
++	if (!tmp) {
++                fprintf(stderr, "%s/: fdopen: %s\n", CRONDIR, strerror(errno));
++		return (-2);
++	}
++	(void) umask(um);
++
+ 	/* write a signature at the top of the file.
+ 	 *
+ 	 * VERY IMPORTANT: make sure NHEADER_LINES agrees with this code.
+@@ -517,19 +868,17 @@
+ 	Set_LineNum(1)
+ 	while (EOF != (ch = get_char(NewCrontab)))
+ 		putc(ch, tmp);
+-	ftruncate(fileno(tmp), ftell(tmp));
+-	fflush(tmp);  rewind(tmp);
+ 
+-	if (ferror(tmp)) {
+-		fprintf(stderr, "%s: error while writing new crontab to %s\n",
+-			ProgramName, tn);
++	if (ferror(tmp) || fflush(tmp) || fsync(fd)) {
++		fprintf(stderr, "%s: %s: %s\n",
++			ProgramName, tn, strerror(errno));
+ 		fclose(tmp);  unlink(tn);
+ 		return (-2);
+ 	}
+ 
+ 	/* check the syntax of the file being installed.
+ 	 */
+-
++	rewind(tmp);
+ 	/* BUG: was reporting errors after the EOF if there were any errors
+ 	 * in the file proper -- kludged it by stopping after first error.
+ 	 *		vix 31mar87
+@@ -540,6 +889,8 @@
+ 		switch (load_env(envstr, tmp)) {
+ 		case ERR:
+ 			eof = TRUE;
++			if (envstr[0] == '\0')
++				nl = TRUE;
+ 			break;
+ 		case FALSE:
+ 			e = load_entry(tmp, check_error, pw, envp);
+@@ -557,42 +908,50 @@
+ 		return (-1);
+ 	}
+ 
+-#ifdef HAS_FCHOWN
+-	if (fchown(fileno(tmp), ROOT_UID, -1) < OK)
+-#else
+-	if (chown(tn, ROOT_UID, -1) < OK)
+-#endif
+-	{
+-		perror("chown");
++	if (nl == FALSE) {
++		fprintf(stderr, "new crontab file is missing newline before "
++				"EOF, can't install.\n");
+ 		fclose(tmp);  unlink(tn);
+-		return (-2);
++		return (-1);
+ 	}
+ 
++
+ #ifdef HAS_FCHMOD
+ 	if (fchmod(fileno(tmp), 0600) < OK)
+ #else
+ 	if (chmod(tn, 0600) < OK)
+ #endif
+ 	{
+-		perror("chown");
++		perror("chmod");
+ 		fclose(tmp);  unlink(tn);
+ 		return (-2);
+ 	}
+ 
++
+ 	if (fclose(tmp) == EOF) {
+ 		perror("fclose");
+ 		unlink(tn);
+ 		return (-2);
+ 	}
+ 
+-	(void) sprintf(n, CRON_TAB(User));
++        /* Root on behalf of another user must set file owner to that user */
++        if (getuid() == ROOT_UID && strcmp(User, RealUser) != 0) {
++            if (chown(tn, pw->pw_uid, -1) != 0) {
++                perror("chown");
++                unlink(tn);
++                return -2;
++            }
++        }
++
++	(void) snprintf(n, sizeof(n), CRON_TAB(User));
+ 	if (rename(tn, n)) {
+-		fprintf(stderr, "%s: error renaming %s to %s\n",
+-			ProgramName, tn, n);
+-		perror("rename");
++		fprintf(stderr, "%s: %s: rename: %s\n",
++			ProgramName, n, strerror(errno));
+ 		unlink(tn);
+ 		return (-2);
+ 	}
++
++
+ 	log_it(RealUser, Pid, "REPLACE", User);
+ 
+ 	poke_daemon();
+@@ -610,14 +969,14 @@
+ 	(void) gettimeofday(&tvs[0], &tz);
+ 	tvs[1] = tvs[0];
+ 	if (utimes(SPOOL_DIR, tvs) < OK) {
+-		fprintf(stderr, "crontab: can't update mtime on spooldir\n");
+-		perror(SPOOL_DIR);
++                fprintf(stderr, "%s/: utimes: %s", CRONDIR, strerror(errno));
++		fputs("crontab: can't update mtime on spooldir\n", stderr);
+ 		return;
+ 	}
+ #else
+ 	if (utime(SPOOL_DIR, NULL) < OK) {
+-		fprintf(stderr, "crontab: can't update mtime on spooldir\n");
+-		perror(SPOOL_DIR);
++                fprintf(stderr, "%s: utime: %s\n", CRONDIR, strerror(errno));
++		fputs("crontab: can't update mtime on spooldir\n", stderr);
+ 		return;
+ 	}
+ #endif /*USE_UTIMES*/
+Index: cron3.0pl1/database.c
+===================================================================
+--- cron3.0pl1.orig/database.c	1994-02-28 20:39:18.000000000 -0600
++++ cron3.0pl1/database.c	2011-07-25 15:47:19.646808888 -0500
+@@ -24,29 +24,51 @@
+ 
+ 
+ #include "cron.h"
++#define __USE_GNU /* For O_NOFOLLOW */
+ #include <fcntl.h>
++#undef __USE_GNU
+ #include <sys/stat.h>
+ #include <sys/file.h>
+ 
+-
+ #define TMAX(a,b) ((a)>(b)?(a):(b))
+ 
++/* Try to get maximum path name -- this isn't really correct, but we're
++going to be lazy */
++
++#ifndef PATH_MAX
++
++#ifdef MAXPATHLEN
++#define PATH_MAX MAXPATHLEN 
++#else
++#define PATH_MAX 2048
++#endif
++
++#endif /* ifndef PATH_MAX */
+ 
+ static	void		process_crontab __P((char *, char *, char *,
+ 					     struct stat *,
+ 					     cron_db *, cron_db *));
+-
+-
++#ifdef DEBIAN
++static int valid_name (char *filename);
++static user *get_next_system_crontab __P((user *));
++#endif
+ void
+ load_database(old_db)
+ 	cron_db		*old_db;
+ {
+-	DIR		*dir;
++        DIR		*dir;
+ 	struct stat	statbuf;
+ 	struct stat	syscron_stat;
+ 	DIR_T   	*dp;
+ 	cron_db		new_db;
+ 	user		*u, *nu;
++#ifdef DEBIAN
++	struct stat     syscrond_stat;
++	struct stat     syscrond_file_stat;
++	
++        char            syscrond_fname[PATH_MAX+1];
++	int             syscrond_change = 0;
++#endif
+ 
+ 	Debug(DLOAD, ("[%d] load_database()\n", getpid()))
+ 
+@@ -56,13 +78,63 @@
+ 	 */
+ 	if (stat(SPOOL_DIR, &statbuf) < OK) {
+ 		log_it("CRON", getpid(), "STAT FAILED", SPOOL_DIR);
+-		(void) exit(ERROR_EXIT);
++		statbuf.st_mtime = 0;
+ 	}
+ 
+ 	/* track system crontab file
+ 	 */
+-	if (stat(SYSCRONTAB, &syscron_stat) < OK)
++	if (stat(SYSCRONTAB, &syscron_stat) < OK) {
++		log_it("CRON", getpid(), "STAT FAILED", SYSCRONTAB);
+ 		syscron_stat.st_mtime = 0;
++	}
++
++#ifdef DEBIAN
++	/* Check mod time of SYSCRONDIR. This won't tell us if a file
++         * in it changed, but will capture deletions, which the individual
++         * file check won't
++	 */
++	if (stat(SYSCRONDIR, &syscrond_stat) < OK) {
++		log_it("CRON", getpid(), "STAT FAILED", SYSCRONDIR);
++		syscrond_stat.st_mtime = 0;
++	}
++
++	/* If SYSCRONDIR was modified, we know that something is changed and
++	 * there is no need for any further checks. If it wasn't, we should
++	 * pass through the old list of files in SYSCRONDIR and check their
++	 * mod time. Therefore a stopped hard drive won't be spun up, since
++	 * we avoid reading of SYSCRONDIR and don't change its access time.
++	 * This is especially important on laptops with APM.
++	 */
++	if (old_db->sysd_mtime != syscrond_stat.st_mtime) {
++	        syscrond_change = 1;
++	} else {
++	        /* Look through the individual files */
++		user *systab;
++
++		Debug(DLOAD, ("[%d] system dir mtime unch, check files now.\n",
++			      getpid()))
++
++		for (systab = old_db->head;
++		     (systab = get_next_system_crontab (systab)) != NULL;
++		     systab = systab->next) {
++
++			sprintf(syscrond_fname, "%s/%s", SYSCRONDIR,
++							 systab->name + 8);
++
++			Debug(DLOAD, ("\t%s:", syscrond_fname))
++
++			if (stat(syscrond_fname, &syscrond_file_stat) < OK)
++				syscrond_file_stat.st_mtime = 0;
++
++			if (syscrond_file_stat.st_mtime != systab->mtime ||
++				systab->mtime == 0) {
++			        syscrond_change = 1;
++                        }
++
++			Debug(DLOAD, (" [checked]\n"))
++		}
++	}
++#endif /* DEBIAN */
+ 
+ 	/* if spooldir's mtime has not changed, we don't need to fiddle with
+ 	 * the database.
+@@ -71,7 +143,14 @@
+ 	 * so is guaranteed to be different than the stat() mtime the first
+ 	 * time this function is called.
+ 	 */
+-	if (old_db->mtime == TMAX(statbuf.st_mtime, syscron_stat.st_mtime)) {
++#ifdef DEBIAN
++	if ((old_db->user_mtime == statbuf.st_mtime) &&
++	    (old_db->sys_mtime == syscron_stat.st_mtime) &&
++	    (!syscrond_change)) {
++#else
++	if ((old_db->user_mtime == statbuf.st_mtime) &&
++	    (old_db->sys_mtime == syscron_stat.st_mtime)) {
++#endif
+ 		Debug(DLOAD, ("[%d] spool dir mtime unch, no load needed.\n",
+ 			      getpid()))
+ 		return;
+@@ -82,27 +161,70 @@
+ 	 * actually changed.  Whatever is left in the old database when
+ 	 * we're done is chaff -- crontabs that disappeared.
+ 	 */
+-	new_db.mtime = TMAX(statbuf.st_mtime, syscron_stat.st_mtime);
++	new_db.user_mtime = statbuf.st_mtime;
++	new_db.sys_mtime = syscron_stat.st_mtime;
++#ifdef DEBIAN
++	new_db.sysd_mtime = syscrond_stat.st_mtime;
++#endif
+ 	new_db.head = new_db.tail = NULL;
+ 
+ 	if (syscron_stat.st_mtime) {
+-		process_crontab("root", "*system*",
++		process_crontab(SYSUSERNAME, "*system*",
+ 				SYSCRONTAB, &syscron_stat,
+ 				&new_db, old_db);
+ 	}
+ 
++#ifdef DEBIAN
++	/* Read all the package crontabs. */
++	if (!(dir = opendir(SYSCRONDIR))) {
++		log_it("CRON", getpid(), "OPENDIR FAILED", SYSCRONDIR);
++	}
++
++	while (dir != NULL && NULL != (dp = readdir(dir))) {
++		char	fname[MAXNAMLEN+1],
++		        tabname[PATH_MAX+1];
++
++
++		/* avoid file names beginning with ".".  this is good
++		 * because we would otherwise waste two guaranteed calls
++		 * to stat() for . and .., and also because package names
++		 * starting with a period are just too nasty to consider.
++		 */
++		if (dp->d_name[0] == '.')
++			continue;
++
++		/* skipfile names with letters outside the set
++		 * [A-Za-z0-9_-], like run-parts.
++		 */
++		if (!valid_name(dp->d_name))
++		  continue;
++
++		/* Generate the "fname" */
++		(void) strcpy(fname,"*system*");
++		(void) strcat(fname, dp->d_name);
++		sprintf(tabname,"%s/%s", SYSCRONDIR, dp->d_name);
++
++		/* statbuf is used as working storage by process_crontab() --
++		   current contents are irrelevant */
++		process_crontab(SYSUSERNAME, fname, tabname,
++				&statbuf, &new_db, old_db);
++
++	}
++	if (dir)
++		closedir(dir);
++#endif
++
+ 	/* we used to keep this dir open all the time, for the sake of
+ 	 * efficiency.  however, we need to close it in every fork, and
+ 	 * we fork a lot more often than the mtime of the dir changes.
+ 	 */
+ 	if (!(dir = opendir(SPOOL_DIR))) {
+ 		log_it("CRON", getpid(), "OPENDIR FAILED", SPOOL_DIR);
+-		(void) exit(ERROR_EXIT);
+ 	}
+ 
+-	while (NULL != (dp = readdir(dir))) {
++	while (dir != NULL && NULL != (dp = readdir(dir))) {
+ 		char	fname[MAXNAMLEN+1],
+-			tabname[MAXNAMLEN+1];
++			tabname[PATH_MAX+1];
+ 
+ 		/* avoid file names beginning with ".".  this is good
+ 		 * because we would otherwise waste two guaranteed calls
+@@ -113,12 +235,13 @@
+ 			continue;
+ 
+ 		(void) strcpy(fname, dp->d_name);
+-		sprintf(tabname, CRON_TAB(fname));
++		snprintf(tabname, PATH_MAX+1, CRON_TAB(fname));
+ 
+ 		process_crontab(fname, fname, tabname,
+ 				&statbuf, &new_db, old_db);
+ 	}
+-	closedir(dir);
++	if (dir)
++		closedir(dir);
+ 
+ 	/* if we don't do this, then when our children eventually call
+ 	 * getpwnam() in do_command.c's child_process to verify MAILTO=,
+@@ -203,25 +326,122 @@
+ 	int		crontab_fd = OK - 1;
+ 	user		*u;
+ 
++#ifdef DEBIAN
++	/* If the name begins with *system*, don't worry about password -
++	 it's part of the system crontab */
++	if (strncmp(fname, "*system*", 8) && !(pw = getpwnam(uname))) {
++#else
+ 	if (strcmp(fname, "*system*") && !(pw = getpwnam(uname))) {
++#endif
+ 		/* file doesn't have a user in passwd file.
+ 		 */
+-		log_it(fname, getpid(), "ORPHAN", "no passwd entry");
++		if (strncmp(fname, "tmp.", 4)) {
++			/* don't log these temporary files */
++			log_it(fname, getpid(), "ORPHAN", "no passwd entry");
++		}
+ 		goto next_crontab;
+ 	}
+ 
+-	if ((crontab_fd = open(tabname, O_RDONLY, 0)) < OK) {
++        if (pw) {
++            /* Path for user crontabs (including root's!) */
++            if ((crontab_fd = open(tabname, O_RDONLY|O_NOFOLLOW, 0)) < OK) {
+ 		/* crontab not accessible?
+ 		 */
+ 		log_it(fname, getpid(), "CAN'T OPEN", tabname);
+ 		goto next_crontab;
+-	}
++            }
+ 
+-	if (fstat(crontab_fd, statbuf) < OK) {
++            if (fstat(crontab_fd, statbuf) < OK) {
+ 		log_it(fname, getpid(), "FSTAT FAILED", tabname);
+ 		goto next_crontab;
+-	}
++            }
++            /* Check to make sure that the crontab is owned by the correct user
++               (or root) */
++
++            if (statbuf->st_uid != pw->pw_uid &&
++                statbuf->st_uid != ROOT_UID) {
++                log_it(fname, getpid(), "WRONG FILE OWNER", tabname);
++		goto next_crontab;
++            }
++            if (!S_ISREG(statbuf->st_mode) ||
++                statbuf->st_nlink != 1 ||
++                (statbuf->st_mode & 07777) != 0600) {
++                log_it(fname, getpid(), "WRONG INODE INFO", tabname);
++ 		goto next_crontab;
++            }
++        } else {
++            /* System crontab path. These can be symlinks, but the
++               symlink and the target must be owned by root. */
++            if (lstat(tabname, statbuf) < OK) {
++		log_it(fname, getpid(), "LSTAT FAILED", tabname);
++		goto next_crontab;
++            }
++            if (S_ISLNK(statbuf->st_mode) && statbuf->st_uid != ROOT_UID) {
++                log_it(fname, getpid(), "WRONG SYMLINK OWNER", tabname);
++		goto next_crontab;
++            }
++            if ((crontab_fd = open(tabname, O_RDONLY, 0)) < OK) {
++		/* crontab not accessible?
+ 
++                   If tabname is a regular file, this error is bad so we skip
++		   it instead of adding it to the new DB. If it's a symlink,
++                   it's most probably just broken, so we emit a warning.
++                   Then we re-add the old crontab to the new DB, but only after
++                   removing all entries and resetting its mtime. Once the link
++                   is fixed, it will get picked up and processed again.
++		 */
++                if (S_ISREG(statbuf->st_mode)) {
++		    log_it(fname, getpid(), "CAN'T OPEN", tabname);
++		    goto next_crontab;
++                } else {
++                    log_it(fname, getpid(), "CAN'T OPEN SYMLINK", tabname);
++
++                    u = find_user(old_db, fname);
++                    if (u != NULL) {
++			Debug(DLOAD, ("\t%s: [using placeholder]\n", fname))
++                        unlink_user(old_db, u);
++
++			if (u->crontab != NULL) {
++                    	    entry *e, *ne;
++			    for (e = u->crontab;  e != NULL;  e = ne) {
++			    	ne = e->next;
++			    	free_entry(e);
++			    }
++			}
++                        u->crontab = NULL;
++                        u->mtime = 0;
++                        link_user(new_db, u);
++                        goto next_crontab;
++                    }
++                }                
++            }
++
++            if (fstat(crontab_fd, statbuf) < OK) {
++		log_it(fname, getpid(), "FSTAT FAILED", tabname);
++		goto next_crontab;
++            }
++            /* Check to make sure that the crontab is owned by root */
++            if (statbuf->st_uid != ROOT_UID) {
++                log_it(fname, getpid(), "WRONG FILE OWNER", tabname);
++		goto next_crontab;
++            }
++            /* Check to make sure that the crontab is writable only by root */
++            if ((statbuf->st_mode & S_IWGRP) || (statbuf->st_mode & S_IWOTH))  {
++                log_it(fname, getpid(), "WRONG INODE INFO", tabname);
++		goto next_crontab;
++            }
++            /* Technically, we should also check whether the parent dir is
++ 	     * writable, and so on. This would only make proper sense for
++ 	     * regular files; we can't realistically check all possible
++ 	     * security issues resulting from symlinks. We'll just assume that
++ 	     * root will handle responsible when creating them.
++	     */
++        }
++        /*
++         * The link count check is not sufficient (the owner may
++         * delete their original link, reducing the link count back to
++         * 1), but this is all we've got.
++         */
+ 	Debug(DLOAD, ("\t%s:", fname))
+ 	u = find_user(old_db, fname);
+ 	if (u != NULL) {
+@@ -247,7 +467,8 @@
+ 		free_user(u);
+ 		log_it(fname, getpid(), "RELOAD", tabname);
+ 	}
+-	u = load_user(crontab_fd, pw, fname);
++
++	u = load_user(crontab_fd, pw, uname, fname, tabname);
+ 	if (u != NULL) {
+ 		u->mtime = statbuf->st_mtime;
+ 		link_user(new_db, u);
+@@ -259,3 +480,56 @@
+ 		close(crontab_fd);
+ 	}
+ }
++
++#ifdef DEBIAN
++
++#include <regex.h>
++
++/* True or false? Is this a valid filename? */
++
++/* Taken from Clint Adams 'run-parts' version to support lsb style
++   names, originally GPL, but relicensed to cron license per e-mail of
++   27 September 2003. I've changed it to do regcomp() only once. */
++
++static int
++valid_name(char *filename)
++{
++  static regex_t hierre, tradre, excsre, classicalre;
++  static int donere = 0;
++
++  if (!donere) {
++      donere = 1;
++      if (regcomp(&hierre, "^_?([a-z0-9_.]+-)+[a-z0-9]+$",
++                  REG_EXTENDED | REG_NOSUB)
++          || regcomp(&excsre, "^[a-z0-9-].*dpkg-(old|dist)$",
++                     REG_EXTENDED | REG_NOSUB)
++          || regcomp(&tradre, "^[a-z0-9][a-z0-9-]*$", REG_NOSUB)
++          || regcomp(&classicalre, "^[a-zA-Z0-9_-]+$",
++                     REG_EXTENDED | REG_NOSUB)) {
++          log_it("CRON", getpid(), "REGEX FAILED", "valid_name");
++          (void) exit(ERROR_EXIT);
++      }
++  }
++  if (lsbsysinit_mode) {
++      if (!regexec(&hierre, filename, 0, NULL, 0)) {
++          return regexec(&excsre, filename, 0, NULL, 0);
++      } else {
++          return !regexec(&tradre, filename, 0, NULL, 0);
++      }
++  }
++  /* Old standard style */
++  return !regexec(&classicalre, filename, 0, NULL, 0);
++}
++
++
++static user *
++get_next_system_crontab (curtab)
++	user	*curtab;
++{
++	for ( ; curtab != NULL; curtab = curtab->next)
++		if (!strncmp(curtab->name, "*system*", 8) && curtab->name [8])
++			break;
++	return curtab;
++}
++
++#endif
+Index: cron3.0pl1/do_command.c
+===================================================================
+--- cron3.0pl1.orig/do_command.c	1994-02-28 20:39:29.000000000 -0600
++++ cron3.0pl1/do_command.c	2011-07-25 15:47:19.646808888 -0500
+@@ -21,18 +21,63 @@
+ 
+ 
+ #include "cron.h"
+-#include <sys/signal.h>
++#include <signal.h>
++#include <grp.h>
++#include <sys/stat.h>
++#include <unistd.h>
+ #if defined(sequent)
+ # include <sys/universe.h>
+ #endif
+ #if defined(SYSLOG)
+ # include <syslog.h>
+ #endif
++#if defined(USE_PAM)
++#include <security/pam_appl.h>
++static pam_handle_t *pamh = NULL;
++static const struct pam_conv conv = {
++	NULL
++};
++#define PAM_FAIL_CHECK if (retcode != PAM_SUCCESS) { \
++	fprintf(stderr,"\n%s\n",pam_strerror(pamh, retcode)); \
++	syslog(LOG_ERR,"%s",pam_strerror(pamh, retcode)); \
++	pam_end(pamh, retcode); exit(1); \
++   }
++#endif
++
++#ifdef WITH_SELINUX
++#include <selinux/selinux.h>
++/* #include <selinux/get_context_list.h> */
++#endif
+ 
+ 
+ static void		child_process __P((entry *, user *)),
+ 			do_univ __P((user *));
+ 
++/* Build up the job environment from the PAM environment plus the
++   crontab environment */
++static char ** build_env(char **cronenv)
++{
++        char **jobenv = cronenv;
++#if defined(USE_PAM)
++        char **pamenv = pam_getenvlist(pamh);
++        char *cronvar;
++        int count = 0;
++
++        jobenv = env_copy(pamenv);
++
++        /* Now add the cron environment variables. Since env_set()
++           overwrites existing variables, this will let cron's
++           environment settings override pam's */
++
++        while ((cronvar = cronenv[count++])) {
++                if (!(jobenv = env_set(jobenv, cronvar))) {
++                        syslog(LOG_ERR, "Setting Cron environment variable %s failed", cronvar);
++                        return NULL;
++                }
++        }
++#endif
++    return jobenv;
++}
+ 
+ void
+ do_command(e, u)
+@@ -68,16 +113,29 @@
+ }
+ 
+ 
++/*
++ * CROND
++ *  - cron (runs child_process);
++ *    - cron (runs exec sh -c 'tab entry');
++ *    - cron (writes any %-style stdin to the command);
++ *    - mail (popen writes any stdout to mailcmd);
++ */
++
+ static void
+ child_process(e, u)
+ 	entry	*e;
+ 	user	*u;
+ {
+-	int		stdin_pipe[2], stdout_pipe[2];
++	int		stdin_pipe[2];
++	FILE		*tmpout;
+ 	register char	*input_data;
+ 	char		*usernm, *mailto;
+ 	int		children = 0;
+ 
++#if defined(USE_PAM)
++	int		retcode = 0;
++#endif
++
+ 	Debug(DPROC, ("[%d] child_process('%s')\n", getpid(), e->cmd))
+ 
+ 	/* mark ourselves as different to PS command watchers by upshifting
+@@ -95,13 +153,32 @@
+ 	usernm = env_get("LOGNAME", e->envp);
+ 	mailto = env_get("MAILTO", e->envp);
+ 
++	/* Check for arguments */
++	if (mailto) {
++		const char	*end;
++
++		/* These chars have to match those cron_popen()
++		 * uses to split the command string */
++		mailto += strspn(mailto, " \t\n");
++		end = mailto + strcspn(mailto, " \t\n");
++		if (*mailto == '-' || *end != '\0') {
++			printf("Bad Mailto karma.\n");
++			log_it("CRON",getpid(),"error","bad mailto");
++			mailto = NULL;
++		}
++	}
++
+ #ifdef USE_SIGCHLD
+ 	/* our parent is watching for our death by catching SIGCHLD.  we
+ 	 * do not care to watch for our children's deaths this way -- we
+ 	 * use wait() explictly.  so we have to disable the signal (which
+ 	 * was inherited from the parent).
+ 	 */
++#ifdef DEBIAN
++	(void) signal(SIGCHLD, SIG_DFL);
++#else
+ 	(void) signal(SIGCHLD, SIG_IGN);
++#endif
+ #else
+ 	/* on system-V systems, we are ignoring SIGCLD.  we have to stop
+ 	 * ignoring it now or the wait() in cron_pclose() won't work.
+@@ -110,10 +187,14 @@
+ 	(void) signal(SIGCLD, SIG_DFL);
+ #endif /*BSD*/
+ 
+-	/* create some pipes to talk to our future child
++	/* create a pipe to talk to our future child
+ 	 */
+ 	pipe(stdin_pipe);	/* child's stdin */
+-	pipe(stdout_pipe);	/* child's stdout */
++	/* child's stdout */
++	if ((tmpout = tmpfile()) == NULL) {
++		log_it("CRON", getpid(), "error", "create tmpfile");
++		exit(ERROR_EXIT);
++	}
+ 	
+ 	/* since we are a forked process, we can diddle the command string
+ 	 * we were passed -- nobody else is going to use it again, right?
+@@ -122,13 +203,21 @@
+ 	 * command, and subsequent characters are the additional input to
+ 	 * the command.  Subsequent %'s will be transformed into newlines,
+ 	 * but that happens later.
++	 *
++	 * If there are escaped %'s, remove the escape character.
+ 	 */
+ 	/*local*/{
+ 		register int escaped = FALSE;
+ 		register int ch;
++		register char *p;
+ 
+-		for (input_data = e->cmd;  ch = *input_data;  input_data++) {
++		for (input_data = p = e->cmd; (ch = *input_data);
++		    input_data++, p++) {
++			if (p != input_data)
++				*p = ch;
+ 			if (escaped) {
++				if (ch == '%' || ch == '\\')
++					*--p = ch;
+ 				escaped = FALSE;
+ 				continue;
+ 			}
+@@ -141,17 +230,32 @@
+ 				break;
+ 			}
+ 		}
++		*p = '\0';
+ 	}
+ 
++#if defined(USE_PAM)
++	retcode = pam_start("cron", usernm, &conv, &pamh);
++	PAM_FAIL_CHECK;
++	retcode = pam_set_item(pamh, PAM_TTY, "cron");
++	PAM_FAIL_CHECK;
++	retcode = pam_acct_mgmt(pamh, PAM_SILENT);
++	PAM_FAIL_CHECK;
++	retcode = pam_setcred(pamh, PAM_ESTABLISH_CRED | PAM_SILENT);
++	PAM_FAIL_CHECK;
++	retcode = pam_open_session(pamh, PAM_SILENT);
++	PAM_FAIL_CHECK;
++
++#endif
++
+ 	/* fork again, this time so we can exec the user's command.
+ 	 */
+-	switch (vfork()) {
++	switch (fork()) {
+ 	case -1:
+-		log_it("CRON",getpid(),"error","can't vfork");
++		log_it("CRON",getpid(),"error","can't fork");
+ 		exit(ERROR_EXIT);
+ 		/*NOTREACHED*/
+ 	case 0:
+-		Debug(DPROC, ("[%d] grandchild process Vfork()'ed\n",
++		Debug(DPROC, ("[%d] grandchild process fork()'ed\n",
+ 			      getpid()))
+ 
+ 		/* write a log message.  we've waited this long to do it
+@@ -159,7 +263,7 @@
+ 		 * the actual user command shell was going to get and the
+ 		 * PID is part of the log message.
+ 		 */
+-		/*local*/{
++		if (log_level >= 1) {
+ 			char *x = mkprints((u_char *)e->cmd, strlen(e->cmd));
+ 
+ 			log_it(usernm, getpid(), "CMD", x);
+@@ -168,9 +272,7 @@
+ 
+ 		/* that's the last thing we'll log.  close the log files.
+ 		 */
+-#ifdef SYSLOG
+-		closelog();
+-#endif
++		log_close();
+ 
+ 		/* get new pgrp, void tty, etc.
+ 		 */
+@@ -183,19 +285,21 @@
+ 		 * appropriate circumstances.
+ 		 */
+ 		close(stdin_pipe[WRITE_PIPE]);
+-		close(stdout_pipe[READ_PIPE]);
+ 
+ 		/* grandchild process.  make std{in,out} be the ends of
+ 		 * pipes opened by our daddy; make stderr go to stdout.
+ 		 */
+-		close(STDIN);	dup2(stdin_pipe[READ_PIPE], STDIN);
+-		close(STDOUT);	dup2(stdout_pipe[WRITE_PIPE], STDOUT);
+-		close(STDERR);	dup2(STDOUT, STDERR);
++		/* Closes are unnecessary -- let dup2() do it */
++
++		  /* close(STDIN) */; dup2(stdin_pipe[READ_PIPE], STDIN);
++		  dup2(fileno(tmpout), STDOUT);
++		  /* close(STDERR)*/; dup2(STDOUT, STDERR);
++
+ 
+-		/* close the pipes we just dup'ed.  The resources will remain.
++		/* close the pipe we just dup'ed.  The resources will remain.
+ 		 */
+ 		close(stdin_pipe[READ_PIPE]);
+-		close(stdout_pipe[WRITE_PIPE]);
++		fclose(tmpout);
+ 
+ 		/* set our login universe.  Do this in the grandchild
+ 		 * so that the child can invoke /usr/lib/sendmail
+@@ -206,18 +310,36 @@
+ 		/* set our directory, uid and gid.  Set gid first, since once
+ 		 * we set uid, we've lost root privledges.
+ 		 */
+-		setgid(e->gid);
+-# if defined(BSD)
+-		initgroups(env_get("LOGNAME", e->envp), e->gid);
++		if (setgid(e->gid) !=0) {
++		  char msg[256];
++		  snprintf(msg, 256, "do_command:setgid(%lu) failed: %s",
++			   (unsigned long) e->gid, strerror(errno));
++		  log_it("CRON",getpid(),"error",msg);
++		  exit(ERROR_EXIT);
++		}
++# if defined(BSD) || defined(POSIX)
++		if (initgroups(env_get("LOGNAME", e->envp), e->gid) !=0) {
++		  char msg[256];
++		  snprintf(msg, 256, "do_command:initgroups(%lu) failed: %s",
++			   (unsigned long) e->gid, strerror(errno));
++		  log_it("CRON",getpid(),"error",msg);
++		  exit(ERROR_EXIT);
++		}
+ # endif
+-		setuid(e->uid);		/* we aren't root after this... */
++		if (setuid(e->uid) !=0) { /* we aren't root after this... */
++		  char msg[256];
++		  snprintf(msg, 256, "do_command:setuid(%lu) failed: %s",
++			   (unsigned long) e->uid, strerror(errno)); 
++		  log_it("CRON",getpid(),"error",msg);
++		  exit(ERROR_EXIT);
++		}	
+ 		chdir(env_get("HOME", e->envp));
+ 
+ 		/* exec the command.
+ 		 */
+ 		{
+-			char	*shell = env_get("SHELL", e->envp);
+-
++                        char    **jobenv = build_env(e->envp); 
++                        char	*shell = env_get("SHELL", jobenv);
+ # if DEBUGGING
+ 			if (DebugFlags & DTEST) {
+ 				fprintf(stderr,
+@@ -227,9 +349,32 @@
+ 				_exit(OK_EXIT);
+ 			}
+ # endif /*DEBUGGING*/
+-			execle(shell, shell, "-c", e->cmd, (char *)0, e->envp);
+-			fprintf(stderr, "execl: couldn't exec `%s'\n", shell);
+-			perror("execl");
++#if 0
++			{
++			  struct sigaction oact;
++			  sigaction(SIGCHLD, NULL, &oact);
++			}
++			fprintf(stdout,"error");
++#endif
++#ifdef WITH_SELINUX
++			if (is_selinux_enabled() > 0) {
++			    if (u->scontext != 0L) {
++                                if (setexeccon(u->scontext) < 0) {
++                                    if (security_getenforce() > 0) {
++                                        fprintf(stderr, "Could not set exec context to %s for user  %s\n", u->scontext,u->name);
++                                        _exit(ERROR_EXIT);
++                                    }
++			        }
++                            }
++			    else if(security_getenforce() > 0)
++			    {
++                                fprintf(stderr, "Error, must have a security context for the cron job when in enforcing mode.\nUser %s.\n", u->name);
++                                _exit(ERROR_EXIT);
++			    }
++			}
++#endif
++                        execle(shell, shell, "-c", e->cmd, (char *)0, jobenv);
++			fprintf(stderr, "%s: execle: %s\n", shell, strerror(errno));
+ 			_exit(ERROR_EXIT);
+ 		}
+ 		break;
+@@ -246,11 +391,10 @@
+ 
+ 	Debug(DPROC, ("[%d] child continues, closing pipes\n", getpid()))
+ 
+-	/* close the ends of the pipe that will only be referenced in the
++	/* close the end of the pipe that will only be referenced in the
+ 	 * grandchild process...
+ 	 */
+ 	close(stdin_pipe[READ_PIPE]);
+-	close(stdout_pipe[WRITE_PIPE]);
+ 
+ 	/*
+ 	 * write, to the pipe connected to child's stdin, any input specified
+@@ -271,17 +415,12 @@
+ 
+ 		Debug(DPROC, ("[%d] child2 sending data to grandchild\n", getpid()))
+ 
+-		/* close the pipe we don't use, since we inherited it and
+-		 * are part of its reference count now.
+-		 */
+-		close(stdout_pipe[READ_PIPE]);
+-
+ 		/* translation:
+ 		 *	\% -> %
+ 		 *	%  -> \n
+ 		 *	\x -> \x	for all x != %
+ 		 */
+-		while (ch = *input_data++) {
++		while ((ch = *input_data++) != '\0') {
+ 			if (escaped) {
+ 				if (ch != '%')
+ 					putc('\\', out);
+@@ -323,126 +462,12 @@
+ 	 * when the grandchild exits, we'll get EOF.
+ 	 */
+ 
+-	Debug(DPROC, ("[%d] child reading output from grandchild\n", getpid()))
+-
+-	/*local*/{
+-		register FILE	*in = fdopen(stdout_pipe[READ_PIPE], "r");
+-		register int	ch = getc(in);
+-
+-		if (ch != EOF) {
+-			register FILE	*mail;
+-			register int	bytes = 1;
+-			int		status = 0;
+-
+-			Debug(DPROC|DEXT,
+-				("[%d] got data (%x:%c) from grandchild\n",
+-					getpid(), ch, ch))
+-
+-			/* get name of recipient.  this is MAILTO if set to a
+-			 * valid local username; USER otherwise.
+-			 */
+-			if (mailto) {
+-				/* MAILTO was present in the environment
+-				 */
+-				if (!*mailto) {
+-					/* ... but it's empty. set to NULL
+-					 */
+-					mailto = NULL;
+-				}
+-			} else {
+-				/* MAILTO not present, set to USER.
+-				 */
+-				mailto = usernm;
+-			}
+-		
+-			/* if we are supposed to be mailing, MAILTO will
+-			 * be non-NULL.  only in this case should we set
+-			 * up the mail command and subjects and stuff...
+-			 */
+-
+-			if (mailto) {
+-				register char	**env;
+-				auto char	mailcmd[MAX_COMMAND];
+-				auto char	hostname[MAXHOSTNAMELEN];
+-
+-				(void) gethostname(hostname, MAXHOSTNAMELEN);
+-				(void) sprintf(mailcmd, MAILARGS,
+-					       MAILCMD, mailto);
+-				if (!(mail = cron_popen(mailcmd, "w"))) {
+-					perror(MAILCMD);
+-					(void) _exit(ERROR_EXIT);
+-				}
+-				fprintf(mail, "From: root (Cron Daemon)\n");
+-				fprintf(mail, "To: %s\n", mailto);
+-				fprintf(mail, "Subject: Cron <%s@%s> %s\n",
+-					usernm, first_word(hostname, "."),
+-					e->cmd);
+-# if defined(MAIL_DATE)
+-				fprintf(mail, "Date: %s\n",
+-					arpadate(&TargetTime));
+-# endif /* MAIL_DATE */
+-				for (env = e->envp;  *env;  env++)
+-					fprintf(mail, "X-Cron-Env: <%s>\n",
+-						*env);
+-				fprintf(mail, "\n");
+-
+-				/* this was the first char from the pipe
+-				 */
+-				putc(ch, mail);
+-			}
+-
+-			/* we have to read the input pipe no matter whether
+-			 * we mail or not, but obviously we only write to
+-			 * mail pipe if we ARE mailing.
+-			 */
+-
+-			while (EOF != (ch = getc(in))) {
+-				bytes++;
+-				if (mailto)
+-					putc(ch, mail);
+-			}
+-
+-			/* only close pipe if we opened it -- i.e., we're
+-			 * mailing...
+-			 */
+-
+-			if (mailto) {
+-				Debug(DPROC, ("[%d] closing pipe to mail\n",
+-					getpid()))
+-				/* Note: the pclose will probably see
+-				 * the termination of the grandchild
+-				 * in addition to the mail process, since
+-				 * it (the grandchild) is likely to exit
+-				 * after closing its stdout.
+-				 */
+-				status = cron_pclose(mail);
+-			}
+-
+-			/* if there was output and we could not mail it,
+-			 * log the facts so the poor user can figure out
+-			 * what's going on.
+-			 */
+-			if (mailto && status) {
+-				char buf[MAX_TEMPSTR];
+-
+-				sprintf(buf,
+-			"mailed %d byte%s of output but got status 0x%04x\n",
+-					bytes, (bytes==1)?"":"s",
+-					status);
+-				log_it(usernm, getpid(), "MAIL", buf);
+-			}
+-
+-		} /*if data from grandchild*/
+-
+-		Debug(DPROC, ("[%d] got EOF from grandchild\n", getpid()))
+-
+-		fclose(in);	/* also closes stdout_pipe[READ_PIPE] */
+-	}
+-
+ 	/* wait for children to die.
+ 	 */
++	int status = 0;
+ 	for (;  children > 0;  children--)
+ 	{
++		char		msg[256];
+ 		WAIT_T		waiter;
+ 		PID_T		pid;
+ 
+@@ -450,16 +475,175 @@
+ 			getpid(), children))
+ 		pid = wait(&waiter);
+ 		if (pid < OK) {
+-			Debug(DPROC, ("[%d] no more grandchildren--mail written?\n",
+-				getpid()))
++			Debug(DPROC, ("[%d] no more grandchildren\n", getpid()))
+ 			break;
+ 		}
+-		Debug(DPROC, ("[%d] grandchild #%d finished, status=%04x",
++		Debug(DPROC, ("[%d] grandchild #%d finished, status=%04x\n",
+ 			getpid(), pid, WEXITSTATUS(waiter)))
+-		if (WIFSIGNALED(waiter) && WCOREDUMP(waiter))
+-			Debug(DPROC, (", dumped core"))
+-		Debug(DPROC, ("\n"))
++
++		if (WIFEXITED(waiter) && WEXITSTATUS(waiter)) {
++			status = waiter;
++			snprintf(msg, 256, "grandchild #%d failed with exit "
++				"status %d", pid, WEXITSTATUS(waiter));
++			log_it("CRON", getpid(), "error", msg);
++		} else if (WIFSIGNALED(waiter)) {
++			status = waiter;
++			snprintf(msg, 256, "grandchild #%d terminated by signal"
++				" %d%s", pid, WTERMSIG(waiter),
++				WCOREDUMP(waiter) ? ", dumped core" : "");
++			log_it("CRON", getpid(), "error", msg);
++		} 
+ 	}
++
++// Finally, send any output of the command to the mailer; also, alert
++// the user if their job failed.  Avoid popening the mailcmd until now
++// since sendmail may time out, and to write info about the exit
++// status.
++	
++	long pos;
++	struct stat	mcsb;
++	int		statret;	
++
++	fseek(tmpout, 0, SEEK_END);
++	pos = ftell(tmpout);
++	fseek(tmpout, 0, SEEK_SET);
++
++	Debug(DPROC|DEXT, ("[%d] got %ld bytes data from grandchild tmpfile\n",
++				getpid(), (long) pos))
++	if (pos == 0)
++		goto mail_finished;
++
++	// get name of recipient.
++	if (mailto == NULL)
++		mailto = usernm;
++	else if (!*mailto)
++                goto mail_finished;
++
++	/* Don't send mail if MAILCMD is not available */
++	if ((statret = stat(MAILCMD, &mcsb)) != 0) {
++		Debug(DPROC|DEXT, ("%s not found, not sending mail\n", MAILCMD))
++		if (pos > 0) {
++			log_it("CRON", getpid(), "info", "No MTA installed, discarding output");
++		}
++		goto mail_finished;
++	} else {
++		Debug(DPROC|DEXT, ("%s found, will send mail\n", MAILCMD))
++	}
++
++	register FILE	*mail = NULL;
++	register int	bytes = 1;
++
++	register char	**env;
++	char    	**jobenv = build_env(e->envp); 
++	auto char	mailcmd[MAX_COMMAND];
++	auto char	hostname[MAXHOSTNAMELEN];
++	char    	*content_type = env_get("CONTENT_TYPE",jobenv),
++			*content_transfer_encoding = env_get("CONTENT_TRANSFER_ENCODING",jobenv);
++
++	(void) gethostname(hostname, MAXHOSTNAMELEN);
++	(void) snprintf(mailcmd, sizeof(mailcmd),
++			MAILARGS, MAILCMD, mailto);
++	if (!(mail = cron_popen(mailcmd, "w", e))) {
++		perror(MAILCMD);
++		(void) _exit(ERROR_EXIT);
++	}
++	fprintf(mail, "From: root (Cron Daemon)\n");
++	fprintf(mail, "To: %s\n", mailto);
++	fprintf(mail, "Subject: Cron <%s@%s> %s%s\n",
++			usernm, first_word(hostname, "."),
++			e->cmd, status?" (failed)":"");
++# if defined(MAIL_DATE)
++	fprintf(mail, "Date: %s\n",
++			arpadate(&StartTime));
++# endif /* MAIL_DATE */
++	if ( content_type == 0L ) {
++		fprintf(mail, "Content-Type: text/plain; charset=%s\n",
++				cron_default_mail_charset
++		       );
++	} else {   
++		/* user specified Content-Type header.
++		 * disallow new-lines for security reasons
++		 * (else users could specify arbitrary mail headers!)
++		 */
++		char *nl=content_type;
++		size_t ctlen = strlen(content_type);
++
++		while(  (*nl != '\0')
++				&& ((nl=strchr(nl,'\n')) != 0L)
++				&& (nl < (content_type+ctlen))
++		     ) *nl = ' ';
++		fprintf(mail,"Content-Type: %s\n", content_type);
++	}
++	if ( content_transfer_encoding != 0L ) {
++		char *nl=content_transfer_encoding;
++		size_t ctlen = strlen(content_transfer_encoding);
++		while(  (*nl != '\0')
++				&& ((nl=strchr(nl,'\n')) != 0L)
++				&& (nl < (content_transfer_encoding+ctlen))
++		     ) *nl = ' ';
++
++		fprintf(mail,"Content-Transfer-Encoding: %s\n", content_transfer_encoding);
++	}
++
++	for (env = e->envp;  *env;  env++)
++		fprintf(mail, "X-Cron-Env: <%s>\n",
++				*env);
++	fputc('\n', mail);
++
++// Append the actual output of the child to the mail
++	
++	char buf[4096];
++	int ret, remain;
++
++	while(1) {
++		if ((ret = fread(buf, 1, sizeof(buf), tmpout)) == 0)
++			break;
++		for (remain = ret; remain != 0; ) {
++			ret = fwrite(buf, 1, remain, mail);
++			if (ret > 0) {
++				remain -= ret;
++				continue;
++			}
++			// XXX error
++			break;
++		}
++	}
++
++	Debug(DPROC, ("[%d] closing pipe to mail\n", getpid()))
++	status = cron_pclose(mail);
++
++	/* if there was output and we could not mail it,
++	 * log the facts so the poor user can figure out
++	 * what's going on.
++	 */
++	if (status) {
++		char buf[MAX_TEMPSTR];
++		snprintf(buf, MAX_TEMPSTR,
++				"mailed %d byte%s of output; "
++				"but got status 0x%04x, "
++				"\n",
++				bytes, (bytes==1)?"":"s", status);
++		log_it(usernm, getpid(), "MAIL", buf);
++	}
++
++	if (ferror(tmpout)) {
++		log_it(usernm, getpid(), "MAIL", "stream error reading output");
++	}
++
++mail_finished:
++	fclose(tmpout);
++
++	if (log_level >= 2) {
++		char *x = mkprints((u_char *)e->cmd, strlen(e->cmd));
++		log_it(usernm, getpid(), "END", x);
++		free(x);
++	}
++
++#if defined(USE_PAM)
++	pam_setcred(pamh, PAM_DELETE_CRED | PAM_SILENT);
++	retcode = pam_close_session(pamh, PAM_SILENT);
++	pam_end(pamh, retcode);
++#endif
+ }
+ 
+ 
+Index: cron3.0pl1/entry.c
+===================================================================
+--- cron3.0pl1.orig/entry.c	1994-02-28 20:39:29.000000000 -0600
++++ cron3.0pl1/entry.c	2011-07-25 15:47:19.676808888 -0500
+@@ -91,6 +91,7 @@
+ 	int	ch;
+ 	char	cmd[MAX_COMMAND];
+ 	char	envstr[MAX_ENVSTR];
++	char	**tenvp;
+ 
+ 	Debug(DPARS, ("load_entry()...about to eat comments\n"))
+ 
+@@ -129,18 +130,21 @@
+ 			bit_set(e->dom, 0);
+ 			bit_set(e->month, 0);
+ 			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
++                        e->flags |= DOW_STAR; 
+ 		} else if (!strcmp("monthly", cmd)) {
+ 			bit_set(e->minute, 0);
+ 			bit_set(e->hour, 0);
+ 			bit_set(e->dom, 0);
+ 			bit_nset(e->month, 0, (LAST_MONTH-FIRST_MONTH+1));
+ 			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
++                        e->flags |= DOW_STAR;
+ 		} else if (!strcmp("weekly", cmd)) {
+ 			bit_set(e->minute, 0);
+ 			bit_set(e->hour, 0);
+ 			bit_nset(e->dom, 0, (LAST_DOM-FIRST_DOM+1));
++			e->flags |= DOM_STAR;
+ 			bit_nset(e->month, 0, (LAST_MONTH-FIRST_MONTH+1));
+-			bit_set(e->dow, 0);
++			bit_nset(e->dow, 0,0);
+ 		} else if (!strcmp("daily", cmd) || !strcmp("midnight", cmd)) {
+ 			bit_set(e->minute, 0);
+ 			bit_set(e->hour, 0);
+@@ -149,10 +153,11 @@
+ 			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
+ 		} else if (!strcmp("hourly", cmd)) {
+ 			bit_set(e->minute, 0);
+-			bit_set(e->hour, (LAST_HOUR-FIRST_HOUR+1));
++			bit_nset(e->hour, 0, (LAST_HOUR-FIRST_HOUR+1));
+ 			bit_nset(e->dom, 0, (LAST_DOM-FIRST_DOM+1));
+ 			bit_nset(e->month, 0, (LAST_MONTH-FIRST_MONTH+1));
+ 			bit_nset(e->dow, 0, (LAST_DOW-FIRST_DOW+1));
++			e->flags |= HR_STAR;
+ 		} else {
+ 			ecode = e_timespec;
+ 			goto eof;
+@@ -160,6 +165,8 @@
+ 	} else {
+ 		Debug(DPARS, ("load_entry()...about to parse numerics\n"))
+ 
++		if (ch == '*')
++			e->flags |= MIN_STAR;
+ 		ch = get_list(e->minute, FIRST_MINUTE, LAST_MINUTE,
+ 			      PPC_NULL, ch, file);
+ 		if (ch == EOF) {
+@@ -170,6 +177,8 @@
+ 		/* hours
+ 		 */
+ 
++		if (ch == '*')
++			e->flags |= HR_STAR;
+ 		ch = get_list(e->hour, FIRST_HOUR, LAST_HOUR,
+ 			      PPC_NULL, ch, file);
+ 		if (ch == EOF) {
+@@ -218,6 +227,9 @@
+ 		bit_set(e->dow, 7);
+ 	}
+ 
++	/* If we used one of the @commands, we may be pointing at
++       blanks, and if we don't skip over them, we'll miss the user/command */	
++    Skip_Blanks(ch, file);
+ 	/* ch is the first character of a command, or a username */
+ 	unget_char(ch, file);
+ 
+@@ -239,6 +251,9 @@
+ 			goto eof;
+ 		}
+ 		Debug(DPARS, ("load_entry()...uid %d, gid %d\n",e->uid,e->gid))
++	} else if (ch == '*') {
++		ecode = e_cmd;
++		goto eof;
+ 	}
+ 
+ 	e->uid = pw->pw_uid;
+@@ -247,24 +262,52 @@
+ 	/* copy and fix up environment.  some variables are just defaults and
+ 	 * others are overrides.
+ 	 */
+-	e->envp = env_copy(envp);
++	if ((e->envp = env_copy(envp)) == NULL) {
++		ecode = e_none;
++		goto eof;
++	}
+ 	if (!env_get("SHELL", e->envp)) {
+-		sprintf(envstr, "SHELL=%s", _PATH_BSHELL);
+-		e->envp = env_set(e->envp, envstr);
++		snprintf(envstr, MAX_ENVSTR, "SHELL=%s", _PATH_BSHELL);
++		if ((tenvp = env_set(e->envp, envstr))) {
++			e->envp = tenvp;
++		} else {
++			ecode = e_none;
++			goto eof;
++		}
+ 	}
+ 	if (!env_get("HOME", e->envp)) {
+-		sprintf(envstr, "HOME=%s", pw->pw_dir);
+-		e->envp = env_set(e->envp, envstr);
++		snprintf(envstr, MAX_ENVSTR, "HOME=%s", pw->pw_dir);
++		if ((tenvp = env_set(e->envp, envstr))) {
++			e->envp = tenvp;
++		} else {
++			ecode = e_none;
++			goto eof;
++		}
+ 	}
+ 	if (!env_get("PATH", e->envp)) {
+-		sprintf(envstr, "PATH=%s", _PATH_DEFPATH);
+-		e->envp = env_set(e->envp, envstr);
++		snprintf(envstr, MAX_ENVSTR, "PATH=%s", _PATH_DEFPATH);
++		if ((tenvp = env_set(e->envp, envstr))) {
++			e->envp = tenvp;
++		} else {
++			ecode = e_none;
++			goto eof;
++		}
++	}
++	snprintf(envstr, MAX_ENVSTR, "%s=%s", "LOGNAME", pw->pw_name);
++	if ((tenvp = env_set(e->envp, envstr))) {
++		e->envp = tenvp;
++	} else {
++		ecode = e_none;
++		goto eof;
+ 	}
+-	sprintf(envstr, "%s=%s", "LOGNAME", pw->pw_name);
+-	e->envp = env_set(e->envp, envstr);
+ #if defined(BSD)
+-	sprintf(envstr, "%s=%s", "USER", pw->pw_name);
+-	e->envp = env_set(e->envp, envstr);
++	snprintf(envstr, MAX_ENVSTR, "%s=%s", "USER", pw->pw_name);
++	if ((tenvp = env_set(e->envp, envstr))) {
++		e->envp = tenvp;
++	} else {
++		ecode = e_none;
++		goto eof;
++	}
+ #endif
+ 
+ 	Debug(DPARS, ("load_entry()...about to parse command\n"))
+@@ -277,6 +320,10 @@
+ 	ch = get_string(cmd, MAX_COMMAND, file, "\n");
+ 
+ 	/* a file without a \n before the EOF is rude, so we'll complain...
++
++	   CK 2010-04-14: this code will never be reached. All calls to
++	   load_entry are proceeded by calls to load_env, which aborts on EOF, and
++       where load_env fails, the code bails out.
+ 	 */
+ 	if (ch == EOF) {
+ 		ecode = e_cmd;
+@@ -285,7 +332,10 @@
+ 
+ 	/* got the command in the 'cmd' string; save it in *e.
+ 	 */
+-	e->cmd = strdup(cmd);
++	if ((e->cmd = strdup(cmd)) == NULL) {
++		ecode = e_none;
++		goto eof;
++	}
+ 
+ 	Debug(DPARS, ("load_entry()...returning successfully\n"))
+ 
+@@ -294,6 +344,10 @@
+ 	return e;
+ 
+  eof:
++	if (e->envp)
++		env_free(e->envp);
++	if (e->cmd)
++		free(e->cmd);
+ 	free(e);
+ 	if (ecode != e_none && error_func)
+ 		(*error_func)(ecodes[(int)ecode]);
+@@ -414,7 +468,7 @@
+ 		 * sent as a 0 since there is no offset either.
+ 		 */
+ 		ch = get_number(&num3, 0, PPC_NULL, ch, file);
+-		if (ch == EOF)
++		if (ch == EOF || num3 <= 0)
+ 			return EOF;
+ 	} else {
+ 		/* no step.  default==1.
+@@ -422,6 +476,17 @@
+ 		num3 = 1;
+ 	}
+ 
++	/* Explicitly check for sane values. Certain combinations of ranges and
++	 * steps which should return EOF don't get picked up by the code below,
++	 * eg:
++	 *	5-64/30 * * * *	touch /dev/null
++	 *
++	 * Code adapted from set_elements() where this error was probably intended
++	 * to be catched.
++	 */
++	if (num1 < low || num1 > high || num2 < low || num2 > high)
++		return EOF;
++
+ 	/* range. set all elements from num1 to num2, stepping
+ 	 * by num3.  (the step is a downward-compatible extension
+ 	 * proposed conceptually by bob@acornrc, syntactically
+@@ -464,6 +529,10 @@
+ 	}
+ 	*pc = '\0';
+ 
++        if (len == 0) {
++            return EOF;
++        }
++
+ 	/* try to find the name in the name list
+ 	 */
+ 	if (names) {
+Index: cron3.0pl1/env.c
+===================================================================
+--- cron3.0pl1.orig/env.c	1994-02-28 20:42:33.000000000 -0600
++++ cron3.0pl1/env.c	2011-07-25 15:47:19.686808888 -0500
+@@ -27,7 +27,8 @@
+ {
+ 	register char	**p = (char **) malloc(sizeof(char **));
+ 
+-	p[0] = NULL;
++	if (p)
++		p[0] = NULL;
+ 	return (p);
+ }
+ 
+@@ -38,6 +39,9 @@
+ {
+ 	char	**p;
+ 
++	if(!envp)
++		return;
++
+ 	for (p = envp;  *p;  p++)
+ 		free(*p);
+ 	free(envp);
+@@ -54,8 +58,18 @@
+ 	for (count = 0;  envp[count] != NULL;  count++)
+ 		;
+ 	p = (char **) malloc((count+1) * sizeof(char *));  /* 1 for the NULL */
++	if (p == NULL) {
++		errno = ENOMEM;
++		return NULL;
++	}
+ 	for (i = 0;  i < count;  i++)
+-		p[i] = strdup(envp[i]);
++		if ((p[i] = strdup(envp[i])) == NULL) {
++			while (--i >= 0)
++				(void) free(p[i]);
++			free(p);
++			errno = ENOMEM;
++			return NULL;
++		}
+ 	p[count] = NULL;
+ 	return (p);
+ }
+@@ -86,7 +100,11 @@
+ 		 * save our new one there, and return the existing array.
+ 		 */
+ 		free(envp[found]);
+-		envp[found] = strdup(envstr);
++		if ((envp[found] = strdup(envstr)) == NULL) {
++			envp[found] = "";
++			errno = ENOMEM;
++			return NULL;
++		}
+ 		return (envp);
+ 	}
+ 
+@@ -97,11 +115,29 @@
+ 	 */
+ 	p = (char **) realloc((void *) envp,
+ 			      (unsigned) ((count+1) * sizeof(char **)));
++	if (p == NULL) 	{
++		errno = ENOMEM;
++		return NULL;
++	}
+ 	p[count] = p[count-1];
+-	p[count-1] = strdup(envstr);
++	if ((p[count-1] = strdup(envstr)) == NULL) {
++		errno = ENOMEM;
++		return NULL;
++	}
+ 	return (p);
+ }
+ 
++/* The following states are used by load_env(), traversed in order: */
++enum env_state {
++	NAMEI,		/* First char of NAME, may be quote */
++	NAME,		/* Subsequent chars of NAME */
++	EQ1,		/* After end of name, looking for '=' sign */
++	EQ2,		/* After '=', skipping whitespace */
++	VALUEI,		/* First char of VALUE, may be quote */
++	VALUE,		/* Subsequent chars of VALUE */
++	FINI,		/* All done, skipping trailing whitespace */
++	ERROR,		/* Error */
++};
+ 
+ /* return	ERR = end of file
+  *		FALSE = not an env setting (file was repositioned)
+@@ -114,31 +150,104 @@
+ {
+ 	long	filepos;
+ 	int	fileline;
+-	char	name[MAX_TEMPSTR], val[MAX_ENVSTR];
+-	int	fields;
++	enum env_state state;
++	char name[MAX_ENVSTR], val[MAX_ENVSTR];
++	char quotechar, *c, *str;
+ 
+ 	filepos = ftell(f);
+ 	fileline = LineNumber;
+ 	skip_comments(f);
+-	if (EOF == get_string(envstr, MAX_ENVSTR, f, "\n"))
++	if (EOF == get_string(envstr, MAX_ENVSTR - 1, f, "\n"))
+ 		return (ERR);
+ 
++    envstr[MAX_ENVSTR - 1] = '\0';
++
+ 	Debug(DPARS, ("load_env, read <%s>\n", envstr))
+ 
+-	name[0] = val[0] = '\0';
+-	fields = sscanf(envstr, "%[^ =] = %[^\n#]", name, val);
+-	if (fields != 2) {
+-		Debug(DPARS, ("load_env, not 2 fields (%d)\n", fields))
++	bzero(name, sizeof name);
++	bzero(val, sizeof val);
++	str = name;
++	state = NAMEI;
++	quotechar = '\0';
++	c = envstr;
++	while (state != ERROR && *c) {
++		switch (state) {
++		case NAMEI:
++		case VALUEI:
++			if (*c == '\'' || *c == '"')
++				quotechar = *c++;
++			state++;
++			/* FALLTHROUGH */
++		case NAME:
++		case VALUE:
++			if (quotechar) {
++				if (*c == quotechar) {
++					state++;
++					c++;
++					break;
++				}
++				if (state == NAME && *c == '=') {
++					state = ERROR;
++					break;
++				}
++			} else {
++				if (state == NAME) {
++					if (isspace((unsigned char)*c)) {
++						c++;
++						state++;
++						break;
++					}
++					if (*c == '=') {
++						state++;
++						break;
++					}
++				}
++			}
++			*str++ = *c++;
++			break;
++
++		case EQ1:
++			if (*c == '=') {
++				state++;
++				str = val;
++				quotechar = '\0';
++			} else {
++				if (!isspace((unsigned char)*c))
++					state = ERROR;
++			}
++			c++;
++			break;
++
++		case EQ2:
++		case FINI:
++			if (isspace((unsigned char)*c))
++				c++;
++			else
++				state++;
++			break;
++
++		default:
++			abort();
++		}
++	}
++	if (state != FINI && !(state == VALUE && !quotechar)) {
++		Debug(DPARS, ("load_env, not an env var, state = %d\n", state))
+ 		fseek(f, filepos, 0);
+ 		Set_LineNum(fileline);
+ 		return (FALSE);
+ 	}
++	if (state == VALUE) {
++		/* End of unquoted value: trim trailing whitespace */
++		c = val + strlen(val);
++		while (c > val && isspace((unsigned char)c[-1]))
++			*(--c) = '\0';
++	}
+ 
+-	/* 2 fields from scanf; looks like an env setting
+-	 */
++	/* 2 fields from parser; looks like an env setting */
+ 
+ 	/*
+-	 * process value string
++	 * This can't overflow because get_string() limited the size of the
++	 * name and val fields.  Still, it doesn't hurt to be careful...
+ 	 */
+ 	/*local*/{
+ 		int	len = strdtb(val);
+@@ -153,12 +262,13 @@
+ 		}
+ 	}
+ 
++	if (strlen(name) + 1 + strlen(val) >= MAX_ENVSTR-1)
++		return (FALSE);
+ 	(void) sprintf(envstr, "%s=%s", name, val);
+ 	Debug(DPARS, ("load_env, <%s> <%s> -> <%s>\n", name, val, envstr))
+ 	return (TRUE);
+ }
+ 
+-
+ char *
+ env_get(name, envp)
+ 	register char	*name;
+@@ -167,7 +277,7 @@
+ 	register int	len = strlen(name);
+ 	register char	*p, *q;
+ 
+-	while (p = *envp++) {
++	while ((p = *envp++)) {
+ 		if (!(q = strchr(p, '=')))
+ 			continue;
+ 		if ((q - p) == len && !strncmp(p, name, len))
+Index: cron3.0pl1/externs.h
+===================================================================
+--- cron3.0pl1.orig/externs.h	1994-02-28 20:39:19.000000000 -0600
++++ cron3.0pl1/externs.h	2011-07-25 15:47:19.686808888 -0500
+@@ -20,11 +20,17 @@
+ # include <unistd.h>
+ # include <string.h>
+ # include <dirent.h>
++# include <errno.h>
+ # define DIR_T	struct dirent
+ # define WAIT_T	int
+ # define WAIT_IS_INT 1
+ extern char *tzname[2];
+ # define TZONE(tm) tzname[(tm).tm_isdst]
++/* include locale stuff for mailer "Content-Type":
++ */
++#include <locale.h>
++#include <nl_types.h>
++#include <langinfo.h>
+ #endif
+ 
+ #if defined(UNIXPC)
+@@ -55,6 +61,7 @@
+ extern	void		perror(), exit(), free();
+ extern	char		*getenv(), *strcpy(), *strchr(), *strtok();
+ extern	void		*malloc(), *realloc();
++
+ # define SIG_T	void
+ # define TIME_T	long
+ # define PID_T int
+Index: cron3.0pl1/job.c
+===================================================================
+--- cron3.0pl1.orig/job.c	1994-02-28 20:39:19.000000000 -0600
++++ cron3.0pl1/job.c	2011-07-25 15:47:19.686808888 -0500
+@@ -45,7 +45,8 @@
+ 		if (j->e == e && j->u == u) { return; }
+ 
+ 	/* build a job queue element */
+-	j = (job*)malloc(sizeof(job));
++	if ((j = (job*)malloc(sizeof(job))) == NULL)
++		return;
+ 	j->next = (job*) NULL;
+ 	j->e = e;
+ 	j->u = u;
+Index: cron3.0pl1/Makefile
+===================================================================
+--- cron3.0pl1.orig/Makefile	2011-07-22 09:34:50.000000000 -0500
++++ cron3.0pl1/Makefile	2011-07-25 15:53:02.226808782 -0500
+@@ -55,23 +55,23 @@
+ INCLUDE		=	-I.
+ #INCLUDE	=
+ #<<need getopt()>>
+-LIBS		=
++LIBS		= $(PAM_LIBS) $(SELINUX_LIBS) $(AUDIT_LIBS)
+ #<<optimize or debug?>>
+ #OPTIM		=	-O
+-OPTIM		=	-g
++OPTIM		=	-g -O2
+ #<<ATT or BSD or POSIX?>>
+ # (ATT untested)
+ #COMPAT		=	-DATT
+ #(BSD is only needed if <sys/params.h> does not define it, as on ULTRIX)
+ #COMPAT		=	-DBSD
+ # (POSIX)
+-#COMPAT		=	-DPOSIX
++COMPAT		=	-DPOSIX
+ #<<lint flags of choice?>>
+ LINTFLAGS	=	-hbxa $(INCLUDE) $(COMPAT) $(DEBUGGING)
+ #<<want to use a nonstandard CC?>>
+ #CC		=	vcc
+ #<<manifest defines>>
+-DEFS		=
++DEFS		= -DUSE_SIGCHLD $(PAM_DEFS) $(SELINUX_DEFS)
+ #(SGI IRIX systems need this)
+ #DEFS		=	-D_BSD_SIGNALS -Dconst=
+ #<<the name of the BSD-like install program>>
+Index: cron3.0pl1/misc.c
+===================================================================
+--- cron3.0pl1.orig/misc.c	1994-02-28 20:39:30.000000000 -0600
++++ cron3.0pl1/misc.c	2011-07-25 15:47:19.686808888 -0500
+@@ -35,6 +35,10 @@
+ #include <errno.h>
+ #include <string.h>
+ #include <fcntl.h>
++#include <grp.h>
++#ifdef WITH_AUDIT
++#include <libaudit.h>
++#endif
+ #if defined(SYSLOG)
+ # include <syslog.h>
+ #endif
+@@ -191,19 +195,29 @@
+ set_cron_cwd()
+ {
+ 	struct stat	sb;
+-
++	mode_t		um;
++	struct group	*gr;
++	
+ 	/* first check for CRONDIR ("/var/cron" or some such)
+ 	 */
+ 	if (stat(CRONDIR, &sb) < OK && errno == ENOENT) {
+ 		perror(CRONDIR);
+-		if (OK == mkdir(CRONDIR, 0700)) {
++
++		/* crontab(1) running SGID crontab shouldn't attempt to create
++		 * directories */
++		if (getuid() != 0 )
++			exit(ERROR_EXIT);
++
++		um = umask(000);
++		if (OK == mkdir(CRONDIR, CRONDIR_MODE)) {
+ 			fprintf(stderr, "%s: created\n", CRONDIR);
+ 			stat(CRONDIR, &sb);
+ 		} else {
+-			fprintf(stderr, "%s: ", CRONDIR);
+-			perror("mkdir");
++			fprintf(stderr, "%s: mkdir: %s\n", CRONDIR,
++				strerror(errno));
+ 			exit(ERROR_EXIT);
+ 		}
++		(void) umask(um);
+ 	}
+ 	if (!(sb.st_mode & S_IFDIR)) {
+ 		fprintf(stderr, "'%s' is not a directory, bailing out.\n",
+@@ -211,8 +225,7 @@
+ 		exit(ERROR_EXIT);
+ 	}
+ 	if (chdir(CRONDIR) < OK) {
+-		fprintf(stderr, "cannot chdir(%s), bailing out.\n", CRONDIR);
+-		perror(CRONDIR);
++		fprintf(stderr, "%s: chdir: %s\n", CRONDIR, strerror(errno));
+ 		exit(ERROR_EXIT);
+ 	}
+ 
+@@ -220,12 +233,33 @@
+ 	 */
+ 	if (stat(SPOOL_DIR, &sb) < OK && errno == ENOENT) {
+ 		perror(SPOOL_DIR);
+-		if (OK == mkdir(SPOOL_DIR, 0700)) {
++
++		/* crontab(1) running SGID crontab shouldn't attempt to create
++		 * directories */
++		if (getuid() != 0 )
++			exit(ERROR_EXIT);
++
++		um = umask(000);
++		if (OK == mkdir(SPOOL_DIR, SPOOL_DIR_MODE)) {
+ 			fprintf(stderr, "%s: created\n", SPOOL_DIR);
+-			stat(SPOOL_DIR, &sb);
+ 		} else {
+-			fprintf(stderr, "%s: ", SPOOL_DIR);
+-			perror("mkdir");
++			fprintf(stderr, "%s: mkdir: %s\n", SPOOL_DIR,
++				strerror(errno));
++			exit(ERROR_EXIT);
++		}
++		(void) umask(um);
++
++		if (!(gr = getgrnam(SPOOL_DIR_GROUP))) {
++			fprintf(stderr, "%s: getgrnam: %s\n", SPOOL_DIR,
++				strerror(errno));
++			exit(ERROR_EXIT);
++		}
++		if (OK == chown(SPOOL_DIR, -1, gr->gr_gid)) {
++			fprintf(stderr, "%s: chowned\n", SPOOL_DIR);
++				stat(SPOOL_DIR, &sb);
++		} else {
++			fprintf(stderr, "%s: chown: %s\n", SPOOL_DIR,
++			strerror(errno));
+ 			exit(ERROR_EXIT);
+ 		}
+ 	}
+@@ -237,7 +271,7 @@
+ }
+ 
+ 
+-/* acquire_daemonlock() - write our PID into /etc/cron.pid, unless
++/* acquire_daemonlock() - write our PID into /etc/crond.pid, unless
+  *	another daemon is already running, which we detect here.
+  *
+  * note: main() calls us twice; once before forking, once after.
+@@ -263,11 +297,11 @@
+ 		char	buf[MAX_TEMPSTR];
+ 		int	fd, otherpid;
+ 
+-		(void) sprintf(pidfile, PIDFILE, PIDDIR);
++		(void) snprintf(pidfile, MAX_FNAME, PIDFILE, PIDDIR);
+ 		if ((-1 == (fd = open(pidfile, O_RDWR|O_CREAT, 0644)))
+ 		    || (NULL == (fp = fdopen(fd, "r+")))
+ 		    ) {
+-			sprintf(buf, "can't open or create %s: %s",
++			snprintf(buf, MAX_TEMPSTR, "can't open or create %s: %s",
+ 				pidfile, strerror(errno));
+ 			fprintf(stderr, "%s: %s\n", ProgramName, buf);
+ 			log_it("CRON", getpid(), "DEATH", buf);
+@@ -278,13 +312,14 @@
+ 			int save_errno = errno;
+ 
+ 			fscanf(fp, "%d", &otherpid);
+-			sprintf(buf, "can't lock %s, otherpid may be %d: %s",
++			snprintf(buf, MAX_TEMPSTR, "can't lock %s, otherpid may be %d: %s",
+ 				pidfile, otherpid, strerror(save_errno));
+ 			fprintf(stderr, "%s: %s\n", ProgramName, buf);
+ 			log_it("CRON", getpid(), "DEATH", buf);
+ 			exit(ERROR_EXIT);
+ 		}
+-
++		snprintf(buf, MAX_TEMPSTR, "pidfile fd = %d", fd);
++		log_it("CRON", getpid(), "INFO", buf);
+ 		(void) fcntl(fd, F_SETFD, 1);
+ 	}
+ 
+@@ -296,6 +331,7 @@
+ 	/* abandon fd and fp even though the file is open. we need to
+ 	 * keep it open and locked, but we don't need the handles elsewhere.
+ 	 */
++	
+ }
+ 
+ /* get_char(file) : like getc() but increment LineNumber on newlines
+@@ -308,7 +344,7 @@
+ 
+ 	ch = getc(file);
+ 	if (ch == '\n')
+-		Set_LineNum(LineNumber + 1)
++		Set_LineNum(LineNumber + 1);
+ 	return ch;
+ }
+ 
+@@ -322,7 +358,7 @@
+ {
+ 	ungetc(ch, file);
+ 	if (ch == '\n')
+-		Set_LineNum(LineNumber - 1)
++	       Set_LineNum(LineNumber - 1);
+ }
+ 
+ 
+@@ -428,7 +464,17 @@
+ {
+ 	static int	init = FALSE;
+ 	static FILE	*allow, *deny;
++	int     isallowed;
+ 
++        /* Root cannot be denied execution of cron jobs even if in the
++	 * 'DENY_FILE' so we return inmediately */
++        if (strcmp(username, ROOT_USER) == 0)
++                return (TRUE);
++
++	isallowed = FALSE;
++#if defined(ALLOW_ONLY_ROOT)
++	Debug(DMISC, "only root access is allowed")
++#else
+ 	if (!init) {
+ 		init = TRUE;
+ #if defined(ALLOW_FILE) && defined(DENY_FILE)
+@@ -441,16 +487,24 @@
+ #endif
+ 	}
+ 
+-	if (allow)
+-		return (in_file(username, allow));
+-	if (deny)
+-		return (!in_file(username, deny));
++	if (allow) 
++		isallowed = in_file(username, allow);
++	else
++		isallowed = TRUE; /* Allow access if ALLOW_FILE does not exist */
++	if (deny && !allow)
++		isallowed = !in_file(username, deny);
++#endif
+ 
+-#if defined(ALLOW_ONLY_ROOT)
+-	return (strcmp(username, ROOT_USER) == 0);
+-#else
+-	return TRUE;
++#ifdef WITH_AUDIT
++       /* Log an audit message if the user is rejected */ 
++       if (isallowed == FALSE) {
++               int audit_fd = audit_open();
++               audit_log_user_message(audit_fd, AUDIT_USER_START, "cron deny",
++                       NULL, NULL, NULL, 0);
++               close(audit_fd);
++       }
+ #endif
++	return isallowed;
+ }
+ 
+ 
+@@ -461,46 +515,46 @@
+ 	char	*event;
+ 	char	*detail;
+ {
+-	PID_T			pid = xpid;
+ #if defined(LOG_FILE)
++	PID_T			pid = xpid;
+ 	char			*msg;
+ 	TIME_T			now = time((TIME_T) 0);
+ 	register struct tm	*t = localtime(&now);
++	int 			msg_size;
+ #endif /*LOG_FILE*/
+ 
+-#if defined(SYSLOG)
+-	static int		syslog_open = 0;
+-#endif
+ 
+ #if defined(LOG_FILE)
+ 	/* we assume that MAX_TEMPSTR will hold the date, time, &punctuation.
+ 	 */
+-	msg = malloc(strlen(username)
+-		     + strlen(event)
+-		     + strlen(detail)
+-		     + MAX_TEMPSTR);
+-
++	msg_size = strlen(username) + strlen(event) + strlen(detail) + MAX_TEMPSTR;
++	msg = malloc(msg_size);
++	if (msg == NULL) {
++	    /* damn, out of mem and we did not test that before... */
++	    fprintf(stderr, "%s: Run OUT OF MEMORY while %s\n",
++		    ProgramName, __FUNCTION__);
++	    return;
++	}
+ 	if (LogFD < OK) {
+ 		LogFD = open(LOG_FILE, O_WRONLY|O_APPEND|O_CREAT, 0600);
+ 		if (LogFD < OK) {
+-			fprintf(stderr, "%s: can't open log file\n",
+-				ProgramName);
+-			perror(LOG_FILE);
++			fprintf(stderr, "%s: %s: open: %s\n",
++				ProgramName, LOG_FILE, strerror(errno));
+ 		} else {
+ 			(void) fcntl(LogFD, F_SETFD, 1);
+ 		}
+ 	}
+ 
+-	/* we have to sprintf() it because fprintf() doesn't always write
++	/* we have to snprintf() it because fprintf() doesn't always write
+ 	 * everything out in one chunk and this has to be atomically appended
+ 	 * to the log file.
+ 	 */
+-	sprintf(msg, "%s (%02d/%02d-%02d:%02d:%02d-%d) %s (%s)\n",
++	snprintf(msg, msg_size, "%s (%02d/%02d-%02d:%02d:%02d-%d) %s (%s)\n",
+ 		username,
+ 		t->tm_mon+1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, pid,
+ 		event, detail);
+ 
+-	/* we have to run strlen() because sprintf() returns (char*) on old BSD
++	/* we have to run strlen() because snprintf() returns (char*) on old BSD
+ 	 */
+ 	if (LogFD < OK || write(LogFD, msg, strlen(msg)) < OK) {
+ 		if (LogFD >= OK)
+@@ -513,27 +567,30 @@
+ #endif /*LOG_FILE*/
+ 
+ #if defined(SYSLOG)
+-	if (!syslog_open) {
+-		/* we don't use LOG_PID since the pid passed to us by
+-		 * our client may not be our own.  therefore we want to
+-		 * print the pid ourselves.
+-		 */
+-# ifdef LOG_DAEMON
+-		openlog(ProgramName, LOG_PID, LOG_CRON);
++
++
++	    /* we don't use LOG_PID since the pid passed to us by
++	     * our client may not be our own.  therefore we want to
++	     * print the pid ourselves.
++	     */
++	    /* SteveG says: That comment is not consistent with the
++	       code, and makes no sense -- I suspect it's a remnant
++	       of a cut-n-paster... */
++# ifdef LOG_CRON
++	openlog(ProgramName, LOG_PID, LOG_CRON);
+ # else
+-		openlog(ProgramName, LOG_PID);
++	openlog(ProgramName, LOG_PID);
+ # endif
+-		syslog_open = TRUE;		/* assume openlog success */
+-	}
+-
+-	syslog(LOG_INFO, "(%s) %s (%s)\n", username, event, detail);
++	  
++	syslog(LOG_INFO, "(%s) %s (%s)", username, event, detail);
+ 
++	closelog();
+ #endif /*SYSLOG*/
+ 
+ #if DEBUGGING
+ 	if (DebugFlags) {
+ 		fprintf(stderr, "log_it: (%s %d) %s (%s)\n",
+-			username, pid, event, detail);
++			username, xpid, event, detail);
+ 	}
+ #endif
+ }
+@@ -541,10 +598,15 @@
+ 
+ void
+ log_close() {
++#if defined(LOG_FILE)
+ 	if (LogFD != ERR) {
+ 		close(LogFD);
+ 		LogFD = ERR;
+ 	}
++#endif
++#if defined(SYSLOG)
++	closelog();
++#endif
+ }
+ 
+ 
+@@ -604,8 +666,10 @@
+ 			*dst++ = '^';
+ 			*dst++ = '?';
+ 		} else {			/* parity character */
+-			sprintf(dst, "\\%03o", ch);
+-			dst += 4;
++		    /* well, the following snprintf is paranoid, but that will
++		     * keep grep happy */
++		    snprintf(dst, 5, "\\%03o", ch);
++		    dst += 4;
+ 		}
+ 	}
+ 	*dst = '\0';
+@@ -622,43 +686,101 @@
+ {
+ 	register char *dst = malloc(len*4 + 1);
+ 
+-	mkprint(dst, src, len);
++	if (dst)
++		mkprint(dst, src, len);
+ 
+ 	return dst;
+ }
+ 
+ 
+ #ifdef MAIL_DATE
+-/* Sat, 27 Feb 93 11:44:51 CST
+- * 123456789012345678901234567
++/* Sat, 27 Feb 1993 11:44:51 -0800 (CST)
++ * 1234567890123456789012345678901234567
+  */
+ char *
+ arpadate(clock)
+ 	time_t *clock;
+ {
+-	time_t t = clock ?*clock :time(0L);
++	static char ret[64];	/* zone name might be >3 chars */
++	time_t t = clock ? *clock : time(NULL);
+ 	struct tm *tm = localtime(&t);
+-	static char ret[30];	/* zone name might be >3 chars */
+-	
+-	(void) sprintf(ret, "%s, %2d %s %2d %02d:%02d:%02d %s",
+-		       DowNames[tm->tm_wday],
+-		       tm->tm_mday,
+-		       MonthNames[tm->tm_mon],
+-		       tm->tm_year,
+-		       tm->tm_hour,
+-		       tm->tm_min,
+-		       tm->tm_sec,
+-		       TZONE(*tm));
++	char *qmark;
++	size_t len;
++        long gmtoff = get_gmtoff(&t, tm);
++        int hours = gmtoff / 3600;
++        int minutes = (gmtoff - (hours * 3600)) / 60;
++
++	if (minutes < 0)
++		minutes = -minutes;
++
++	/* Defensive coding (almost) never hurts... */
++	len = strftime(ret, sizeof(ret), "%a, %e %b %Y %T ????? (%Z)", tm);
++	if (len == 0) {
++		ret[0] = '?';
++		ret[1] = '\0';
++		return ret;
++	}
++	qmark = strchr(ret, '?');
++	if (qmark && len - (qmark - ret) >= 6) {
++		snprintf(qmark, 6, "% .2d%.2d", hours, minutes);
++		qmark[5] = ' ';
++	}
+ 	return ret;
+ }
+ #endif /*MAIL_DATE*/
+ 
+ 
+-#ifdef HAVE_SAVED_SUIDS
+-static int save_euid;
+-int swap_uids() { save_euid = geteuid(); return seteuid(getuid()); }
+-int swap_uids_back() { return seteuid(save_euid); }
++#ifdef HAVE_SAVED_UIDS
++static uid_t save_euid, save_egid;
++int swap_uids()
++{
++	save_euid = geteuid(); save_egid = getegid();
++	return (setegid(getgid()) || seteuid(getuid())) ? -1 : 0;
++}
++int swap_uids_back()
++{
++	return (setegid(save_egid) || seteuid(save_euid)) ? -1 : 0;
++}
+ #else /*HAVE_SAVED_UIDS*/
+-int swap_uids() { return setreuid(geteuid(), getuid()); }
++int swap_uids()
++{
++	return (setregid(getegid(), getgid()) || setreuid(geteuid(), getuid()))
++		? -1 : 0;
++}
+ int swap_uids_back() { return swap_uids(); }
+ #endif /*HAVE_SAVED_UIDS*/
++
++
++/* Return the offset from GMT in seconds (algorithm taken from sendmail).
++ *
++ * warning:
++ *	clobbers the static storage space used by localtime() and gmtime().
++ *	If the local pointer is non-NULL it *must* point to a local copy.
++ */
++#ifndef HAVE_TM_GMTOFF
++long get_gmtoff(time_t *clock, struct tm *local)
++{
++	struct tm gmt;
++	long offset;
++
++	gmt = *gmtime(clock);
++	if (local == NULL)
++		local = localtime(clock);
++
++	offset = (local->tm_sec - gmt.tm_sec) +
++	    ((local->tm_min - gmt.tm_min) * 60) +
++	    ((local->tm_hour - gmt.tm_hour) * 3600);
++
++	/* Timezone may cause year rollover to happen on a different day. */
++	if (local->tm_year < gmt.tm_year)
++		offset -= 24 * 3600;
++	else if (local->tm_year > gmt.tm_year)
++		offset += 24 * 3600;
++	else if (local->tm_yday < gmt.tm_yday)
++		offset -= 24 * 3600;
++	else if (local->tm_yday > gmt.tm_yday)
++		offset += 24 * 3600;
++
++	return (offset);
++}
++#endif /* HAVE_TM_GMTOFF */
+Index: cron3.0pl1/pathnames.h
+===================================================================
+--- cron3.0pl1.orig/pathnames.h	1994-02-28 20:39:19.000000000 -0600
++++ cron3.0pl1/pathnames.h	2011-07-25 15:47:19.686808888 -0500
+@@ -19,7 +19,7 @@
+  * $Id: pathnames.h,v 1.3 1994/01/15 20:43:43 vixie Exp $
+  */
+ 
+-#if (defined(BSD)) && (BSD >= 199103) || defined(__linux) || defined(AIX)
++#if (defined(BSD)) && (BSD >= 199103) || defined(__linux__) || defined(AIX) || defined(__GNU__) || defined(__GLIBC__)
+ # include <paths.h>
+ #endif /*BSD*/
+ 
+@@ -28,7 +28,7 @@
+ 			 * to; SPOOL_DIR, ALLOW_FILE, DENY_FILE, and LOG_FILE
+ 			 * are all relative to this directory.
+ 			 */
+-#define CRONDIR		"/var/cron"
++#define CRONDIR		"/var/spool/cron"
+ #endif
+ 
+ 			/* SPOOLDIR is where the crontabs live.
+@@ -39,7 +39,7 @@
+ 			 * newer than they were last time around (or which
+ 			 * didn't exist last time around...)
+ 			 */
+-#define SPOOL_DIR	"tabs"
++#define SPOOL_DIR	"crontabs"
+ 
+ 			/* undefining these turns off their features.  note
+ 			 * that ALLOW_FILE and DENY_FILE must both be defined
+@@ -47,9 +47,14 @@
+ 			 * LOG_FILE or SYSLOG is defined, we don't log.  If
+ 			 * both are defined, we log both ways.
+ 			 */
++#ifdef DEBIAN
++#define	ALLOW_FILE	"/etc/cron.allow"		/*-*/
++#define DENY_FILE	"/etc/cron.deny"		/*-*/
++#else
+ #define	ALLOW_FILE	"allow"		/*-*/
+ #define DENY_FILE	"deny"		/*-*/
+-#define LOG_FILE	"log"		/*-*/
++#endif
++/* #define LOG_FILE	"log"		  -*/
+ 
+ 			/* where should the daemon stick its PID?
+ 			 */
+@@ -58,15 +63,20 @@
+ #else
+ # define PIDDIR "/etc/"
+ #endif
+-#define PIDFILE		"%scron.pid"
++#define PIDFILE		"%scrond.pid"
+ 
+ 			/* 4.3BSD-style crontab */
+ #define SYSCRONTAB	"/etc/crontab"
+-
++#ifdef DEBIAN
++                        /* where package specific crontabs live */ 
++#define SYSCRONDIR      "/etc/cron.d"
++#endif
+ 			/* what editor to use if no EDITOR or VISUAL
+ 			 * environment variable specified.
+ 			 */
+-#if defined(_PATH_VI)
++#if defined(DEBIAN)
++# define EDITOR "/usr/bin/sensible-editor"
++#elif defined(_PATH_VI)
+ # define EDITOR _PATH_VI
+ #else
+ # define EDITOR "/usr/ucb/vi"
+@@ -79,3 +89,29 @@
+ #ifndef _PATH_DEFPATH
+ # define _PATH_DEFPATH "/usr/bin:/bin"
+ #endif
++
++#ifndef _PATH_DEFPATH_ROOT
++# define _PATH_DEFPATH_ROOT "/usr/sbin:/usr/bin:/sbin:/bin"
++#endif
++
++
++#ifdef DEBIAN
++#ifndef CRONDIR_MODE
++			/* Create mode for CRONDIR; must be in sync with
++			 * packaging
++			 */
++#define CRONDIR_MODE 0755
++#endif
++#ifndef SPOOL_DIR_MODE
++			/* Create mode for SPOOL_DIR; must be in sync with
++			 * packaging
++			 */
++#define SPOOL_DIR_MODE 01730
++#endif
++#ifndef SPOOL_DIR_GROUP
++			/* Chown SPOOL_DIR to this group (needed by Debian's
++			 * SGID crontab feature)
++			 */ 
++#define SPOOL_DIR_GROUP "crontab"
++#endif
++#endif
+Index: cron3.0pl1/popen.c
+===================================================================
+--- cron3.0pl1.orig/popen.c	1994-02-28 20:39:20.000000000 -0600
++++ cron3.0pl1/popen.c	2011-07-25 15:47:19.686808888 -0500
+@@ -29,9 +29,14 @@
+ #endif /* not lint */
+ 
+ #include "cron.h"
+-#include <sys/signal.h>
++#include <signal.h>
++
++#if defined(BSD) || defined(POSIX)
++#  include <grp.h>
++#endif
+ 
+ 
++#define MAX_ARGS 100
+ #define WANT_GLOBBING 0
+ 
+ /*
+@@ -43,14 +48,15 @@
+ static int fds;
+ 
+ FILE *
+-cron_popen(program, type)
++cron_popen(program, type, e)
+ 	char *program, *type;
++	entry *e;
+ {
+ 	register char *cp;
+ 	FILE *iop;
+ 	int argc, pdes[2];
+ 	PID_T pid;
+-	char *argv[100];
++	char *argv[MAX_ARGS + 1];
+ #if WANT_GLOBBING
+ 	char **pop, *vv[2];
+ 	int gargc;
+@@ -58,7 +64,7 @@
+ 	extern char **glob(), **copyblk();
+ #endif
+ 
+-	if (*type != 'r' && *type != 'w' || type[1])
++	if ((*type != 'r' && *type != 'w') || type[1])
+ 		return(NULL);
+ 
+ 	if (!pids) {
+@@ -72,9 +78,10 @@
+ 		return(NULL);
+ 
+ 	/* break up string into pieces */
+-	for (argc = 0, cp = program;; cp = NULL)
++	for (argc = 0, cp = program; argc < MAX_ARGS; cp = NULL)
+ 		if (!(argv[argc++] = strtok(cp, " \t\n")))
+ 			break;
++    argv[MAX_ARGS] = NULL;
+ 
+ #if WANT_GLOBBING
+ 	/* glob each piece */
+@@ -93,7 +100,7 @@
+ #endif
+ 
+ 	iop = NULL;
+-	switch(pid = vfork()) {
++	switch(pid = fork()) {
+ 	case -1:			/* error */
+ 		(void)close(pdes[0]);
+ 		(void)close(pdes[1]);
+@@ -114,6 +121,34 @@
+ 			}
+ 			(void)close(pdes[1]);
+ 		}
++ 		/* set our directory, uid and gid.  Set gid first, since once
++         * we set uid, we've lost root privleges.
++         */
++        if (setgid(e->gid) !=0) {
++          char msg[256];
++          snprintf(msg, 256, "popen:setgid(%lu) failed: %s",
++               (unsigned long) e->gid, strerror(errno));
++          log_it("CRON",getpid(),"error",msg);
++          exit(ERROR_EXIT);
++        }
++# if defined(BSD) || defined(POSIX)
++		if (initgroups(env_get("LOGNAME", e->envp), e->gid) !=0) {
++		  char msg[256];
++		  snprintf(msg, 256, "popen:initgroups(%lu) failed: %s",
++			   (unsigned long) e->gid, strerror(errno));
++		  log_it("CRON",getpid(),"error",msg);
++		  exit(ERROR_EXIT);
++                }
++# endif
++		if (setuid(e->uid) !=0) {
++		  char msg[256];
++		  snprintf(msg, 256, "popen: setuid(%lu) failed: %s",
++			   (unsigned long) e->uid, strerror(errno)); 
++		  log_it("CRON",getpid(),"error",msg);
++		  exit(ERROR_EXIT);
++		}	
++		chdir(env_get("HOME", e->envp));
++
+ #if WANT_GLOBBING
+ 		execvp(gargv[0], gargv);
+ #else
+@@ -146,7 +181,7 @@
+ 	FILE *iop;
+ {
+ 	register int fdes;
+-	int omask;
++	sigset_t omask, mask;
+ 	WAIT_T stat_loc;
+ 	PID_T pid;
+ 
+@@ -157,10 +192,15 @@
+ 	if (pids == 0 || pids[fdes = fileno(iop)] == 0)
+ 		return(-1);
+ 	(void)fclose(iop);
+-	omask = sigblock(sigmask(SIGINT)|sigmask(SIGQUIT)|sigmask(SIGHUP));
+-	while ((pid = wait(&stat_loc)) != pids[fdes] && pid != -1)
+-		;
+-	(void)sigsetmask(omask);
++	sigemptyset(&mask);
++	sigaddset(&mask, SIGQUIT);
++	sigaddset(&mask, SIGINT);
++	sigaddset(&mask, SIGHUP);
++	sigprocmask(SIG_BLOCK, &mask, &omask);
++	pid = waitpid(pids[fdes], &stat_loc, 0);
++	sigprocmask(SIG_SETMASK, &omask, NULL);
+ 	pids[fdes] = 0;
+-	return (pid == -1 ? -1 : WEXITSTATUS(stat_loc));
++	if (pid == -1 || !WIFEXITED(stat_loc))
++		return -1;
++	return WEXITSTATUS(stat_loc);
+ }
+Index: cron3.0pl1/README
+===================================================================
+--- cron3.0pl1.orig/README	1994-02-28 20:39:12.000000000 -0600
++++ cron3.0pl1/README	2011-07-25 15:47:19.686808888 -0500
+@@ -24,6 +24,12 @@
+ [V1.0 was May 6, 1987]
+ Paul Vixie
+ 
++[Note from Debian cron maintainer: This is the original README from
++the the vixie-cron package. The location of many cron files has been
++changed in order to comply with Debian policy and common sense -- look
++in the cron(8), crontab(1) and crontab(5) man pages for more info, as
++well as the README.Debian file in this directory.]
++
+ This is a version of 'cron' that is known to run on BSD 4.[23] systems.  It
+ is functionally based on the SysV cron, which means that each user can have
+ their own crontab file (all crontab files are stored in a read-protected
+Index: cron3.0pl1/user.c
+===================================================================
+--- cron3.0pl1.orig/user.c	1994-02-28 20:39:21.000000000 -0600
++++ cron3.0pl1/user.c	2011-07-25 15:47:19.686808888 -0500
+@@ -23,9 +23,139 @@
+  */
+ 
+ 
++#include <syslog.h>
++#include <string.h>
+ #include "cron.h"
+ 
+ 
++#ifdef WITH_SELINUX
++#include <selinux/context.h>
++#include <selinux/selinux.h>
++#include <selinux/flask.h>
++#include <selinux/av_permissions.h>
++#include <selinux/get_context_list.h>
++
++static int get_security_context(char *name, int crontab_fd, security_context_t
++                                *rcontext, char *tabname) {
++    security_context_t *context_list = NULL;
++    security_context_t current_con;
++    int list_count = 0;
++    security_context_t  file_context=NULL;
++    struct av_decision avd;
++    int retval=0;
++    char *seuser = NULL;
++    char *level = NULL;
++    int i;
++
++    if (name != NULL) {
++        if (getseuserbyname(name, &seuser, &level)) {
++            log_it(name, getpid(), "getseuserbyname FAILED", tabname);
++            return (security_getenforce() > 0);
++        }
++    }
++    else
++    {
++        seuser = strdup("system_u");
++    }
++
++    *rcontext = NULL;
++    if(getcon(&current_con)) {
++        log_it(name, getpid(), "Can't get current context", tabname);
++        return -1;
++    }
++    list_count = get_ordered_context_list_with_level(seuser, level, current_con, &context_list);
++    freecon(current_con);
++    free(seuser);
++    free(level);
++    if (list_count == -1) {
++        if (security_getenforce() > 0) {
++            log_it(name, getpid(), "No SELinux security context", tabname);
++            return -1;
++        } else {
++            log_it(name, getpid(),
++                   "No security context but SELinux in permissive mode,"
++                   " continuing", tabname);
++	    return 0;
++        }
++    }
++
++    if (fgetfilecon(crontab_fd, &file_context) < OK) {
++        if (security_getenforce() > 0) {
++            log_it(name, getpid(), "getfilecon FAILED", tabname);
++            freeconary(context_list);
++            return -1;
++        } else {
++            log_it(name, getpid(), "getfilecon FAILED but SELinux in "
++                   "permissive mode, continuing", tabname);
++            *rcontext = strdup(context_list[0]);
++            freeconary(context_list);
++            return 0;
++        }
++    }
++
++    /*
++     * Since crontab files are not directly executed,
++     * crond must ensure that the crontab file has
++     * a context that is appropriate for the context of
++     * the user cron job.  It performs an entrypoint
++     * permission check for this purpose.
++     */
++
++    for(i = 0; i < list_count; i++)
++    {
++        retval = security_compute_av(context_list[i],
++                                 file_context,
++                                 SECCLASS_FILE,
++                                 FILE__ENTRYPOINT,
++                                 &avd);
++        if(!retval && ((FILE__ENTRYPOINT & avd.allowed) == FILE__ENTRYPOINT)) {
++            *rcontext = strdup(context_list[i]);
++            freecon(file_context);
++            freeconary(context_list);
++            return 0;
++        }
++    }
++    freecon(file_context);
++    if (security_getenforce() > 0) {
++        log_it(name, getpid(), "ENTRYPOINT FAILED", tabname);
++        freeconary(context_list);
++        return -1;
++    } else {
++        log_it(name, getpid(), "ENTRYPOINT FAILED but SELinux in permissive mode, continuing", tabname);
++        *rcontext = strdup(context_list[0]);
++        freeconary(context_list);
++    }
++    return 0;
++}
++#endif
++
++
++#ifdef DEBIAN
++/* Function used to log errors in crontabs from cron daemon. (User
++   crontabs are checked before they're accepted, but system crontabs
++   are not. */
++static char *err_user=NULL;
++
++void
++crontab_error(msg)
++     char *msg;
++{
++  const char *fn;
++  /* Figure out the file name from the username */
++  if (0 == strcmp(err_user,"*system*")) {
++    syslog(LOG_ERR|LOG_CRON,"Error: %s; while reading %s", msg, SYSCRONTAB);
++  } else if (0 == strncmp(err_user,"*system*",8)) {
++    fn = err_user+8;
++    syslog(LOG_ERR|LOG_CRON,"Error: %s; while reading %s/%s", msg, 
++	   SYSCRONDIR,fn);
++  } else {
++    syslog(LOG_ERR|LOG_CRON, "Error: %s; while reading crontab for user %s",
++	   msg, err_user);
++  }
++}
++
++#endif
++
+ void
+ free_user(u)
+ 	user	*u;
+@@ -37,22 +167,28 @@
+ 		ne = e->next;
+ 		free_entry(e);
+ 	}
++#ifdef WITH_SELINUX
++	if (u->scontext)
++		freecon(u->scontext);
++#endif
+ 	free(u);
+ }
+ 
+ 
+ user *
+-load_user(crontab_fd, pw, name)
++load_user(crontab_fd, pw, uname, fname, tabname)
+ 	int		crontab_fd;
+ 	struct passwd	*pw;		/* NULL implies syscrontab */
+-	char		*name;
++	char		*uname;
++	char		*fname;
++	char		*tabname;
+ {
+ 	char	envstr[MAX_ENVSTR];
+ 	FILE	*file;
+ 	user	*u;
+ 	entry	*e;
+ 	int	status;
+-	char	**envp;
++	char	**envp = NULL, **tenvp;
+ 
+ 	if (!(file = fdopen(crontab_fd, "r"))) {
+ 		perror("fdopen on crontab_fd in load_user");
+@@ -63,36 +199,97 @@
+ 
+ 	/* file is open.  build user entry, then read the crontab file.
+ 	 */
+-	u = (user *) malloc(sizeof(user));
+-	u->name = strdup(name);
++	if ((u = (user *) malloc(sizeof(user))) == NULL) {
++		errno = ENOMEM;
++		return NULL;
++	}
++	if ((u->name = strdup(fname)) == NULL) {
++		free(u);
++		errno = ENOMEM;
++		return NULL;
++	}
+ 	u->crontab = NULL;
+ 
++#ifdef WITH_SELINUX
++	u->scontext = NULL;
++        if (is_selinux_enabled() > 0) {
++            char *sname=uname;
++            if (pw==NULL) {
++                sname="system_u";
++            }
++            if (get_security_context(sname, crontab_fd, 
++                                     &u->scontext, tabname) != 0 ) {
++		u->scontext = NULL;
++                free_user(u);
++                u = NULL;
++                goto done;
++            }
++        }
++#endif
++
++
+ 	/* 
+ 	 * init environment.  this will be copied/augmented for each entry.
+ 	 */
+-	envp = env_init();
++	if ((envp = env_init()) == NULL) {
++		free(u->name);
++		free(u);
++		return NULL;
++	}
+ 
+ 	/*
+ 	 * load the crontab
+ 	 */
+-	while ((status = load_env(envstr, file)) >= OK) {
++	do {
++		status = load_env(envstr, file);
+ 		switch (status) {
+ 		case ERR:
+-			free_user(u);
+-			u = NULL;
++			/* If envstr has no content, we reached a proper EOF
++ 			 * and we can return to continue regular processing.
++			 *
++ 			 * If it does have content, we reached EOF without a
++ 			 * newline, so we bail out
++			 */
++			if (envstr[0] != '\0') {
++                                log_it(u->name, getpid(), "ERROR", "Missing "
++                                "newline before EOF, this crontab file will be "
++                                "ignored");
++				free_user(u);
++				u = NULL;
++			}
+ 			goto done;
+ 		case FALSE:
++#ifdef DEBIAN
++			err_user = fname;
++			e = load_entry(file, crontab_error, pw, envp);
++			err_user = NULL;
++#else
+ 			e = load_entry(file, NULL, pw, envp);
++#endif
+ 			if (e) {
+ 				e->next = u->crontab;
+ 				u->crontab = e;
++			} else {
++				/* stop processing on syntax error */
++				log_it(u->name, getpid(), "ERROR", "Syntax "
++					"error, this crontab file will be "
++					"ignored"); 
++				free_user(u);
++				u = NULL;
++				goto done;
+ 			}
+ 			break;
+ 		case TRUE:
+-			envp = env_set(envp, envstr);
++			if ((tenvp = env_set(envp, envstr))) {
++				envp = tenvp;
++			} else {
++				free_user(u);
++				u = NULL;
++				goto done;
++			}
+ 			break;
+ 		}
+-	}
++	} while (status >= OK);
+ 
+  done:
+ 	env_free(envp);

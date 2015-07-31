@@ -1,0 +1,1118 @@
+Index: evlog-1.6.1/user/cmd/evlogd/evlogd.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlogd/evlogd.c
++++ evlog-1.6.1/user/cmd/evlogd/evlogd.c
+@@ -154,10 +154,10 @@ typedef struct clientinfo {
+ } clientinfo_t;
+ 
+ typedef struct dup_buffer {
+-	char *rec;
+-	int dup_count;
+-	int buf_index;
+-	time_t time_start;
++	char	*rec;
++	int	dup_count;
++	int	dup_lbindex;
++	time_t	time_start;
+ } dup_buffer_t;
+ 
+ /* TIMING */
+@@ -167,7 +167,7 @@ struct timeval perf_time;
+ 
+ static clientinfo_t clients[MAX_CLIENTS];
+ static int maxci;
+-static pid_t kpid;
++static pid_t kpid = 0;
+ static pid_t rmtdpid = 0;
+ 
+ char * sharedData;
+@@ -177,7 +177,7 @@ int waitForKids = 1;
+ static void initClients();
+ static int getMaxClientIndex();
+ static void closeClientSocket(clientinfo_t *);
+-static void processKernelEvents();
++static void processKernelEvents(void);
+ int writeKernEvt(int sd, struct posix_log_entry *entry, const char *buf);
+ static void sigChild_handler();
+ static void checkDupEventTimeout(struct timeval *tv);
+@@ -199,8 +199,9 @@ typedef struct userbuf_info {
+ static userbuf_info_t user_evlbuf = {NULL, NULL, 0, -1};
+ static userbuf_info_t userpriv_evlbuf = {NULL, NULL, 0, -1};
+ 	 
+-/* Storage buffer for the bytes read from the kernel along with those stored for
+- * duplicate removal.
++/*
++ * Storage buffer for the bytes read from the kernel along with those
++ * stored for duplicate removal.
+  */
+ typedef struct event_buffer {
+ 	char rec[MAX_RECSIZE];
+@@ -210,17 +211,16 @@ typedef struct event_buffer {
+ #endif
+ } event_buffer_t;
+ 
+-event_buffer_t *buf;
+-int buf_size;
++event_buffer_t *Lookbacks = (event_buffer_t *) NULL;
++int Lookback_entries = 0;
+ 
+ typedef struct log_info {
+ 	int fd;
+ 	int dup_count;
+-	int buf_index;
+ 	posix_log_recid_t recId;	/* This field is also used for 
+-								 * identify the log type for
+-								 * getNextRecId
+-								 */
++					 * identify the log type for
++					 * getNextRecId
++					 */
+ 	log_header_t	  *map_hdr;	/* Map to the log header structure */
+ 	dup_buffer_t *dup_recs_array;
+ } log_info_t;
+@@ -229,12 +229,13 @@ static posix_log_recid_t gRecId;
+ 
+ log_info_t pvt_log;
+ log_info_t evl_log;
+-int dup_count = DEFAULT_DUP_COUNT;
++int Dup_count = DEFAULT_DUP_COUNT;
+ int dup_interval = DEFAULT_DUP_INTERVAL;
+ int dup_timeout = DEFAULT_DUP_TIMEOUT;
+ int dup_array_size = DEFAULT_DUP_ARRAY_SIZE;
+ int dis_dup_recs = TRUE;
+ int debug_on     = TRUE;
++int Process_kernel_events = TRUE;
+ int console_sev_level = CONSOLE_OUTPUT_DISABLE;		/* default is disable */
+ char query_exp[MAX_EVL_LINE];
+ posix_log_query_t dis_query;
+@@ -252,7 +253,7 @@ static int evlogdstopdaemon();
+ static void NewSIGAction();
+ 
+ static int readEvlogConfig();
+-static int Process_Event(clientinfo_t *, char *, int);
++static int Process_Event(clientinfo_t *);
+ 
+ static int log_evl_rec(log_info_t *, char *);
+ static int openMaybeCreate(const char *, mode_t , log_info_t *);
+@@ -265,10 +266,9 @@ static int createSocket(char *sockname, 
+ static int rmSocket(int);
+ 
+ static void dumpDuplicatesBuffer(log_info_t *);
+-static void reallocBuffer(size_t, int, int);
++static void reallocLookBack(size_t, int, int);
+ static int isReplaceable(dup_buffer_t *, dup_buffer_t *, time_t, int *);
+ static int compute_score(dup_buffer_t *, time_t);
+-static int dropDupRecord(struct posix_log_entry *, log_info_t *, int);
+ 
+ int writeEx(int sd, void * buf, size_t len);
+ int lock_routine(int fd, int cmd, int type);
+@@ -551,8 +551,9 @@ run_child()
+ 	while(s[1] != 0x0f)
+ 		sleep(1);
+ 	TRACE("unpause, s[1]=%d\n", s[1]);		
+-				
++
+ 	processKernelEvents();
++
+ 	TRACE("*** This is the end for the child\n");
+ 	/* 
+ 	 * Mark the first byte in the shared mem with 0x0e so that
+@@ -574,20 +575,17 @@ run_parent(uid_t max_sysuid, int max_use
+ 	int conf_sd;			/* Configuration socket descriptor */
+ 	socklen_t ns_sock_len, conf_sock_len;
+ 	struct sockaddr_un ns_sock, conf_sock;
+-	int buf_index = 0;
+ 	int listen_sd, newsd;
+ 	socklen_t listen_sock_len;
+ 	struct sockaddr_un listen_sock;
+ 	int conf_socket = -1;
+-	event_buffer_t *buf_ptr;
+ 	/* TIMING */
+ 	struct timeval perf_time_temp;
+ 	perf_time.tv_sec = 0;
+ 	perf_time.tv_usec = 0;
+ 
+ 	/* Allocate the buffer to handle event reads and duplicates. */
+-	reallocBuffer(dup_array_size, FALSE, dis_dup_recs);
+-	buf_ptr = buf;
++	reallocLookBack(dup_array_size, FALSE, dis_dup_recs);
+ 	
+ 	/* Establish a connection with notify daemon */
+ 	notify_sd = establishNfyConnection(&ns_sock);
+@@ -779,22 +777,11 @@ run_parent(uid_t max_sysuid, int max_use
+ 		gettimeofday(&perf_time_start, NULL);
+ 
+ 		/* process clients */
+-		for (i= 0; i <= maxci; i++) {
++		for (i = 0; i <= maxci; i++) {
+ 			TRACE("maxci=%d , i = %d\n", maxci, i);
+-			if ( clients[i].sd != CLIENT_SLOT_AVAILABLE) {
+-				if (FD_ISSET(clients[i].sd, &read_sds)) {
+-					/*Determine next buf_index to use. */
+-					buf_ptr = buf;
+-					buf_index = 0;
+-					if (dis_dup_recs) {
+-						for (; buf_index < buf_size; buf_index++) {
+-							if (!buf_ptr->in_use)
+-								break;
+-							buf_ptr++;
+-						}
+-					}
+-					Process_Event(&clients[i], (char *)buf_ptr->rec, buf_index);
+-				}
++			if (clients[i].sd != CLIENT_SLOT_AVAILABLE) {
++				if (FD_ISSET(clients[i].sd, &read_sds))
++					Process_Event(&clients[i]);
+ 			}
+ 		}
+ 
+@@ -824,11 +811,14 @@ main(int argc, char **argv)
+ 	int max_userconns = 32;
+ 	int becnt;
+ 	
+-	while ((c = getopt(argc, argv, "fum:x2k:p")) != EOF) {
++	while ((c = getopt(argc, argv, "fsum:x2k:p")) != EOF) {
+ 		switch (c) {
+ 		case 'f':
+ 			bg = 0;
+ 			break;
++		case 's':
++			Process_kernel_events = FALSE;
++			break;
+ 		case 'u':
+ 			defaultPosixLog = 0;
+ 			break;
+@@ -882,24 +872,29 @@ main(int argc, char **argv)
+ 		exit(1); 
+ 	}
+ 
+-	/*
+-	 * Now it is time to fork another process for handling kernel events
+-	 */
+-	if ((kpid = fork()) < 0) {
+-		perror("fork");
+-		exit(1);
+-	}
+-
+-	if (kpid == 0) {
+-		run_child();
+-	}
+-	else {
+-		/* This code executes in the parent process */
+-		if (kpid < 0) {
+-			fprintf(stderr, "Fail to start child process!\n");
++        if (Process_kernel_events) {
++		/*
++		 * Fork another process for handling kernel events
++		 */
++		if ((kpid = fork()) < 0) {
++			perror("fork");
++			exit(1);
+ 		}
++
++		if (kpid == 0) {
++			run_child();
++		} else {
++			/* This code executes in the parent process */
++			if (kpid < 0) {
++				(void) fprintf(stderr,
++				"evlogd: Failed to start child process!\n");
++			}
++			run_parent(max_sysuid, max_userconns);
++ 		}
++ 	} else {
+ 		run_parent(max_sysuid, max_userconns);
+ 	}
++
+ 	return 0;
+ }
+ 
+@@ -1050,10 +1045,10 @@ struct ppc64kern_log_entry {
+  * 
+  */
+ static void 
+-processKernelEvents()
++processKernelEvents(void)
+ {
+ 	int bytes_read;      /* Bytes read for the Kernel buffer */
+-	int j, ret, retry=0;
++	int j, ret, retry = 0;
+ 	uint rlen;
+ 	char *varbuf;
+ 	log_info_t *linfo;
+@@ -1581,7 +1576,8 @@ static void sigChild_handler()
+ 	if (!waitForKids) {
+ 		return;
+ 	}
+-	waitpid(kpid, &status, WNOHANG);
++	if (kpid != 0)
++		waitpid(kpid, &status, WNOHANG);
+ }
+ 
+ static int
+@@ -1650,14 +1646,14 @@ updateConfvalues(int confsd) 
+ 		}
+ 		switch (ctype) {
+ 		case DIS_COUNT:
+-			dup_count = value;
+-			if (dup_count == 0) {
++			Dup_count = value;
++			if (Dup_count == 0) {
+ 				/*
+ 				 * Get some maximum value to not to
+ 				 * consider this Dup Count value in
+ 				 * discarding records.
+ 				 */
+-				dup_count = 10 * MAX_DUP_COUNT;
++				Dup_count = 10 * MAX_DUP_COUNT;
+ 			}
+ 			break;
+ 		case DIS_INTERVAL:
+@@ -1673,10 +1669,10 @@ updateConfvalues(int confsd) 
+ 			break;
+ 		case DIS_DUPS:
+ 			if (dis_dup_recs == FALSE && !strcmp(cbuf, "on")) {
+-				reallocBuffer(dup_array_size, FALSE, TRUE);
++				reallocLookBack(dup_array_size, FALSE, TRUE);
+ 				dis_dup_recs = TRUE;
+ 			} else if (dis_dup_recs == TRUE && !strcmp(cbuf, "off")) {
+-				reallocBuffer(dup_array_size, TRUE, FALSE);
++				reallocLookBack(dup_array_size, TRUE, FALSE);
+ 				dis_dup_recs = FALSE;
+ 			}
+ 			break;
+@@ -1689,7 +1685,8 @@ updateConfvalues(int confsd) 
+ 				if (value == 0)
+ 					value = DEFAULT_DUP_ARRAY_SIZE;
+ 			
+-				reallocBuffer(value, dis_dup_recs, dis_dup_recs);
++				reallocLookBack(value, dis_dup_recs,
++ 								dis_dup_recs);
+ 			}
+ 			break;
+ 		case EVENT_SCREEN:
+@@ -1942,10 +1939,10 @@ readEvlogConfig()
+ 			}
+ 			continue;
+ 		} else if (!strncmp(p, "Discard Count", 13)) {
+-			if ((error = valid_integer(s, &dup_count)) < 0) {
++			if ((error = valid_integer(s, &Dup_count)) < 0) {
+ 				goto out;
+ 			}
+-			if (dup_count < 0 || dup_count > MAX_DUP_COUNT) {
++			if (Dup_count < 0 || Dup_count > MAX_DUP_COUNT) {
+ 				fprintf(stderr, 
+ 						"evlogd: Invalid Discard Count\n");
+ 				goto out;
+@@ -1981,17 +1978,17 @@ readEvlogConfig()
+ 		}	
+ 	}
+ 
+-	if (!dup_count && !dup_interval && dis_dup_recs) {
++	if (!Dup_count && !dup_interval && dis_dup_recs) {
+ 		fprintf(stderr, "evlogd: Invalid evlog.conf values\n");
+ 		goto out;
+ 	}
+ 	/* 
+-	 * Get some maximum values if either dup_count or dup_interval values
++	 * Get some maximum values if either Dup_count or dup_interval values
+ 	 * are zeros. Hence, these values will not be considered to drop
+ 	 * records.
+ 	 */
+-	if (dup_count == 0) {
+-		dup_count = 10 * MAX_DUP_COUNT;
++	if (Dup_count == 0) {
++		Dup_count = 10 * MAX_DUP_COUNT;
+ 	}
+ 	if (dup_interval == 0) {
+ 		dup_interval = 24 * MAX_DUP_INTERVAL;
+@@ -2241,23 +2238,22 @@ writeDiscardEvent(log_info_t *linfo, pos
+ /*
+  * FUNCTION: dropDupRecord
+  *
+- * PURPOSE: Drops duplicate records if dis_dup_recs flag is on.
++ * PURPOSE: Drops duplicate records
+  *
+  * CALLED BY: Process_Event
+  *
+  * ARGUMENTS:
+- * 		rhdr 	- The incoming record.
+- * 		rbuf 	- rhdr's entry in the lookback buffer.
+- * 		linfo 	- The currently operating on log
+- * 		buf_index	- rbuf's index in the lookback buffer.
+- *
+- * RETURN VALUES: 1 for drop record; 0 for either the flag is 'off' or
+- * 		current record is a new one.
++ * 		linfo 		- The currently operating on log
++ * 		lb_index	- index in the lookback buffer.
++ * 		new		- pointer; true if new entry
++ * 		dup_entry	- pointer; pointer to dup buffer
+  */
+-static int
+-dropDupRecord(struct posix_log_entry *rhdr,
+-			  log_info_t *linfo,
+-			  int buf_index)
++
++static void
++dropDupRecord(	log_info_t	*linfo,
++		unsigned int	lb_index,
++		int		*new,
++		dup_buffer_t	**dup_entry )
+ {
+ 	/* equality_index is for replacing elements round-robin style
+ 	 * in case all other replacement tests fail.
+@@ -2271,18 +2267,31 @@ dropDupRecord(struct posix_log_entry *rh
+ 	int replace_ptr_score;
+ 	int dup_ptr_score;
+ 	time_t cur_time;
+-	
+-	if (!dis_dup_recs)
+-		return 0;
+-	
++	struct posix_log_entry *rhdr;
++
++	rhdr = (struct posix_log_entry *) Lookbacks[lb_index].rec;
++
+ 	cur_time = time(0);
+ 		
+-	/* Ensure the array for the past n logs has been created.
+-	 * If it hasn't, create it.
++	/*
++	 * Create the array for the past n logs if it hasn't been already.
+ 	 */
+-	if (linfo->dup_recs_array == NULL)
+-		linfo->dup_recs_array = calloc(dup_array_size,
+-									   sizeof(dup_buffer_t));
++
++	if (linfo->dup_recs_array == (dup_buffer_t *) NULL) {
++		linfo->dup_recs_array = (dup_buffer_t *)
++			malloc(dup_array_size * sizeof(dup_buffer_t));
++
++		dup_ptr = linfo->dup_recs_array;
++
++		for (count = 0; count < dup_array_size; count++) {
++			dup_ptr->time_start = 0;
++			dup_ptr->dup_count = 0;
++			dup_ptr->rec = (char *) NULL;
++			dup_ptr->dup_lbindex = 0xDEADBEEF;
++
++			dup_ptr++;
++		}
++	}
+ 
+ 	/* Compare the current record against every record in the array. */
+ 	dup_ptr = linfo->dup_recs_array;
+@@ -2296,7 +2305,6 @@ dropDupRecord(struct posix_log_entry *rh
+ 	 * incrementally (round-robin).
+ 	 */
+ 	for (count = 0; count < dup_array_size; count++) {
+-
+ 		if (count > 0) {
+ 			dup_ptr_score = compute_score(dup_ptr, cur_time);
+ 
+@@ -2308,36 +2316,58 @@ dropDupRecord(struct posix_log_entry *rh
+ 				}
+ 			}
+ 		}
+-			
++
+ 		/* Call compareEventRecords to determine if we are duplicating.
+ 		 * Of course, it's pointless to compare to a timed-out event.
+ 		 */
+-		if (cur_time - dup_ptr->time_start < dup_timeout &&
+-			compareEventRecords((char *)rhdr, dup_ptr->rec)) {
+-			
+-			/* Increment dup_ptr->dup_count & check to see if we
+-			 * should write a discard event.
+-			 */
++		if (((cur_time - dup_ptr->time_start) < dup_timeout) &&
++			compareEventRecords((char *) rhdr, dup_ptr->rec)) {
++			/*
++			 * Increment dup_ptr->dup_count & check to see if we
++ 			 * should write a discard event.
++ 			 */
++
+ 			dup_ptr->dup_count++;
+ 			linfo->dup_count++;
+-			
+-			if (dup_ptr->dup_count == dup_count ||
+-			    cur_time - dup_ptr->time_start >= dup_interval ) {
+-				writeDiscardEvent(linfo, rhdr->log_facility,
+-								  rhdr->log_event_type,
+-								  dup_ptr->dup_count);
+-				dup_ptr->time_start = 0;
+-				dup_ptr->rec = NULL;
+-				buf[dup_ptr->buf_index].in_use = 0;
++
++			if ((dup_ptr->dup_count == Dup_count) ||
++			    (cur_time - dup_ptr->time_start >= dup_interval)) {
++ 				writeDiscardEvent(linfo, rhdr->log_facility,
++							  rhdr->log_event_type,
++							  dup_ptr->dup_count);
++
++				/* account for the duplicates released */
+ 				linfo->dup_count -= dup_ptr->dup_count;
++
++				/* free old lookback entry */
++				Lookbacks[dup_ptr->dup_lbindex].in_use = 0;
++
++				/*
++				 * Update the duplicate entry to point to
++				 * the new lookback entry; the duplicate
++				 * entry is reset (just like new).
++				 */
++
+ 				dup_ptr->dup_count = 0;
++				dup_ptr->time_start = cur_time;
++				dup_ptr->rec = (char *) rhdr;
++				dup_ptr->dup_lbindex = lb_index;
++
++				Lookbacks[lb_index].in_use = 1;
++
++				*new = 1;
+ 			}
++			else
++				*new = 0;
++
++			*dup_entry = dup_ptr;
+ 
+-			return 1;
++			return;
+ 		}
++
+ 		dup_ptr++;
+ 	}
+-	
++
+ 	/* Once we've determined who to replace, we write out the
+ 	 * duplicate entry event (as needed) and then put the
+ 	 * current event into the duplicates array.
+@@ -2354,27 +2384,31 @@ dropDupRecord(struct posix_log_entry *rh
+ 	/* Write out a discard event if needed. */
+ 	if (replace_ptr->dup_count > 0) {
+ 		struct posix_log_entry *rechdr = 
+-			(struct posix_log_entry *)replace_ptr->rec;
++				(struct posix_log_entry *) replace_ptr->rec;
++
+ 		writeDiscardEvent(linfo, rechdr->log_facility,
+-						  rechdr->log_event_type,
+-						  replace_ptr->dup_count);
++					  rechdr->log_event_type,
++					  replace_ptr->dup_count);
++
+ 		linfo->dup_count -= replace_ptr->dup_count;
+ 	}
+ 		
+ 	/* Clear old index position and set the new one. */
+-	if (replace_ptr->rec != NULL)
+-		buf[replace_ptr->buf_index].in_use = 0;
+-	buf[buf_index].in_use = 1;
+-	replace_ptr->buf_index = buf_index;
++	if (replace_ptr->rec != (char *) NULL)
++		Lookbacks[replace_ptr->dup_lbindex].in_use = 0;
++
++	Lookbacks[lb_index].in_use = 1;
++	replace_ptr->dup_lbindex = lb_index;
+ 
+ 	replace_ptr->dup_count = 0;
+ 	replace_ptr->time_start = cur_time;
+-	replace_ptr->rec = (char *)rhdr;
++	replace_ptr->rec = (char *) rhdr;
++	*new = 1;
++	*dup_entry = replace_ptr;
+ 
+-	return 0;
++	return;
+ }
+ 
+-
+ /* FUNCTION: 	compute_score
+  *
+  * PURPOSE:	Assigns a score to various time_start and dup_count
+@@ -2390,15 +2424,15 @@ dropDupRecord(struct posix_log_entry *rh
+  * 		computed score.
+  */
+ static int
+-compute_score(dup_buffer_t *dup_ptr, time_t cur_time) {
+-
+-	if (dup_ptr->rec == NULL) {
++compute_score(dup_buffer_t *dup_ptr, time_t cur_time)
++{
++	if (dup_ptr->rec == (char *) NULL) {
+ 		/* Element is NULL */
+ 		return 0;
+ 	}
+ 
+-	if (dup_ptr->time_start != 0 &&
+-		cur_time - dup_ptr->time_start > dup_interval) {
++	if ((dup_ptr->time_start != 0) &&
++		(cur_time - dup_ptr->time_start > dup_interval)) {
+ 		/* Element has exceeded dup_interval */
+ 		return dup_ptr->time_start + dup_ptr->dup_count;
+ 	}
+@@ -2406,11 +2440,11 @@ compute_score(dup_buffer_t *dup_ptr, tim
+ 	if (dup_ptr->time_start != 0) {
+ 		/* Element is not new */
+ 		return dup_ptr->time_start + dup_interval +
+-			dup_ptr->dup_count + dup_count;
++			dup_ptr->dup_count + Dup_count;
+ 	}
+ 	
+ 	/* Element is new */
+-	return 2 * dup_count + cur_time + dup_interval;
++	return 2 * Dup_count + cur_time + dup_interval;
+ }
+ 
+ #ifdef EVLOG_REGISTER_FAC
+@@ -2549,7 +2583,7 @@ populateRecHdr(clientinfo_t *ci, struct 
+ 	int rec_hdr_32_size = sizeof(struct rec_hdr_32);
+ 	int nbytes;
+ 
+-	nbytes = read (ci->sd, &client_arch, log_magic_size);
++	nbytes = read(ci->sd, &client_arch, log_magic_size);
+ 	if (nbytes != log_magic_size) {
+ 		closeClientSocket(ci);
+ 		return -1;
+@@ -2605,7 +2639,8 @@ populateRecHdr(clientinfo_t *ci, struct 
+ 		}
+ 		rhdr->log_magic = client_arch;
+ 	}
+-	TRACE("Read %d bytes into rhdr, log_magic = %x, facility=%d.\n", nbytes, rhdr->log_magic, rhdr->log_facility);	
++	TRACE("Read %d bytes into rhdr, log_magic = %x, facility=%d.\n",
++				nbytes, rhdr->log_magic, rhdr->log_facility);
+ 	return nbytes;
+ }
+ 	
+@@ -2620,128 +2655,169 @@ populateRecHdr(clientinfo_t *ci, struct 
+  *    		 
+  */
+ static int
+-Process_Event(clientinfo_t *ci, char *bufp, int buf_index)
++Process_Event(clientinfo_t *ci)
+ {
+-	int nbytes;
+-	posix_log_query_t *query;
+-	int acc_flags;
+-	char *varbuf;
+-	log_info_t *linfo;
+-	struct posix_log_entry *rhdr;
+- 	struct ucred ucred;
+- 	socklen_t ucredsz = sizeof(struct ucred);
++	struct posix_log_entry	*rhdr;
++	event_buffer_t		*eptr;
++	unsigned int		lb_index;
++	char			*varbuf;
++	int			acc_flags;
++
++	/* Determine next event index to use */
++	if (dis_dup_recs) {
++		eptr = (event_buffer_t *) NULL;
++
++		for (lb_index = 0; lb_index < Lookback_entries; lb_index++) {
++			if (!Lookbacks[lb_index].in_use) {
++				eptr = &Lookbacks[lb_index];
++				break;
++			}
++		}
++
++		if (eptr == (event_buffer_t *) NULL) {
++			(void) fprintf(stderr, "evlogd: no free lookback!\n");
++
++			exit(1);
++                }
++	} else {
++		eptr = Lookbacks;
++		lb_index = 0;
++	}
++
++	rhdr = (struct posix_log_entry *) &eptr->rec[0];
+ 	
+-	rhdr = (struct posix_log_entry *)bufp;
+-	varbuf = (char *)(bufp + REC_HDR_SIZE);	
+ 	/* read an event from the socket */
+ 	TRACE("Got an event arrive on sd %d\n", ci->sd);
++
+ 	/* first read the record header */
+-	if (populateRecHdr(ci, rhdr) == -1 ) {
++	if (populateRecHdr(ci, rhdr) == -1)
+ 		return -1;
+-	}
+-	/*
+-	 * This check make sure that the event is not from a malicious user,
+-	 * anything comes from the kernel thread is ok.
+-	 */
+-	if (ci->pid != kpid && ci->pid != rmtdpid) {
+-	
+-		if (ci->uid != rhdr->log_uid || ci->pid != rhdr->log_pid) {
+-			TRACE("bad user uid=%u, pid=%u, facility=%d\n", rhdr->log_uid, rhdr->log_pid, rhdr->log_facility);
+-			closeClientSocket(ci);
+-			return 0;
++
++	/* Don't set architecture if it is remote events */
++	if (ci->pid == rmtdpid) {
++		/*
++		 * Event came from from remote host or evlogrmtd itself.
++		 * If it comes from the remote host it should have the
++		 * log_magic and arch properly setup. If log_magic is not
++		 * set yet then just set it with local arch.
++		 */
++		TRACE("Record from rmt host\n");
++		if ((rhdr->log_magic & 0xffff0000) ==
++					(LOGREC_MAGIC & 0xffff0000)) {
++			/* nop */
++			TRACE("rmt event - log_magic = %x\n", rhdr->log_magic);
++		} else {
++			rhdr->log_magic = LOG_MAGIC_ARCH;
+ 		}
++	} else {
+ 		/*
+-		 * An event did not come from the kernel thread, but claimed that it is 
+-		 * a kernel event
++		 * This check insures that the event did not from a
++		 * malicious user; anything coming from the kernel
++		 * thread is ok.
+ 		 */
+-		if (rhdr->log_flags & EVL_KERNEL_EVENT) {
+-			TRACE("Fake kernel event\n");
+-			closeClientSocket(ci);
+-			return 0;
++
++		if (ci->pid != kpid) {
++			if ((ci->uid != rhdr->log_uid) ||
++						(ci->pid != rhdr->log_pid)) {
++				TRACE("bad user uid=%u, pid=%u, facility=%d\n",
++					rhdr->log_uid, rhdr->log_pid,
++					rhdr->log_facility);
++				closeClientSocket(ci);
++				return 0;
++			}
++
++			/*
++			 * An event did not come from the kernel thread,
++			 * but claimed that it is a kernel event
++			 */
++
++			if (rhdr->log_flags & EVL_KERNEL_EVENT) {
++				TRACE("Fake kernel event\n");
++				closeClientSocket(ci);
++				return 0;
++			}
+ 		}
+-	}
+-	/* Don't set architecture if it is remote events */
+-	if (ci->pid != rmtdpid) {
++
+ 		if (rhdr->log_magic == LOGREC_ARCH_X86_32) {
+ 			/* 
+  			 * This record appears to come from 32 bit app
+ 			 * under x86_64 environment - 
+ 			 */
+-			rhdr->log_magic = (LOGREC_MAGIC & 0xffff0000) | LOGREC_ARCH_I386;
++			rhdr->log_magic =
++				(LOGREC_MAGIC & 0xffff0000) | LOGREC_ARCH_I386;
+ 		} else {
+ 			rhdr->log_magic = LOG_MAGIC_ARCH;
+-			TRACE("local event - log_magic = %x\n", rhdr->log_magic);
++			TRACE("local event - log_magic = %x\n",
++							rhdr->log_magic);
+ 		}
++
+ 		if (rhdr->log_flags & EVL_KERNEL_EVENT) {
+ #if defined(_PPC_64KERN_32USER_)
+ 			rhdr->log_magic =  (LOGREC_MAGIC & 0xffff0000) | 
+ 				LOGREC_ARCH_PPC64;	
+ #endif
+ 		} 
+-	} else {
+-		/* 
+-		 * If came from evlogrmtd, it either from remote host
+-		 * or evlogrmtd itself. If it comes from the remote host
+-		 * it should have the log_magic and arch properly
+-		 * setup. If log_magic is not set yet then just set it with
+-		 * local arch. 
+-		 */
+-		TRACE("Record from rmt host\n");
+-		if ((rhdr->log_magic & 0xffff0000) ==
+-			(LOGREC_MAGIC & 0xffff0000)) {
+-			/* nop */
+-			TRACE("rmt event - log_magic = %x\n", rhdr->log_magic);
+-		} else {	
+-			rhdr->log_magic = LOG_MAGIC_ARCH;
+-		}
+ 	}
+ 
+ 	if (rhdr->log_size <= 0) {
+-		varbuf = NULL;	
+-	}
+-	else {
+-		if((nbytes = _evlReadEx(ci->sd, varbuf, rhdr->log_size)) < 0) {
++		varbuf = NULL;
++	} else {
++		int	nbytes;
++
++		varbuf = &eptr->rec[REC_HDR_SIZE];
++
++		if ((nbytes = _evlReadEx(ci->sd, varbuf, rhdr->log_size)) < 0) {
+ 			closeClientSocket(ci);
+ 			return -1;
+ 		}
++
+ 		TRACE("Read %d bytes into rec_buf.\n", nbytes);	
+ 	}
++
+ 	/* 
+ 	 * Just write one byte back to the client to let him know that
+ 	 * we are done reading. 
+ 	 */ 
+ 	{
+-		unsigned char c=0xac;
+-		write(ci->sd, &c, sizeof(char));
++		unsigned char c = 0xac;
++		(void) write(ci->sd, &c, sizeof(char));
+ 	}
+-	
+ 
+ 	/* Default posix log */
+ 	if (defaultPosixLog) {
++		posix_log_query_t	*query;
++
+ 		if ((dis_query.qu_tree != NULL) && 
+ 			_evlEvaluateQuery(&dis_query, rhdr, varbuf)) {
+ 			return 0;
+ 		}
+-		
+-		query = _evlGetFacilityAccessQuery(rhdr->log_facility, &acc_flags);
+-		if ((acc_flags & EVL_FACC_KERN) && !(rhdr->log_flags & EVL_KERNEL_EVENT)) {
++
++		query = _evlGetFacilityAccessQuery(rhdr->log_facility,
++								&acc_flags);
++
++		if ((acc_flags & EVL_FACC_KERN) &&
++				!(rhdr->log_flags & EVL_KERNEL_EVENT)) {
+ 			/*
+-			 * Kernel facility, but it does not have EVL_KERNEL_EVENT set.
+-			 * - don't log the event
++			 * Kernel facility, but it does not have
++			 * EVL_KERNEL_EVENT set - don't log the event
+ 			 */
+-			TRACE("Kernel facility, but it does not have EVL_KERNEL_EVENT set.\n");
++			TRACE("Kernel facility, but EVL_KERNEL_EVENT not set.\n");
+ 			return 0;
+ 		}				
+-		if ((query != NULL)  &&
++		if ((query != NULL) &&
+ 			(_evlEvaluateQuery(query, rhdr, varbuf) != 1)) {
+ 			/* not match the restricted query - don't log the event */
+ 			return 0;
+ 		}
+ 	}
++
+ #ifdef EVLOG_REGISTER_FAC
+ 	handleFacRegEvent(rhdr, varbuf);
+ #endif
++
+ 	if (defaultPosixLog) {
++		log_info_t	*linfo;
++
+ 		/*
+ 		 * If the access for the facility is defined as private 
+ 		 * in the registry, This event has to be in the 
+@@ -2755,17 +2831,37 @@ Process_Event(clientinfo_t *ci, char *bu
+ 		 * this code to return here if decided not to log
+ 		 * an event which has an invalid facility.
+ 		 */
+-		if (acc_flags != -1 && acc_flags & EVL_FACC_PRIVATE) {
++		if ((acc_flags != -1) && (acc_flags & EVL_FACC_PRIVATE)) {
+ 			linfo = &pvt_log;
+ 		} else {
+ 			linfo = &evl_log;
+ 		}
+-		if (!dropDupRecord(rhdr, linfo, buf_index)) {
+-			if (log_evl_rec(linfo, bufp) < 0) {
++
++		if (dis_dup_recs) {
++			int		new;
++			dup_buffer_t	*dup;
++
++			dropDupRecord(linfo, lb_index, &new, &dup);
++
++			/*
++			 * Regardless of duplicate suppression setting
++			 * notifications need to be issued - otherwise
++			 * the threshhold handling makes no sense.
++			 *
++			 * Each duplicate will have a notification sent
++			 * that points to the originating event.
++			 */
++
++			if (new) {
++				if (log_evl_rec(linfo, dup->rec) < 0)
++					return -1;
++			} else {
++				writeEvtToNfyDaemon(dup->rec);
++			}
++		} else {
++			if (log_evl_rec(linfo, eptr->rec) < 0) {
+ 				return -1;
+ 			}
+-			TRACE("Write an event to the log, log_size=%d\n", 
+-				  rhdr->log_size);		
+ 		}
+ 	}
+ 	/* Event is logged now - excecute all backends */
+@@ -2841,20 +2937,23 @@ log_dropped_evtcnt_msg(log_info_t *linfo
+ /*
+  * FUNCTION	:  writeEvtToNfyDaemon
+  * ARGUMENTS	:  
+- *				:  evlbuf  - Pointer to the buffer to be logged.
+- * 				
+- * RETURN	:  
+- *			:  
++ *		:  evlbuf  - Pointer to the buffer to be logged.
++ *
++ * RETURN	:
++ *		:
+  * USAGE	:  This function writes rec to notify daemon
+  */
+ 
+ static void 
+ writeEvtToNfyDaemon(char * evlbuf)
+ {
+-	struct posix_log_entry *rentry = (struct posix_log_entry *)(char *)evlbuf;
++	struct posix_log_entry *rentry = (struct posix_log_entry *) evlbuf;
+ 
+ 	if (notify_sd <= 0)
+-		return;		/* Notification socket is not openned - return */
++		return;		/* Notification socket is not openned */
++
++	TRACE("Notification for rec_id %d\n", rentry->log_recid);
++
+ 		
+ 	if (writeEx(notify_sd, evlbuf,REC_HDR_SIZE) 
+ 		<= 0)  {
+@@ -2876,14 +2975,15 @@ writeEvtToNfyDaemon(char * evlbuf)
+ 		 */
+ 		notify_sd = rmSocket(notify_sd);
+ 	}	
+-}	 
++}
++
+ /*
+  * FUNCTION	:  write_rec_to_buf
+  * ARGUMENTS	:  
+- *				:  rbuf  - Pointer to the buffer to be logged.
+- * 				:  rlen  - Buffer length.
++ *		:  rbuf  - Pointer to the buffer to be logged.
++ * 		:  rlen  - Buffer length.
+  * RETURN	:  0 - Success
+- *			:  -1  failed.
++ *		:  -1  failed.
+  * USAGE	:  This function writes log rec to memory.
+  */
+ int
+@@ -3046,7 +3146,6 @@ write_rec_to_log(log_info_t *linfo, char
+ 	return 0;
+ }
+ 
+-
+ /*
+  * FUNCTION     : log_evl_rec
+  * ARGUMENTS    : recbuf - Pointer to the buffer to be logged
+@@ -3067,21 +3166,12 @@ log_evl_rec(log_info_t *linfo, char *rec
+ 	struct posix_log_entry *logrec = (struct posix_log_entry*) recbuf;
+ 	char lbuf[REC_HDR_SIZE + POSIX_LOG_ENTRY_MAXLEN + sizeof(evlrecsize_t)];
+ 	uint recsize = logrec->log_size + REC_HDR_SIZE;
+-	int facAccess; 
+-	struct timezone tz;
+-#if 0	
+-	/*
+-	 * get tz_minuteswest, we use this value to adjust the time stamp
+-	 * back to utc if it is flagged as local time.
+-	 */
+-	gettimeofday(NULL, &tz);
+-	/* Adjust timestamp */
+-	if (logrec->log_flags & EVL_KERNEL_EVENT) {
+-		logrec->log_time.tv_sec = logrec->log_time.tv_sec + (tz.tz_minuteswest * 60) ;
+-	}
+-#endif
+-	//	logrec->log_magic = LOG_MAGIC_ARCH;
++
+ 	logrec->log_recid = getNextRecId(linfo->recId);
++
++	TRACE("Log an event; log_recid %d log_size %d\n",
++					logrec->log_recid, logrec->log_size);
++
+ 	memcpy((void *)lbuf, (void *)recbuf, recsize);
+ 	memcpy((void *)(lbuf + recsize), &recsize , sizeof(evlrecsize_t));
+ 
+@@ -3165,26 +3255,29 @@ int lock_routine(int fd, int cmd, int ty
+ static void
+ checkDupEventTimeoutForLog(log_info_t *linfo, struct timeval *tv)
+ {
+-	/*
+-	 * timeout is the number of seconds we need to wait before 
+-	 * logging the discarded-dups event we have pending for this log.
+-	 */
+-	long timeout;
+-	time_t expireTime;
+-	time_t now = time(0);
+ 	dup_buffer_t *dup_ptr = linfo->dup_recs_array;
+-	int count = 0;
++	int count;
+ 
+-	if (linfo->dup_count == 0 || linfo->dup_recs_array == NULL) {
++	if ((linfo->dup_count == 0) ||
++			(linfo->dup_recs_array == (dup_buffer_t *) NULL)) {
+ 		/* No dups in the entire array pending -- the usual case */
+ 		return;
+ 	}
+ 
+ 	for (count = 0; count < dup_array_size; count++) {
+-
+ 		if (dup_ptr->dup_count > 0) {
++			/*
++			 * timeout is the number of seconds we need to
++			 * wait before logging the discarded-dups event
++			 * we have pending for this log.
++			 */
++
++			long timeout;
++			time_t expireTime;
++			time_t now = time(0);
++
+ 			/* This record has pending dups. */
+-			
++
+ 			expireTime = dup_ptr->time_start + dup_interval;
+ 			timeout = expireTime - now;
+ 
+@@ -3192,21 +3285,29 @@ checkDupEventTimeoutForLog(log_info_t *l
+ 				/* Time to log the discarded-dups event. */
+ 				struct posix_log_entry *rechdr = 
+ 					(struct posix_log_entry *)dup_ptr->rec;
++
+ 				writeDiscardEvent(linfo, rechdr->log_facility,
+-								  rechdr->log_event_type, dup_ptr->dup_count);
++						  rechdr->log_event_type,
++						  dup_ptr->dup_count);
++
++				Lookbacks[dup_ptr->dup_lbindex].in_use = 0;
++
+ 				linfo->dup_count -= dup_ptr->dup_count;
+ 				dup_ptr->dup_count = 0;
+ 				dup_ptr->time_start = 0;
+-				dup_ptr->rec = NULL;
+-				buf[dup_ptr->buf_index].in_use = 0;
++				dup_ptr->rec = (char *) NULL;
++				dup_ptr->dup_lbindex = 0xDEADBEEF;
+ 			} else {
+-				/* Not yet time to log the discarded-dups event. */
+-				if (tv->tv_sec == 0 || tv->tv_sec > timeout) {
+-					tv->tv_sec = timeout;
+-				}
++				/*
++				 * Not yet time to log the discarded-dups
++				 * event.
++				 */
++
++				if (tv->tv_sec == 0 || tv->tv_sec > timeout)
++ 					tv->tv_sec = timeout;
+ 			}
+ 		}
+-		
++
+ 		dup_ptr++;
+ 	}
+ }
+@@ -3221,31 +3322,36 @@ dumpDuplicatesBuffer(log_info_t *linfo)
+ 	int count;
+ 	dup_buffer_t *dup_ptr = linfo->dup_recs_array;
+ 
+-	if (dup_ptr == NULL)
++	if (dup_ptr == (dup_buffer_t *) NULL)
+ 		return;
+ 
+ 	for (count = 0; count < dup_array_size; count++) {
+ 		if (dup_ptr->dup_count > 0) {
+ 			struct posix_log_entry *rechdr =
+-				(struct posix_log_entry *)dup_ptr->rec;
++				(struct posix_log_entry *) dup_ptr->rec;
++
+ 			writeDiscardEvent(linfo, rechdr->log_facility,
+-							  rechdr->log_event_type,
+-							  dup_ptr->dup_count);
+-			dup_ptr->dup_count = 0;
+-			dup_ptr->time_start = 0;
+-			dup_ptr->rec = NULL;
+-			buf[dup_ptr->buf_index].in_use = 0;
++						  rechdr->log_event_type,
++						  dup_ptr->dup_count);
+ 		}
++
+ 		dup_ptr++;
+ 	}
+ 
+ 	linfo->dup_count = 0;
+-	free(linfo->dup_recs_array);
+-	linfo->dup_recs_array = NULL;
+-}
++	free((void *) linfo->dup_recs_array);
++	linfo->dup_recs_array = (dup_buffer_t *) NULL;
+ 
++	if (Lookbacks == (event_buffer_t *) NULL) {
++		return;
++	}
+ 
+-/* FUNCTION: reallocBuffer
++	for (count = 0; count < Lookback_entries; count++) {
++		Lookbacks[count].in_use = 0;
++	}
++}
++
++/* FUNCTION: reallocLookBack
+  *
+  * PURPOSE: Reallocates the lookback buffer. This generally needs to occur
+  * 	    when the size of the buffer has changed. If the prev_on is true,
+@@ -3271,22 +3377,34 @@ dumpDuplicatesBuffer(log_info_t *linfo)
+  * 		None
+  */
+ static void
+-reallocBuffer(size_t newsize, int prev_on, int cur_on) {
++reallocLookBack(size_t newsize, int prev_on, int cur_on)
++{
++	unsigned int	i;
++
+ 	if (prev_on) {
+ 		dumpDuplicatesBuffer(&evl_log);
+ 		dumpDuplicatesBuffer(&pvt_log);
+ 	}
+-	free(buf);
++
++	if (Lookbacks != (event_buffer_t *) NULL) {
++		free((void *) Lookbacks);
++	}
++
+ 	dup_array_size = newsize;
++
+ 	if (cur_on) {
+-		buf_size = 2 * dup_array_size + 1;
+-	} else {
+-		buf_size = 1;
++		Lookback_entries = 2 * dup_array_size + 1;
++	}
++	else {
++		Lookback_entries = 1;
+ 	}
+-	
+-	buf = calloc(buf_size, sizeof(event_buffer_t));
+-}
+ 
++	Lookbacks = malloc(Lookback_entries * sizeof(event_buffer_t));
++
++	for (i = 0; i < Lookback_entries; i++) {
++		Lookbacks[i].in_use = 0;
++	}
++}
+ 
+ /*
+  * This function ensures that a "Discarded %d duplicate events" event always

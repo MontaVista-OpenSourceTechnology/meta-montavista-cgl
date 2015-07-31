@@ -1,0 +1,51 @@
+Index: evlog-1.6.1/user/lib/posix1.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/posix1.c
++++ evlog-1.6.1/user/lib/posix1.c
+@@ -244,9 +244,9 @@ _EvlLogWrite(	posix_log_facility_t	facil
+ 	entry.log_magic = LOGREC_ARCH_S390;
+ #elif defined(__s390x__)
+ 	entry.log_magic = LOGREC_ARCH_S390X;
+-#elif defined(__ppc__)
+-	entry.log_magic = LOGREC_ARCH_PPC;
+-#elif defined(__powerpc__)
++#elif defined(__ppc64__) || defined(__powerpc64__)
++	entry.log_magic = LOGREC_ARCH_PPC64;
++#elif defined(__ppc__) || defined(__powerpc__)
+ 	entry.log_magic = LOGREC_ARCH_PPC;
+ #elif defined(__ia64__)
+ 	entry.log_magic = LOGREC_ARCH_IA64;
+Index: evlog-1.6.1/user/lib/template/convert.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/template/convert.c
++++ evlog-1.6.1/user/lib/template/convert.c
+@@ -76,7 +76,9 @@ extern tmpl_arch_type_info_t _evlTmplArc
+ #define	COMPILED_ARCH 	0
+ 
+ 
+-#if defined(__ppc__) || defined(__powerpc__)
++#if defined(__ppc64__) || defined(__powerpc64__)
++	#define LOCAL_ARCH 		LOGREC_ARCH_PPC64
++#elif defined(__ppc__) || defined(__powerpc__)
+ 	#define LOCAL_ARCH 		LOGREC_ARCH_PPC
+ #elif defined(__i386__)
+ 	#define LOCAL_ARCH		LOGREC_ARCH_I386
+Index: evlog-1.6.1/user/cmd/evlogd/evlogd.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlogd/evlogd.c
++++ evlog-1.6.1/user/cmd/evlogd/evlogd.c
+@@ -82,10 +82,10 @@ _syscall3(int,ksyslog,int, type, char *,
+ #elif defined(__s390x__)
+ #define	LOG_MAGIC_ARCH  ((LOGREC_MAGIC & 0xffff0000) | LOGREC_ARCH_S390X)
+ #define LOCAL_ARCH 	LOGREC_ARCH_S390X
+-#elif defined(__ppc__)
+-#define	LOG_MAGIC_ARCH  ((LOGREC_MAGIC & 0xffff0000) | LOGREC_ARCH_PPC)
+-#define LOCAL_ARCH 	LOGREC_ARCH_PPC
+-#elif defined(__powerpc__)
++#elif defined(__ppc64__) || defined(__powerpc64__)
++#define	LOG_MAGIC_ARCH  ((LOGREC_MAGIC & 0xffff0000) | LOGREC_ARCH_PPC64)
++#define LOCAL_ARCH 	LOGREC_ARCH_PPC64
++#elif defined(__ppc__) || defined(__powerpc__)
+ #define	LOG_MAGIC_ARCH  ((LOGREC_MAGIC & 0xffff0000) | LOGREC_ARCH_PPC)
+ #define LOCAL_ARCH 	LOGREC_ARCH_PPC
+ #elif defined(__ia64__)

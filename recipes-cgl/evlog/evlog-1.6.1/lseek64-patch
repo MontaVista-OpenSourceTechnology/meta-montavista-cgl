@@ -1,0 +1,1241 @@
+Index: evlog-1.6.1/user/cmd/evlfacility/evlfacility.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlfacility/evlfacility.c
++++ evlog-1.6.1/user/cmd/evlfacility/evlfacility.c
+@@ -683,7 +683,7 @@ addFacility(char * facName, unsigned int
+ 		return -1;
+ 	}
+ 	_evlLockFd(fd, F_WRLCK);
+-	lseek(fd, 0, SEEK_END);
++	lseek(fd, (off_t) 0, SEEK_END);
+ 	
+ 	if(writeFacility(fd, facName, facVal, flags, filter) != 0) {
+ 		restoreOldRegistry();
+Index: evlog-1.6.1/user/cmd/evlnotifyd/evlnotifyd.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlnotifyd/evlnotifyd.c
++++ evlog-1.6.1/user/cmd/evlnotifyd/evlnotifyd.c
+@@ -24,6 +24,7 @@
+  *
+  */
+ 
++#define _LARGEFILE64_SOURCE
+ #include <stdio.h>            	
+ #include <string.h>           	
+ #include <fcntl.h>            	
+@@ -608,16 +609,16 @@ security_test()
+ {
+ 	int fd;
+ 
+-	if ((fd = open(LOG_PRIVATE_PATH, O_RDONLY))!= -1) {
++	if ((fd = open64(LOG_PRIVATE_PATH, O_RDONLY))!= -1) {
+ 		/* user can open this privatelog - yahoo */
+-		close(fd);
++		(void) close(fd);
+ 		return 0;
+ 	}
+ 	
+-	if ((fd = open(LOG_CURLOG_PATH, O_RDONLY)) == -1) {
++	if ((fd = open64(LOG_CURLOG_PATH, O_RDONLY)) == -1) {
+ 		return -1;
+ 	}
+-	close(fd);
++	(void) close(fd);
+ 	return 0;
+ }
+ 
+Index: evlog-1.6.1/user/cmd/evlnotifyd/serialize.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlnotifyd/serialize.c
++++ evlog-1.6.1/user/cmd/evlnotifyd/serialize.c
+@@ -24,7 +24,6 @@
+  *
+  */
+ 
+-
+ #include <stdio.h>            	/* Defines NULL */
+ #include <string.h>           	/* Defines strcmp(), strcpy(), strlen() */
+ #include <fcntl.h>            	/* Defines FILE, fopen() */
+@@ -118,7 +117,7 @@ openReqFile(int flags)
+ 		return -1;
+ 	}
+ 	/* goto begining of the file */
+-	lseek(tmpfd, 0, SEEK_SET);
++	(void) lseek(tmpfd, (off_t) 0, SEEK_SET);
+ 	return tmpfd;
+ 
+ }
+@@ -336,7 +335,7 @@ appendReqToFile(nfyReq_t *req)
+ 		fprintf(stderr, "Can't open notify_request file\n.");
+ 		return -1;
+ 	} 
+-	lseek(fd, 0, SEEK_END);
++	(void) lseek(fd, (off_t) 0, SEEK_END);
+ 	(void) fcntl(fd, F_WRLCK);
+ 	if(writeReqToFile(fd, req) == -1) {
+ 		closeReqFile(fd, FILE_OP_FAILED);
+Index: evlog-1.6.1/user/cmd/evlogd/evlogd.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlogd/evlogd.c
++++ evlog-1.6.1/user/cmd/evlogd/evlogd.c
+@@ -23,7 +23,7 @@
+  *  Project Website:  http://evlog.sourceforge.net/
+  *
+  */
+-
++#define _LARGEFILE64_SOURCE
+ #include <stdio.h>	/* Defines NULL */
+ #include <stdarg.h>	/* Defines va_args */
+ #include <fcntl.h>   	/* Defines FILE, fopen() */
+@@ -1757,15 +1757,15 @@ createSocket(char *sockname, int *sd, so
+ static int
+ openMaybeCreate(const char *path, mode_t mode, log_info_t *linfo)
+ {
+-	struct stat st;
++	struct stat64 st;
+ 	int create_file = 0;
+ 	log_header_t log_hdr;
+ 	
+ 	st.st_size = 0;
+-	if (stat(path, &st) || !st.st_size) {
++	if (stat64(path, &st) || !st.st_size) {
+ 		create_file = 1;
+ 	}	
+-	if ((linfo->fd = open(path, O_RDWR|O_CREAT, mode)) < 0) {
++	if ((linfo->fd = open64(path, O_RDWR|O_CREAT, mode)) < 0) {
+ 		fprintf(stderr, "evlogd: Cannot open EVL Log file '%s': %s\n",
+ 				path, strerror(errno));
+ 		return -1;
+@@ -1790,7 +1790,7 @@ openMaybeCreate(const char *path, mode_t
+ 	}
+ 
+ 	linfo->map_hdr = (log_header_t *)mmap(NULL, sizeof(log_header_t),
+-										  PROT_WRITE|PROT_READ, MAP_SHARED, linfo->fd, 0);
++			PROT_WRITE|PROT_READ, MAP_SHARED, linfo->fd, 0);
+ 	if (linfo->map_hdr == (log_header_t *)-1) {
+ 		fprintf(stdout, "evlogd: mmap failed: %s", strerror(errno));
+ 		return -1;
+@@ -1800,7 +1800,7 @@ openMaybeCreate(const char *path, mode_t
+ 	 * Seek to the end of the logfile for writing the event
+ 	 * records.
+ 	 */
+-	if (lseek(linfo->fd, 0, SEEK_END) == (off_t)-1) {
++	if (lseek64(linfo->fd, (loff_t) 0, SEEK_END) == (loff_t)-1) {
+ 		mk_evl_rec(&evl_log,LOG_LOGMGMT, EVLOG_SEEK_LOG_FAILED, LOG_CRIT,
+ 				   "evlogd: Cannot seek to the end of EVL log file: %s",
+ 				   strerror(errno));
+@@ -1809,18 +1809,19 @@ openMaybeCreate(const char *path, mode_t
+ 
+ 	if (st.st_size > sizeof(log_header_t)) {
+ 		/*
+-		 * Log file is already exists and it has atleast one record.
++		 * Log file exists and has at least one record.
+ 		 */ 
+ 		int recsize;
+ 		struct posix_log_entry rec_hdr;
+ 
+ 		/*
+ 		 * Read the record ID present in the last event record.
+-		 * This rec Id will be used if the daemon got killed last time 
+-		 * using signal SIGKILL. I,e. this record ID will be greater 
++		 * This rec ID will be used if the daemon got killed last time
++		 * using signal SIGKILL. I.E. this record ID will be greater
+ 		 * than the one in the log header structure.
+ 		 */ 
+-		if (lseek(linfo->fd, -sizeof(int), SEEK_CUR) == (off_t)-1) {
++		if (lseek64(linfo->fd, -((loff_t) sizeof(int)),
++						SEEK_CUR) == (loff_t) -1) {
+ 			mk_evl_rec(&evl_log, LOG_LOGMGMT, EVLOG_SEEK_LOG_FAILED, 
+ 					   LOG_CRIT,"evlogd: Cannot seek in the EVL log file: %s",
+ 					   strerror(errno));
+@@ -1833,16 +1834,17 @@ openMaybeCreate(const char *path, mode_t
+ 			return -1;
+ 		}
+ 		recsize = recsize + sizeof(int);
+-		if (lseek(linfo->fd, -recsize, SEEK_CUR) == (off_t)-1) {
++		if (lseek64(linfo->fd, -((loff_t) recsize), SEEK_CUR) ==
++							(loff_t)-1) {
+ 			mk_evl_rec(&evl_log, LOG_LOGMGMT, EVLOG_SEEK_LOG_FAILED, LOG_CRIT,
+-					   "evlogd: Cann't seek in the EVL log file: %s",
++					   "evlogd: Cannot seek in the EVL log file: %s",
+ 					   strerror(errno));
+ 			return -1;
+ 		}
+ 		if (read(linfo->fd, &rec_hdr, sizeof(struct posix_log_entry)) !=
+ 			sizeof(struct posix_log_entry)) {
+ 			mk_evl_rec(&evl_log, LOG_LOGMGMT, EVLOG_READ_LOG_FAILED, LOG_CRIT,
+-					   "evlogd: Cann't read from the EVL log file: %s",
++					   "evlogd: Cannot read from the EVL log file: %s",
+ 					   strerror(errno));
+ 			return -1;
+ 		}
+@@ -1902,7 +1904,7 @@ readEvlogConfig()
+ 		return -1;
+ 	}
+ 	*qexp = '\0';
+-	(void) lock_routine(conf_fd, F_SETLKW, F_RDLCK);
++	(void) lock_routine(conf_fd, F_SETLKW64, F_RDLCK);
+ 	while (fgets(line, MAX_EVL_LINE, conf_f)) {
+ 		p = line + strspn(line, " \t");
+ 		if ((p[0] == '\n') || (p[0] == '#')) {
+@@ -2024,7 +2026,7 @@ readEvlogConfig()
+ 	} 
+ 
+  out:
+-	(void) lock_routine(conf_fd, F_SETLKW, F_UNLCK);
++	(void) lock_routine(conf_fd, F_SETLKW64, F_UNLCK);
+ 	fclose(conf_f);	/* closes conf_fd */
+ 	return error;
+ }
+@@ -2818,8 +2820,8 @@ log_dropped_evtcnt_msg(log_info_t *linfo
+ 	recsize = rentry->log_size + REC_HDR_SIZE;	
+ 
+ 	memcpy((void *)(evbuf + recsize), &recsize , sizeof(evlrecsize_t));
+-	
+-	if (lseek(linfo->fd, 0, SEEK_END) == (off_t)-1) {
++
++	if (lseek64(linfo->fd, (loff_t) 0, SEEK_END) == (loff_t)-1) {
+ 		fprintf(stderr,
+ 				"evlogd: Cannot seek in the EVL logfile\n");
+ 		return(-1);
+@@ -2961,7 +2963,7 @@ drain_buf_to_log(log_info_t *linfo)
+ 	TRACE("Drain %d records\n", i);
+ #endif
+ 
+-	if (lseek(linfo->fd, 0, SEEK_END) == (off_t)-1) {
++	if (lseek64(linfo->fd, (loff_t) 0, SEEK_END) == (loff_t)-1) {
+ 		fprintf(stderr,
+ 				"evlogd: Cannot seek in the EVL logfile\n");
+ 		return(-1);
+@@ -3004,7 +3006,7 @@ drain_buf_to_log(log_info_t *linfo)
+ int
+ write_rec_to_log(log_info_t *linfo, char *rbuf, size_t rlen) 
+ {
+-	if (lock_routine(linfo->fd, F_SETLK, F_WRLCK) == -1 )
++	if (lock_routine(linfo->fd, F_SETLK64, F_WRLCK) == -1 )
+ 		{
+ 			/* Fail to get the lock */
+ 			TRACE("Failed to get the lock, write event to buffer instead.\n");
+@@ -3027,7 +3029,7 @@ write_rec_to_log(log_info_t *linfo, char
+ 		}
+ 	} 	
+ 
+-	if (lseek(linfo->fd, 0, SEEK_END) == (off_t)-1) {
++	if (lseek64(linfo->fd, (loff_t) 0, SEEK_END) == (loff_t)-1) {
+ 		fprintf(stderr,
+ 				"evlogd: Cannot seek in the EVL logfile\n");
+ 		return(-1);
+@@ -3040,7 +3042,7 @@ write_rec_to_log(log_info_t *linfo, char
+ 		return(-1);
+ 	}
+ 
+-	lock_routine(linfo->fd, F_SETLK, F_UNLCK);
++	lock_routine(linfo->fd, F_SETLK64, F_UNLCK);
+ 	return 0;
+ }
+ 
+@@ -3084,7 +3086,7 @@ log_evl_rec(log_info_t *linfo, char *rec
+ 	memcpy((void *)(lbuf + recsize), &recsize , sizeof(evlrecsize_t));
+ 
+ 	if (write_rec_to_log(linfo, lbuf, recsize + sizeof(evlrecsize_t)) < 0) {
+-		lock_routine(linfo->fd, F_SETLK, F_UNLCK);
++		lock_routine(linfo->fd, F_SETLK64, F_UNLCK);
+ 		return -1;
+ 	}
+ 	if ((logrec->log_severity & (LOG_EMERG | LOG_CRIT | LOG_ALERT)) ||
+@@ -3142,20 +3144,21 @@ int writeEx(int sd, void * buf, size_t l
+ }
+ 
+ /* 
+- * cmd is F_GETLK see if lock exists on a file descriptor fd,
+- * or F_SETLK set a lock on file descriptor fd,
+- * or F_SETLKW, the blocking version of F_SETLK.
++ * cmd is F_GETLK64 see if lock exists on a file descriptor fd,
++ * or F_SETLK64 set a lock on file descriptor fd,
++ * or F_SETLKW64, the blocking version of F_SETLK64.
+  * Process sleeps until lock can be obtained. 
+  * 
+  */
+ int lock_routine(int fd, int cmd, int type)
+ {
++	struct flock64 lock;
++
++	lock.l_type = type;		/*F_RDLCK, F_WRLCK, or F_UNLOCK */
++	lock.l_len = lock.l_start = 0;	/* byte offset relative to lock.l_whence */
++	lock.l_whence = SEEK_SET;	/* or SEEK_CUR or SEEK_END*/
+ 
+-	struct flock lock;
+-	lock.l_type=type;					/*F_RDLCK, F_WRLCK, or F_UNLOCK */
+-	lock.l_len= lock.l_start= 0;		/* byte offset relative to lock.l_whence */
+-	lock.l_whence=SEEK_SET;			/* or SEEK_CUR or SEEK_END*/
+-	return( fcntl(fd,cmd, &lock) );
++	return( fcntl(fd, cmd, &lock) );
+ }
+ 
+ /* Does the work of checkDupEventTimeout() for event log linfo. */
+Index: evlog-1.6.1/user/cmd/evlogd/ksym_mod.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlogd/ksym_mod.c
++++ evlog-1.6.1/user/cmd/evlogd/ksym_mod.c
+@@ -82,6 +82,7 @@
+ 
+ 
+ /* Includes. */
++#define _LARGEFILE64_SOURCE
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -420,12 +421,12 @@ static int AddModule(address, symbol)
+ 		}
+ 		mp = &sym_array_modules[num_modules];
+ 
+-		if ( (memfd = open("/dev/kmem", O_RDONLY)) < 0 )
++		if ( (memfd = open64("/dev/kmem", O_RDONLY)) < 0 )
+ 		{
+ 			TRACE("Error opening /dev/kmem\n");
+ 			return(0);
+ 		}
+-		if ( lseek64(memfd, address, SEEK_SET) < 0 )
++		if (lseek64(memfd, (loff_t) address, SEEK_SET) == (loff_t) -1)
+ 		{
+ 			TRACE("Error seeking in /dev/kmem\n");
+ 			TRACE("Symbol %s, value %08lx\n", symbol, address);
+Index: evlog-1.6.1/user/cmd/evlogmgr/evl_logmgmt.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlogmgr/evl_logmgmt.c
++++ evlog-1.6.1/user/cmd/evlogmgr/evl_logmgmt.c
+@@ -23,6 +23,7 @@
+  *  Project Website:  http://evlog.sourceforge.net/
+  *
+  */
++#define _LARGEFILE64_SOURCE
+ #include <stdio.h>
+ #include <fcntl.h>
+ #include <signal.h>
+@@ -59,45 +60,44 @@
+ 
+ typedef enum set_gen { GEN_RESET, GEN_INCR, GEN_EVEN, GEN_ODD } set_gen_t;
+ 
+-
+ struct file_offset_info {
+-	off_t offset;
+-	off_t beginhole;
+-	off_t bytes_to_process;
++	loff_t offset;
++	loff_t beginhole;
++	loff_t bytes_to_process;
+ };
+ 
+ static char logmgmt_msg[128]="";
+ static int g_num_delrec = 0;
+-static size_t reducedBytes = 0;
++static loff_t reducedBytes = 0;
+ static posix_log_query_t query;
+ char error_str[256];
+ static int logfd;
+ static int g_backupCreated = 0;
+-static size_t sizeb4repair;
++static loff_t sizeb4repair;
+ extern int gzBackUpFlag;
+ 
+-
+ /*
+  * Valdiates the log record that is pointed at by offset.
+  * Returns the file pointer to the next record if the current record validated,
+  * otherwise return -1.
+  */
+-off_t
+-validateRec(off_t offset)
++static loff_t
++validateRec(loff_t offset)
+ {
+ 	struct posix_log_entry rechdr;
+ 	evlrecsize_t recsize;
+ 
+-	if (lseek(logfd, offset, SEEK_SET) == (off_t) -1) {
+-		TRACE("lseek failed.\n");
++	if (lseek64(logfd, offset, SEEK_SET) == (loff_t) -1) {
++		TRACE("lseek64 failed.\n");
+ 		return -1;
+ 	}
+ 	if (read(logfd, &rechdr, REC_HDR_SIZE) != REC_HDR_SIZE ) {
+ 		TRACE("read recheader failed.\n");
+ 		return -1;
+ 	}
+-	if (lseek(logfd, offset + rechdr.log_size + REC_HDR_SIZE, SEEK_SET) == (off_t) -1) {
+-		TRACE("lseek failed.\n");
++	if (lseek64(logfd, offset + rechdr.log_size + REC_HDR_SIZE,
++						SEEK_SET) == (loff_t) -1) {
++		TRACE("lseek64 failed.\n");
+ 		return -1;
+ 	}
+ 	if (read(logfd, &recsize, sizeof(evlrecsize_t)) != sizeof(evlrecsize_t)) {
+@@ -168,7 +168,7 @@ moveRecordUp(struct file_offset_info *fi
+ 		varbuf = buf;
+ 	} 
+ 
+-	if (lseek(logfd, fi->beginhole, SEEK_SET) == (off_t)-1) {
++	if (lseek64(logfd, fi->beginhole, SEEK_SET) == (loff_t)-1) {
+ 		TRACE("Failed to seek to beginning of the hole.\n");
+ 		return -1;
+ 	}
+@@ -188,20 +188,21 @@ moveRecordUp(struct file_offset_info *fi
+  * Walk the log and count records that match the query for deletion. 
+  * Assume that the log file is opened and exclusively locked.
+  */ 
+-int countRecsForDeletion(posix_log_query_t *query, int * num_delrec, size_t *delbytes)
++int countRecsForDeletion(posix_log_query_t *query, int * num_delrec, loff_t *delbytes)
+ {
+-	size_t bytes_to_process;
+-	size_t reclen, offset;
++	loff_t bytes_to_process;
++	size_t reclen;
++	loff_t offset;
+ 	evlrecsize_t evlrecsize;
+ 	struct posix_log_entry rechdr;
+ 	char varbuf[POSIX_LOG_ENTRY_MAXLEN + 1];
+-	size_t nbytes = 0;
++	loff_t nbytes = 0;
+ 	int ret = 0, delcnt = 0, reccnt = 0;
+-	struct stat st;
+-	
++	struct stat64 st;
++
+ 	st.st_size = 0;
+-	
+-	if (fstat(logfd, &st) || !st.st_size) {
++
++	if (fstat64(logfd, &st) || !st.st_size) {
+ 		return EBADF;
+ 	}
+ 	TRACE("size = %u\n", st.st_size);
+@@ -209,7 +210,7 @@ int countRecsForDeletion(posix_log_query
+ 	bytes_to_process = st.st_size - offset;
+ 	
+ 	while(bytes_to_process > 0) {
+-		if(lseek(logfd, offset, SEEK_SET) == (off_t) -1) {
++		if (lseek64(logfd, offset, SEEK_SET) == (loff_t) -1) {
+ 			return EIO;
+ 		}
+ 		if (read(logfd, &rechdr, REC_HDR_SIZE) != REC_HDR_SIZE) {
+@@ -261,21 +262,19 @@ int compactLog(const char *logfilepath, 
+ 	char offset_info_file[256];
+ 	struct file_offset_info fi;
+ 	size_t reclen;
+-	off_t nextRecOffset;
+ 	struct posix_log_entry rechdr;
+-	struct stat st;
+-	
++	struct stat64 st;
++
+ 	st.st_size = 0;
+-	
+-	if (fstat(logfd, &st) || !st.st_size) {
++
++	if (fstat64(logfd, &st) || !st.st_size) {
+ 		return EIO;
+ 	}
+-	
+-	fi.beginhole = 0;
++
++	fi.beginhole = (loff_t) 0;
+ 	/* Do not process the log header, start at 1st rec */
+ 	fi.offset = sizeof(log_header_t);		
+ 	fi.bytes_to_process = st.st_size - fi.offset;
+-		
+ 
+ 	g_num_delrec = 0;	
+ 	while (fi.bytes_to_process > 0) {
+@@ -287,7 +286,7 @@ int compactLog(const char *logfilepath, 
+ 	}
+ 	crash_now++;
+ #endif	
+-		lseek(logfd, fi.offset, SEEK_SET);
++		(void) lseek64(logfd, fi.offset, SEEK_SET);
+ 		if (read(logfd, &rechdr, REC_HDR_SIZE) != REC_HDR_SIZE) {
+ 			fprintf(stderr, "Failed to read record header.\n");
+ 			ret = EIO;
+@@ -325,7 +324,8 @@ int compactLog(const char *logfilepath, 
+ 	 * Now the hole should be at the bottom of the file
+ 	 * truncate the log file right at the beginhole
+ 	 */
+-	if (fi.beginhole > 0 && ftruncate(logfd, fi.beginhole) == -1) {
++	if ((fi.beginhole > 0) &&
++			(ftruncate64(logfd, fi.beginhole) == (loff_t) -1)) {
+ 		fprintf(stderr, "Failed to truncate log file\n");
+ 		return EBADF;
+ 	}
+@@ -337,8 +337,8 @@ err_exit:
+  * Scans the log file looking for a valid record.
+  * If found returns pointer to that record otherwise -1.
+  */
+-off_t
+-searchForNextGoodRecord(off_t offset)
++loff_t
++searchForNextGoodRecord(loff_t offset)
+ {
+ 	static struct posix_log_entry *entry = 0; 
+ 	unsigned int log_magic;
+@@ -346,15 +346,17 @@ searchForNextGoodRecord(off_t offset)
+ 	evlrecsize_t recsize;
+ 	static int log_size_offset = (char *) &entry->log_size - (char *) entry;
+ 	
+-	lseek(logfd, offset, SEEK_SET);
++	(void) lseek64(logfd, offset, SEEK_SET);
+ 	while(read(logfd, &log_magic, sizeof(log_magic)) /*!= -1*/ == sizeof(log_magic)) {
+ 		if ((log_magic & 0xffff0000) == LOGREC_MAGIC_HIWORD) {
+-			lseek(logfd, offset + log_size_offset, SEEK_SET);
++			(void) lseek64(logfd, offset + log_size_offset,
++								SEEK_SET);
+ 			if (read(logfd, &log_size, sizeof(log_size)) != sizeof(log_size)) {
+ 				fprintf(stderr, "Fail to read the record header.\n");
+ 				return -1;
+ 			}
+-			lseek(logfd, offset + log_size + REC_HDR_SIZE, SEEK_SET);
++			(void) lseek64(logfd, offset + log_size + REC_HDR_SIZE,
++								SEEK_SET);
+ 			if (read(logfd, &recsize, sizeof(evlrecsize_t)) != sizeof(evlrecsize_t)) {
+ 				fprintf(stderr,"read recsize at end of record failed\n");
+ 				return -1;
+@@ -369,7 +371,7 @@ searchForNextGoodRecord(off_t offset)
+ 		 * expensive, but it is OK.
+ 		 */
+ 		offset ++;
+-		lseek(logfd, offset, SEEK_SET);
++		(void) lseek64(logfd, offset, SEEK_SET);
+ 	}
+ 	return -1;			
+ }
+@@ -383,13 +385,13 @@ repairLog(int * status)
+ 	int ret = 0;
+ 	struct file_offset_info fi;
+ 	struct posix_log_entry rechdr;
+-	off_t nextRecOffset;
++	loff_t nextRecOffset;
+ 	size_t reclen;
+-	struct stat st;
++	struct stat64 st;
+ 	st.st_size = 0;
+ 
+ 	*status = 0;
+-	if (fstat(logfd, &st) || !st.st_size ) {
++	if (fstat64(logfd, &st) || !st.st_size ) {
+ 		return EIO;
+ 	}
+ 	sizeb4repair = st.st_size;
+@@ -401,7 +403,8 @@ repair_again:
+ 	fi.bytes_to_process = st.st_size - fi.offset;
+ 	
+ 	while (fi.bytes_to_process > 0) {
+-		if ((nextRecOffset = validateRec(fi.offset)) == -1) {
++		if ((nextRecOffset = validateRec(fi.offset)) ==
++							(loff_t) -1) {
+ 			*status = 1;
+ 			/* found the corrupted record */
+ 			fprintf(stdout, "Found a corrupted event record."
+@@ -422,7 +425,7 @@ repair_again:
+ 			 * Now we move records to the hole.
+ 			 */
+ 			while (fi.bytes_to_process > 0) {	
+-				lseek(logfd, fi.offset, SEEK_SET);
++				(void) lseek64(logfd, fi.offset, SEEK_SET);
+ 				if (read(logfd, &rechdr, REC_HDR_SIZE) != REC_HDR_SIZE) {
+ 					fprintf(stderr, "Failed to read record header.\n");
+ 					return EIO;
+@@ -446,7 +449,8 @@ repair_again:
+ 			fi.offset = nextRecOffset;
+ 		}		
+ 	}
+-	if (fi.beginhole > 0 && ftruncate(logfd, fi.beginhole) == -1) {
++	if ((fi.beginhole > 0) &&
++			(ftruncate64(logfd, fi.beginhole) == (loff_t) -1)) {
+ 		fprintf(stderr, "Failed to truncate log file.\n");
+ 		return EBADF;
+ 	}
+@@ -465,7 +469,7 @@ setGenerationNumber(set_gen_t type)
+ 	struct posix_log_entry rec_hdr;
+ 
+ 	/* Make sure that we are the beginning of the file */
+-	if (lseek(logfd, 0, SEEK_SET) == (off_t)-1) {
++	if (lseek64(logfd, (loff_t) 0, SEEK_SET) == (loff_t)-1) {
+ 		return EBADF;
+ 	}
+ 	if (read(logfd, &log_hdr,  sizeof(log_header_t)) != sizeof(log_header_t)) {
+@@ -498,7 +502,7 @@ setGenerationNumber(set_gen_t type)
+ 	}
+ 	TRACE("log_generation = %d\n", log_hdr.log_generation);
+ 	
+-	if(lseek(logfd, 0, SEEK_SET) == (off_t)-1 ) {
++	if (lseek64(logfd, (loff_t) 0, SEEK_SET) == (loff_t)-1 ) {
+ 		return EBADF;
+ 	}
+ 	/* write log_generation back to logfile */
+@@ -540,7 +544,8 @@ createBackUp(const char *path)
+ 		snprintf(backup_filepath, sizeof(backup_filepath), "%s.bak", path);
+ 	}
+ 
+-	if ((bkfd = open(backup_filepath, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR)) < 0) {	
++	if ((bkfd = open64(backup_filepath, O_CREAT|O_RDWR|O_TRUNC,
++						S_IRUSR | S_IWUSR)) < 0) {
+ 		(void)fprintf(stderr, "Failed to create back up copy of the log.\n");
+ 		ret = -1;
+ 		goto err_exit;
+@@ -552,10 +557,9 @@ createBackUp(const char *path)
+ 			goto err_exit;
+ 		}
+ 	}
+-		
++
+ 	/* Copy the contents of the log file to the back up file */
+ 	while((nbytesRead = read(logfd, bytes, BUF_SIZE)) > 0) {	
+-		
+ 		if (gzBackUpFlag) {
+ 			if ((n = gzwrite(gzbk, bytes, nbytesRead)) != nbytesRead) {
+ 				TRACE("Failed to write to back up log file\n");
+@@ -575,7 +579,7 @@ createBackUp(const char *path)
+ 		}	
+ 	}
+ 	if (gzBackUpFlag) gzclose(gzbk);
+-	close(bkfd);
++	(void) close(bkfd);
+ 	g_backupCreated = 1;
+ 	
+ err_exit:
+@@ -628,7 +632,8 @@ restoreLogfileFromBackup(const char *pat
+ 	fprintf(stderr, "Restoring original logfile...\n");
+ 	
+ 	if (g_backupCreated) { 
+-		if ((bkfd = open(backup_filepath, O_RDONLY, S_IRUSR | S_IWUSR)) < 0) {
++		if ((bkfd = open64(backup_filepath, O_RDONLY,
++						S_IRUSR | S_IWUSR)) < 0) {
+ 			(void)fprintf(stderr, "Can't back up log file to restore.\n");
+ 			ret = -1;
+ 			goto err_exit;
+@@ -645,7 +650,7 @@ restoreLogfileFromBackup(const char *pat
+ 		goto err_exit;
+ 	}	
+ 
+-	if (lseek(logfd, 0, SEEK_SET) == (off_t)-1) {
++	if (lseek64(logfd, (loff_t) 0, SEEK_SET) == (loff_t)-1) {
+ 		ret = -1;
+ 		fprintf(stderr, "Failed to seek to the beginning of the log.\n");
+ 		goto err_exit;
+@@ -680,14 +685,14 @@ backupFileExists(const char *path)
+ 	int fd;
+ 	char filepath[256];
+ 	snprintf(filepath, sizeof(filepath), "%s.bak~", path);
+-	if ((fd =open(filepath, O_RDWR, S_IRWXU))== -1) {
++	if ((fd = open64(filepath, O_RDWR, S_IRWXU)) == -1) {
+ 		if (errno != ENOENT) {
+ 			perror("open");
+ 		}
+ 		return 0;
+ 	}
+ 	else {
+-		close(fd);
++		(void) close(fd);
+ 		return 1;
+ 	}
+ }
+@@ -701,27 +706,25 @@ int 
+ evl_repair_log(const char *path)
+ {
+ 	int ret, status;
+-	struct stat st;
++	struct stat64 st;
+ 	st.st_size = 0;
+-	
+-	
+-	
++
+ 	if (posix_log_printf(LOG_LOGMGMT, POSIX_LOG_MGMT_STARTMAINT,
+ 						LOG_NOTICE, 0, "%s", "Log repair started.") != 0) {
+ 			if (errno != ENOENT && errno != ECONNREFUSED)
+ 				perror("posix_log_printf of STARTMAINT message");
+ 			return errno;
+ 	}
+-	
+-	if ((logfd = open(path, O_RDWR)) == -1) {
++
++	if ((logfd = open64(path, O_RDWR)) == -1) {
+ 		perror("open");
+ 		posix_log_printf(LOG_LOGMGMT, POSIX_LOG_MGMT_ENDMAINT,
+ 						LOG_NOTICE, 0, "%s", "Log repair failed, could not open log file.");
+ 		return EBADF;
+ 	}
+-	
++
+ 	(void) evl_file_lock();
+-	
++
+ 	if ((ret = repairLog(&status)) == 0) {
+ 		if (setGenerationNumber(GEN_EVEN) != 0) {
+ 			fprintf(stderr, "evl_repair_log: Failed to increase log file generation number.\n");
+@@ -732,9 +735,9 @@ evl_repair_log(const char *path)
+ 	
+ 			return EBADF;
+ 		}
+-		fstat(logfd, &st);
++		(void) fstat64(logfd, &st);
+ 		(void) evl_file_unlock();
+-		close(logfd);
++		(void) close(logfd);
+ 		if (status == 0) {
+ 			fprintf(stdout, "Log repair finished. No problem found.\n");
+ 			posix_log_printf(LOG_LOGMGMT, POSIX_LOG_MGMT_ENDMAINT,
+@@ -750,7 +753,7 @@ evl_repair_log(const char *path)
+ 	} 
+ 	else {
+ 		(void) evl_file_unlock();
+-		close(logfd);
++		(void) close(logfd);
+ 		fprintf(stdout, "Log repair failed, errno=%u!\n", ret);	
+ 		posix_log_printf(LOG_LOGMGMT, POSIX_LOG_MGMT_ENDMAINT,
+ 						LOG_NOTICE, 0, "%s", "Log repair failed");
+@@ -813,7 +816,7 @@ evl_compact_log(const char *path, const 
+ 				perror("posix_log_printf of STARTMAINT message");
+ 			return errno;
+ 	}
+-	if ((logfd = open(path, O_RDWR)) == -1) {
++	if ((logfd = open64(path, O_RDWR)) == -1) {
+ 		perror("open of event log to be compacted.");
+ 		return EBADF;
+ 	}
+@@ -880,10 +883,10 @@ err_exit:	
+  * Note: This function does not mark records for deletion, just counts them.
+  */
+ int 
+-evlGetNumDelRec(const char *path, const char *filter, int *num_delrec, size_t *delBytes) 
++evlGetNumDelRec(const char *path, const char *filter, int *num_delrec, loff_t *delBytes)
+ {
+ 	int ret = 0, delrecs = -1;
+-	size_t nbytes = 0;
++	loff_t nbytes = 0;
+ 
+ 	if(posix_log_query_create(filter, POSIX_LOG_PRPS_GENERAL,
+              &query, error_str, 256) != 0) {
+@@ -892,7 +895,7 @@ evlGetNumDelRec(const char *path, const 
+ 		return EINVAL;
+ 	}
+ 	
+-	if ((logfd = open(path, O_RDONLY)) == -1) {
++	if ((logfd = open64(path, O_RDONLY)) == -1) {
+ 		perror("open");
+ 		return EBADF;
+ 	}
+@@ -901,9 +904,9 @@ evlGetNumDelRec(const char *path, const 
+ 		fprintf(stderr, "evlGetNumDelRec: Failed to count record for deletion.\n");
+ 		goto err_exit;
+ 	}
+-	
++
+ err_exit:
+-	close(logfd);
++	(void) close(logfd);
+ 	posix_log_query_destroy(&query);
+ 	*num_delrec = delrecs;
+ 	*delBytes = nbytes;
+@@ -916,27 +919,29 @@ err_exit:
+ int 
+ evl_file_lock() 
+ {
+-	return file_lock(logfd, F_SETLKW, F_RDLCK | F_WRLCK);	
++	return file_lock(logfd, F_SETLKW64, F_RDLCK | F_WRLCK);
+ }
+ 
+ int 
+ evl_file_unlock()
+ {
+-	return file_lock(logfd, F_SETLKW, F_UNLCK);	
++	return file_lock(logfd, F_SETLKW64, F_UNLCK);
+ }
+ /* 
+- * cmd is F_GETLK see if lock exists on a file descriptor fd,
+- * or F_SETLK set a lock on file descriptor fd,
+- * or F_SETLKW, the blocking version of F_SETLK.
++ * cmd is F_GETLK64 see if lock exists on a file descriptor fd,
++ * or F_SETLK64 set a lock on file descriptor fd,
++ * or F_SETLKW64, the blocking version of F_SETLK64.
+  * Process sleeps until lock can be obtained. 
+  * 
+  */
+ int 
+ file_lock(int fd, int cmd, int type)
+ {
+-  struct flock lock;
+-  lock.l_type=type;					/*F_RDLCK, F_WRLCK, or F_UNLOCK */
+-  lock.l_len= lock.l_start= 0;		/* byte offset relative to lock.l_whence */
+-  lock.l_whence=SEEK_SET;			/* or SEEK_CUR or SEEK_END*/
+-  return( fcntl(fd, cmd, &lock) );
++	struct flock64 lock;
++
++	lock.l_type = type;		/*F_RDLCK, F_WRLCK, or F_UNLOCK */
++	lock.l_len = lock.l_start = 0;	/* byte offset relative to lock.l_whence */
++	lock.l_whence = SEEK_SET;	/* or SEEK_CUR or SEEK_END*/
++
++	return( fcntl(fd, cmd, &lock) );
+ }
+Index: evlog-1.6.1/user/cmd/evlogmgr/evl_logmgmt.h
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlogmgr/evl_logmgmt.h
++++ evlog-1.6.1/user/cmd/evlogmgr/evl_logmgmt.h
+@@ -29,7 +29,7 @@
+ #define EVL_FORCE_COMPACT		0x01
+ int gzBackUpFlag;
+ 
+-int evlGetNumDelRec(const char *path, const char *filter, int * num_derec, size_t * delbytes);
++int evlGetNumDelRec(const char *path, const char *filter, int * num_derec, loff_t * delbytes);
+ int evl_compact_log(const char *path, const char *filter, int flags);
+ int evl_cont_compact_log(const char *path);   
+ int evl_repair_log(const char *path);
+Index: evlog-1.6.1/user/cmd/evlogmgr/evlogmgr.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlogmgr/evlogmgr.c
++++ evlog-1.6.1/user/cmd/evlogmgr/evlogmgr.c
+@@ -83,21 +83,21 @@ struct argInfo {
+ };
+ 
+ struct argInfo argInfo[] = {
+-	{ "--private",		"-p", 		&privFlag, 			BOOLARG, 	0},	
+-	{ "--force",		"-F", 		&forceFlag, 		BOOLARG, 	0},	
+-	{ "--show-status",	"-s", 		&showstat, 			STRINGARG, 	0},	
+-	{ "--compact",		"-c",		&cfilterStr,		STRINGARG,	0},
+-	{ "--fix",			"-f", 		&repairFlag, 		BOOLARG, 	0},	
+-	{ "--log",			"-l", 		&logFilePath, 		STRINGARG, 	0},	
+-	{ "--compr-bak",	"-C",		&gzBackUpFlag, 		BOOLARG,	0},
+-	{ "--help",			"-h",		&helpFlag, 			BOOLARG,	0},
+-	{ NULL,				NULL,		NULL,			0,			0}
++	{ "--private",		"-p", 	&privFlag, 	BOOLARG, 	0},
++	{ "--force",		"-F", 	&forceFlag, 	BOOLARG, 	0},
++	{ "--show-status",	"-s", 	&showstat, 	STRINGARG, 	0},
++	{ "--compact",		"-c",	&cfilterStr,	STRINGARG,	0},
++	{ "--fix",		"-f", 	&repairFlag, 	BOOLARG, 	0},
++	{ "--log",		"-l", 	&logFilePath, 	STRINGARG, 	0},
++	{ "--compr-bak",	"-C",	&gzBackUpFlag, 	BOOLARG,	0},
++	{ "--help",		"-h",	&helpFlag,	BOOLARG,	0},
++	{ NULL,			NULL,	NULL,		0,		0}
+ };
+ 
+ void usage()
+ {
+ 	fprintf(stderr, "Usage:\n"
+-					"evlogmgr  -c | --compact <filter> [-F | --force] [-C | compr-bak]\n"
++				"evlogmgr  -c | --compact <filter> [-F | --force] [-C | compr-bak]\n"
+ 					"         [[-p | --private] | [-l | --log <logfilepath>]]\n"
+ 					"evlogmgr  -f | --fix\n" 
+ 					"         [[-p | --private] | [-l | --log <logfilepath>]]\n"
+@@ -252,7 +252,7 @@ void 
+ processCommand()
+ {
+ 	int num_delrec;
+-	size_t delbytes;
++	loff_t delbytes;
+ 	int flags = 0;
+ 	
+ 	if (logFilePath) {
+@@ -271,7 +271,6 @@ processCommand()
+ 		evl_compact_log(logfile, cfilterStr, flags);
+ 	}
+ 	else if (showstat) {
+-		
+ 		if (evlGetNumDelRec(logfile, showstat, &num_delrec, &delbytes) == 0) {
+ 			float kbytes = delbytes/1024;
+ 			fprintf(stdout, "Number of records matching the filter is %d.\n"
+@@ -282,7 +281,6 @@ processCommand()
+ 	else if (repairFlag) {
+ 		evl_repair_log(logfile);
+ 	}
+-		
+ }
+ 
+ void SIGTerm_handler()
+Index: evlog-1.6.1/user/cmd/evlview/evlview.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlview/evlview.c
++++ evlog-1.6.1/user/cmd/evlview/evlview.c
+@@ -37,7 +37,7 @@
+ #else
+ #define LMDEBUG(fmt, args...)	do {} while(0)
+ #endif
+-
++#define _LARGEFILE64_SOURCE
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <sys/types.h>
+@@ -672,9 +672,9 @@ checkSemantics()
+ 	}
+ 
+ 	if (outPath) {
+-		struct stat st;
++		struct stat64 st;
+ 		outFile = NULL;
+-		outFd = open(outPath, O_WRONLY|O_APPEND|O_CREAT, 0666);
++		outFd = open64(outPath, O_WRONLY|O_APPEND|O_CREAT, 0666);
+ 		if (outFd < 0) {
+ 			fprintf(stderr, "%s: Cannot append to file\n", progName);
+ 			perror(outPath);
+@@ -682,7 +682,7 @@ checkSemantics()
+ 		}
+ 
+ 		/* If this is a new or empty log file, write the log header. */
+-		if (fstat(outFd, &st) < 0) {
++		if (fstat64(outFd, &st) < 0) {
+ 			perror("fstat");
+ 			exit(2);
+ 		}
+@@ -1257,7 +1257,7 @@ computeLogMgmtTimeout()
+ {
+ 	int lmTimeout;
+ 	const char *path = logPath;
+-	struct stat st;
++	struct stat64 st;
+ 	double secondsPerMbyte = 0.5;
+ 	int minTimeout = 10, maxTimeout = 5*60;
+ 
+@@ -1268,7 +1268,7 @@ computeLogMgmtTimeout()
+ 	if (!path) {
+ 		path = LOG_CURLOG_PATH;
+ 	}
+-	if (stat(path, &st) != 0) {
++	if (stat64(path, &st) != 0) {
+ 		fprintf(stderr, "%s: stat of log file failed.\n", progName);
+ 		perror(path);
+ 		exit(2);
+Index: evlog-1.6.1/user/include/evlog.h
+===================================================================
+--- evlog-1.6.1.orig/user/include/evlog.h
++++ evlog-1.6.1/user/include/evlog.h
+@@ -126,7 +126,7 @@ typedef struct log_header {
+ 	uint		log_magic;	/* Magic number indicating log file */
+ 	long		log_version;	/* Event logging version */
+ 	posix_log_recid_t last_recId;	/* Last recid in log: used by evlogd */
+-	off_t		reserved1;
++	loff_t		reserved1;
+ 	uint		log_generation;	/* Changes during log maintenance */
+ } log_header_t;
+ 
+Index: evlog-1.6.1/user/lib/posix2.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/posix2.c
++++ evlog-1.6.1/user/lib/posix2.c
+@@ -23,7 +23,7 @@
+  *  Project Website:  http://evlog.sourceforge.net/
+  *
+  */
+-
++#define _LARGEFILE64_SOURCE
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <unistd.h>
+@@ -219,7 +219,7 @@ _evlOpen(posix_logd_t *logdes, const cha
+ 		path = LOG_CURLOG_PATH;
+ 	}
+ 
+-	fd = open(path, O_RDONLY|O_NONBLOCK);
++	fd = open64(path, O_RDONLY|O_NONBLOCK);
+ 	if (fd < 0) {
+ 		return errno;
+ 	}
+@@ -256,7 +256,8 @@ _evlOpen(posix_logd_t *logdes, const cha
+ 	logd->ld_generation = logHdr->log_generation;
+ 
+ 	/* Seek past header to first record. */
+-	if (lseek(fd, sizeof(log_header_t), SEEK_CUR) == (off_t)-1) {
++	if (lseek64(fd, (loff_t) sizeof(log_header_t), SEEK_CUR) ==
++								(loff_t)-1) {
+ 		perror("Seek past log header on open");
+ 		(void) releaseLogDescription(logd);
+ 		return EINVAL;
+@@ -313,7 +314,7 @@ _evlRead(posix_logd_t logdes, struct pos
+ 	size_t dataLen;
+ 	char bigBuf[POSIX_LOG_ENTRY_MAXLEN];
+ 	char *ioBuf;
+-	off_t seekStatus;
++	loff_t seekStatus;
+ 
+ 	(void) flock(fd, LOCK_SH);
+ 	/* Read the record header. */
+@@ -355,9 +356,9 @@ _evlRead(posix_logd_t logdes, struct pos
+ 			}
+ 		} else {
+ 			/* Caller doesn't want the data.  Just skip over it. */
+-			seekStatus = lseek(fd, dataLen, SEEK_CUR);
+-			if (seekStatus == (off_t)-1) {
+-				fprintf(stderr, "lseek #1 failed in _evlRead\n");
++			seekStatus = lseek64(fd, (loff_t) dataLen, SEEK_CUR);
++			if (seekStatus == (loff_t)-1) {
++				fprintf(stderr, "lseek64 #1 failed in _evlRead\n");
+ 				(void) flock(fd, LOCK_UN);
+ 				return EIO;
+ 			}
+@@ -365,9 +366,9 @@ _evlRead(posix_logd_t logdes, struct pos
+ 	}
+ 
+ 	/* Skip over the log_size value at the end of the record. */
+-	seekStatus = lseek(fd, SIZESIZE, SEEK_CUR);
+-	if (seekStatus == (off_t)-1) {
+-		fprintf(stderr, "lseek #2 failed in _evlRead\n");
++	seekStatus = lseek64(fd, (loff_t) SIZESIZE, SEEK_CUR);
++	if (seekStatus == (loff_t)-1) {
++		fprintf(stderr, "lseek64 #2 failed in _evlRead\n");
+ 		(void) flock(fd, LOCK_UN);
+ 		return EIO;
+ 	}
+@@ -387,7 +388,8 @@ int
+ _evlRewind(posix_logd_t logdes)
+ {
+ 	int fd = logdToFd(logdes);
+-	if (lseek(fd, sizeof(log_header_t), SEEK_SET) == (off_t)-1) {
++	if (lseek64(fd, (loff_t) sizeof(log_header_t), SEEK_SET) ==
++							(loff_t)-1) {
+ 		return EIO;
+ 	}
+ 	return 0;
+@@ -397,7 +399,7 @@ int
+ _evlSeekEnd(posix_logd_t logdes)
+ {
+ 	int fd = logdToFd(logdes);
+-	if (lseek(fd, 0, SEEK_END) == (off_t)-1) {
++	if (lseek64(fd, (loff_t) 0, SEEK_END) == (loff_t)-1) {
+ 		return EIO;
+ 	}
+ 	return 0;
+@@ -407,26 +409,27 @@ int
+ _evlSeekFwd(posix_logd_t logdes, const posix_log_query_t *query)
+ {
+ 	int fd = logdToFd(logdes);
+-	off_t startPosition, curPosition;
++	loff_t startPosition, curPosition;
+ 	int status;
+ 	struct posix_log_entry entry;
+ 	char buf[POSIX_LOG_ENTRY_MAXLEN];
+ 
+-	startPosition = lseek(fd, 0, SEEK_CUR);
+-	if (startPosition == (off_t)-1) {
++	startPosition = lseek64(fd, (loff_t) 0, SEEK_CUR);
++	if (startPosition == (loff_t)-1) {
+ 		return EIO;
+ 	}
+ 
+ 	for (;;) {
+-		curPosition = lseek(fd, 0, SEEK_CUR);
+-		if (curPosition == (off_t)-1) {
++		curPosition = lseek64(fd, (loff_t) 0, SEEK_CUR);
++		if (curPosition == (loff_t)-1) {
+ 			return EIO;
+ 		}
+ 
+ 		status = _evlRead(logdes, &entry, buf, POSIX_LOG_ENTRY_MAXLEN);
+ 		if (status == EAGAIN) {
+ 			/* End of file: not found; reset read pointer */
+-			if (lseek(fd, startPosition, SEEK_SET) == (off_t)-1) {
++			if (lseek64(fd, startPosition, SEEK_SET) ==
++							(loff_t)-1) {
+ 				return EIO;
+ 			}
+ 			return ENOENT;
+@@ -436,7 +439,8 @@ _evlSeekFwd(posix_logd_t logdes, const p
+ 
+ 		if (!query || _evlEvaluateQuery(query, &entry, buf)) {
+ 			/* Found the record we want. Move the read pointer back to it. */
+-			if (lseek(fd, curPosition, SEEK_SET) == (off_t)-1) {
++			if (lseek64(fd, curPosition, SEEK_SET) ==
++							(loff_t)-1) {
+ 				return EIO;
+ 			}
+ 			return 0;
+@@ -449,13 +453,13 @@ _evlSeekBkwd(posix_logd_t logdes, const 
+ {
+ 	int fd = logdToFd(logdes);
+ 	evlrecsize_t wholeRecSize;
+-	off_t curPosition, startPosition;
++	loff_t curPosition, startPosition;
+ 	char wholeRec[sizeof(struct posix_log_entry) + POSIX_LOG_ENTRY_MAXLEN];
+ 	char *buf;
+ 	struct posix_log_entry *entry;
+ 
+-	startPosition = lseek(fd, 0, SEEK_CUR);
+-	if (startPosition == (off_t)-1) {
++	startPosition = lseek64(fd, (loff_t) 0, SEEK_CUR);
++	if (startPosition == (loff_t)-1) {
+ 		return EIO;
+ 	}
+ 
+@@ -468,7 +472,7 @@ _evlSeekBkwd(posix_logd_t logdes, const 
+ 	 */
+ 	while (curPosition > sizeof(struct posix_log_entry)) {
+ 		/* Back up and read the size of the previous record's var data. */
+-		if (lseek(fd, -SIZESIZE, SEEK_CUR) == (off_t)-1) {
++		if (lseek64(fd, -((loff_t) SIZESIZE), SEEK_CUR) == (loff_t)-1) {
+ 			return EIO;
+ 		}
+ 		if (readBuf(fd, &wholeRecSize, SIZESIZE) != 0) {
+@@ -481,8 +485,9 @@ _evlSeekBkwd(posix_logd_t logdes, const 
+ 		}
+ 
+ 		/* Back up to the beginning of the previous record. */
+-		curPosition = lseek(fd, -(wholeRecSize+SIZESIZE), SEEK_CUR);
+-		if (curPosition == (off_t)-1) {
++		curPosition = lseek64(fd, -((loff_t) (wholeRecSize+SIZESIZE)),
++								SEEK_CUR);
++		if (curPosition == (loff_t)-1) {
+ 			return EIO;
+ 		}
+ 
+@@ -490,7 +495,7 @@ _evlSeekBkwd(posix_logd_t logdes, const 
+ 		if (readBuf(fd, wholeRec, wholeRecSize) != 0) {
+ 			return EIO;
+ 		}
+-		if (lseek(fd, curPosition, SEEK_SET) == (off_t)-1) {
++		if (lseek64(fd, curPosition, SEEK_SET) == (loff_t)-1) {
+ 			return EIO;
+ 		}
+ 		entry = (struct posix_log_entry*) wholeRec;
+@@ -503,7 +508,7 @@ _evlSeekBkwd(posix_logd_t logdes, const 
+ 	}
+ 
+ 	/* Reached beginning of file, with no match. */
+-	if (lseek(fd, startPosition, SEEK_SET) == (off_t)-1) {
++	if (lseek64(fd, startPosition, SEEK_SET) == (loff_t)-1) {
+ 		return EIO;
+ 	}
+ 	return ENOENT;
+Index: evlog-1.6.1/user/lib/template/serial.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/template/serial.c
++++ evlog-1.6.1/user/lib/template/serial.c
+@@ -632,7 +632,7 @@ _evlReadTemplate(const char *path)
+ 		fprintf(stderr, "%s is not a template file", path);
+ 		goto failedEarly;
+ 	}
+-	(void) lseek(fd, 0, SEEK_SET);
++	(void) lseek(fd, (off_t) 0, SEEK_SET);
+ 
+ 	/*
+ 	 * Now get the size of the file, allocate a buffer to hold it all,
+Index: evlog-1.6.1/user/lib/test/fussLog.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/test/fussLog.c
++++ evlog-1.6.1/user/lib/test/fussLog.c
+@@ -70,17 +70,6 @@ main(int argc, char **argv)
+ "Fuss code 2 no longer supported, since a log descriptor is no longer\n"
+ "just a file descriptor.\n");
+ 		exit(1);
+-#if 0
+-		logdesc = open(argv[1], O_RDONLY|O_NONBLOCK);
+-		if (logdesc < 0) {
+-			perror(argv[1]);
+-			exit(1);
+-		}
+-		if (lseek(logdesc, 8, SEEK_SET) == (off_t)-1) {
+-			perror("lseek past old log header");
+-			exit(1);
+-		}
+-#endif
+ 	} else {
+ 		status = posix_log_open(&logdesc, argv[1]);
+ 		if (status != 0) {
+Index: evlog-1.6.1/user/lib/test/tweakLogGen.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/test/tweakLogGen.c
++++ evlog-1.6.1/user/lib/test/tweakLogGen.c
+@@ -1,3 +1,4 @@
++#define _LARGEFILE64_SOURCE
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <errno.h>
+@@ -25,7 +26,7 @@ main(int argc, char **argv)
+ 		log = LOG_CURLOG_PATH;
+ 	}
+ 
+-	fd = open(log, O_RDWR);
++	fd = open64(log, O_RDWR);
+ 	if (fd < 0) {
+ 		perror("open");
+ 		exit(1);
+@@ -39,8 +40,8 @@ main(int argc, char **argv)
+ 
+ 	hdr.log_generation = generation;
+ 
+-	if (lseek(fd, 0, SEEK_SET) == (off_t)-1) {
+-		perror("lseek");
++	if (lseek64(fd, (loff_t) 0, SEEK_SET) == (loff_t)-1) {
++		perror("lseek64");
+ 		exit(1);
+ 	}
+ 
+Index: evlog-1.6.1/user/lib/util/evl_common.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/util/evl_common.c
++++ evlog-1.6.1/user/lib/util/evl_common.c
+@@ -24,6 +24,7 @@
+  *
+  */
+ 
++#define _LARGEFILE64_SOURCE
+ #include <stdio.h>
+ #include <unistd.h>
+ #include <sys/socket.h>       	
+@@ -401,22 +402,22 @@ _evlUnlockMutex(pthread_mutex_t *mutex)
+ void
+ _evlLockFd(int fd, int type)
+ {
+-	struct flock lock;
++	struct flock64 lock;
+ 	lock.l_type = type;
+ 	lock.l_len = 0;
+ 	lock.l_start = 0;
+ 	lock.l_whence = SEEK_SET;
+-	(void) fcntl(fd, F_SETLKW, &lock);
++	(void) fcntl(fd, F_SETLKW64, &lock);
+ }
+ 
+ /* Unlock a file lock previously set by _evlLockFd(). */
+ void
+ _evlUnlockFd(int fd)
+ {
+-	struct flock lock;
++	struct flock64 lock;
+ 	lock.l_type = F_UNLCK;
+ 	lock.l_len = 0;
+ 	lock.l_start = 0;
+ 	lock.l_whence = SEEK_SET;
+-	(void) fcntl(fd, F_SETLKW, &lock);
++	(void) fcntl(fd, F_SETLKW64, &lock);
+ }
+Index: evlog-1.6.1/user/cmd/evlactiond/evlactiond.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlactiond/evlactiond.c
++++ evlog-1.6.1/user/cmd/evlactiond/evlactiond.c
+@@ -1212,22 +1212,24 @@ setNextNfyId(int id) 
+ int security_test()
+ {
+ 	int fd;
+-	
++
+ 	if (geteuid() == 0) {
+ 		/* he is root - let him go */
+ 		return 0;
+ 	}
+-	
+-	if ((fd = open(LOG_PRIVATE_PATH, O_RDONLY))!= -1) {
++
++	if ((fd = open64(LOG_PRIVATE_PATH, O_RDONLY))!= -1) {
+ 		/* user can open this privatelog - yahoo */
+-		close(fd);
++		(void) close(fd);
+ 		return 0;
+ 	}
+-	
+-	if ((fd = open(LOG_CURLOG_PATH, O_RDONLY)) == -1) {
++
++	if ((fd = open64(LOG_CURLOG_PATH, O_RDONLY)) == -1) {
+ 		return -1;
+ 	}
+-	close(fd);
++
++	(void) close(fd);
++
+ 	return 0;
+ }
+ 

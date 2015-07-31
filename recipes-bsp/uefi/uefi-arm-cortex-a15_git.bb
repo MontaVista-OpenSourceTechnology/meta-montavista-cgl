@@ -1,0 +1,10 @@
+SRCREV="fe29a8a877edb5f8495c1da34f98c023e0e9be45"
+
+COMPATIBLE_MACHINE = "arm-cortex-a15|armeb-cortex-a15"
+
+PR="r2"
+
+UEFI_TARGET = "tc2"
+UEFI_TARGET_FILE="Build/ArmVExpress-CTA15-A7/DEBUG_ARMLINUXGCC/FV/ARM_VEXPRESS_CTA15A7_EFI.fd"
+
+include uefi.inc

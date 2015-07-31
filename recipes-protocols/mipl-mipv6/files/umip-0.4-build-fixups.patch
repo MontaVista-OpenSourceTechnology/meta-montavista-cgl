@@ -1,0 +1,61 @@
+Copyright (c) 2009 MontaVista Software, Inc.  All rights reserved.
+
+diff -ur mipv6-daemon-umip-0.4/include/netinet/ip6.h mipv6-daemon-umip-0.4/include/netinet/ip6.h
+--- mipv6-daemon-umip-0.4/include/netinet/ip6.h	2007-09-13 02:42:42.000000000 -0700
++++ mipv6-daemon-umip-0.4/include/netinet/ip6.h	2009-06-23 23:51:45.000000000 -0700
+@@ -5,14 +5,6 @@
+ 
+ #include <config.h>
+ 
+-#ifndef HAVE_STRUCT_IP6_EXT
+-/* Generic extension header.  */
+-struct ip6_ext {
+-	uint8_t  ip6e_nxt;          /* next header.  */
+-	uint8_t  ip6e_len;          /* length in units of 8 octets.  */
+-};
+-#endif
+-
+ /* Home Address Destination Option */
+ #ifndef HAVE_STRUCT_IP6_OPT_HOME_ADDRESS
+ struct ip6_opt_home_address {
+diff -ur mipv6-daemon-umip-0.4/include/netinet/ip6mh.h mipv6-daemon-umip-0.4/include/netinet/ip6mh.h
+--- mipv6-daemon-umip-0.4/include/netinet/ip6mh.h	2007-09-13 02:42:42.000000000 -0700
++++ mipv6-daemon-umip-0.4/include/netinet/ip6mh.h	2009-06-23 23:52:55.000000000 -0700
+@@ -1,5 +1,5 @@
+ #ifdef HAVE_NETINET_IP6MH_H
+-#include_next <netinet/ip6mh.h>
++//#include_next <netinet/ip6mh.h>
+ #endif
+ 
+ #ifndef _NETINET_IP6MH_H
+diff -ur mipv6-daemon-umip-0.4/libmissing/inet6_rth_getaddr.c mipv6-daemon-umip-0.4/libmissing/inet6_rth_getaddr.c
+--- mipv6-daemon-umip-0.4/libmissing/inet6_rth_getaddr.c	2007-09-13 02:42:42.000000000 -0700
++++ mipv6-daemon-umip-0.4/libmissing/inet6_rth_getaddr.c	2009-06-23 23:52:19.000000000 -0700
+@@ -3,6 +3,7 @@
+ /* This is a substitute for a missing inet6_rth_getaddr(). */
+ 
+ #include <netinet/in.h>
++#include <stdlib.h>
+ 
+ struct in6_addr *inet6_rth_getaddr(const void *bp, int index)
+ {
+diff -ur mipv6-daemon-umip-0.4/src/mk-pmgr_c.sh mipv6-daemon-umip-0.4/src/mk-pmgr_c.sh
+--- mipv6-daemon-umip-0.4/src/mk-pmgr_c.sh	2007-09-13 02:42:42.000000000 -0700
++++ mipv6-daemon-umip-0.4/src/mk-pmgr_c.sh	2009-06-23 23:38:28.000000000 -0700
+@@ -17,5 +17,5 @@
+ sed -ne '/int default_/{s/int default_\([^(]*\).*/func.v = dlsym(h, "\1");\nif (dlerror() == NULL)\nep->\1 = func.i;/;p}' $DEFAULTS >> $TMP
+ sed -ne '/##INSERT_ENTRYPOINTS##/,//{p}' $INFILE | grep -v '^/\* ##' >> $TMP
+ 
+-indent -kr -ncs -i8 $TMP -o $OUTFILE
++cp $TMP $OUTFILE
+ rm -f $TMP
+diff -ur mipv6-daemon-umip-0.4/src/mk-pmgr_h.sh mipv6-daemon-umip-0.4/src/mk-pmgr_h.sh
+--- mipv6-daemon-umip-0.4/src/mk-pmgr_h.sh	2007-09-13 02:42:42.000000000 -0700
++++ mipv6-daemon-umip-0.4/src/mk-pmgr_h.sh	2009-06-23 23:38:42.000000000 -0700
+@@ -19,5 +19,5 @@
+ sed -ne '/##INSERT_FUNCTIONPOINTERS##/,//{p}' \
+     $INFILE | grep -v '^/\* ##' >> $TMP
+ 
+-indent -kr -i8 $TMP -o $OUTFILE
++cp $TMP $OUTFILE
+ rm -f $TMP

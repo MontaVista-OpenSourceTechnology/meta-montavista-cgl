@@ -1,0 +1,22 @@
+--- evlog-1.6.1.org/user/cmd/evlnotifyd/evlnotifyd.c	2012-09-21 15:41:21.200112960 +0530
++++ evlog-1.6.1/user/cmd/evlnotifyd/evlnotifyd.c	2012-09-21 15:35:56.644107698 +0530
+@@ -675,7 +675,7 @@
+ 		 */
+ 		if((req->nfyhdr.flags & POSIX_LOG_NFY_DISABLED) == 0 ) {
+ 			int match;
+-            struct siginfo si;
++			siginfo_t si;
+ 			union sigval val;
+ 			int ret;
+ 			if (req->nfy_query.qu_tree != NULL) {
+--- evlog-1.6.1.org/user/cmd/ela/ela_sig_send.c	2004-02-21 09:21:40.000000000 +0530
++++ evlog-1.6.1/user/cmd/ela/ela_sig_send.c	2012-09-21 15:35:56.668107698 +0530
+@@ -51,7 +51,7 @@
+ 	int recid = -1;
+ 	pid_t pid = -1;
+ 	int sub_id = 234;	/* just an extra field, that we can use */
+-	struct siginfo si;
++	siginfo_t si;
+ 	union sigval val;
+ 	int ret;
+ 	char *flag;

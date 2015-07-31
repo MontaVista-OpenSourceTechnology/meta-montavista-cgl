@@ -1,0 +1,240 @@
+--- openhpi-2.16.0/openhpid/openhpid.sh.in	2011-02-24 00:40:12.000000000 +0300
++++ openhpi-2.16.0/openhpid/openhpid.sh.in	2011-04-08 15:18:24.455768002 +0400
+@@ -26,199 +26,52 @@
+ #	Daniel de Araujo <ddearauj@us.ibm.com>
+ 
+ # Source function library.
++. /etc/init.d/init-functions
++
+ PATH=/sbin:/bin:/usr/sbin:/usr/bin
+ prog="openhpid"
+ 
+ # If the openhpid executable is not available, we can't do any of this
+ test -f @prefix@/sbin/openhpid || exit 0
+ 
+-# Determine whether the lsb package is installed
+-# If it is, determine which lsb is installed:
+-# redhat, suse, or standard lsb
+-
+-if test -f /etc/init.d/functions
+-then
+-   lsbtype="rh"
+-   . /etc/init.d/functions
+-elif test -f /etc/rc.status
+-then
+-   lsbtype="suse"
+-   . /etc/rc.status
+-elif test -f /lib/lsb/init-functions
+-then
+-   lsbtype="lsb"
+-   . /lib/lsb/init-functions
+-elif test -f /etc/gentoo-release
+-then
+-   lsbtype="gentoo"
+-   . /sbin/functions.sh
+-else
+-   lsbtype="nolsb"
+-fi
+-
+ print_outcome()
+ {
+-   
+-	case "${lsbtype}" in
+-      
+-		rh)
+-   			echo
+-   			[ "$?" -eq 0 ]
+-   			;;
+-
+-		suse)
+- 			rc_status -v
+-			;;
+-
+-		lsb)
+-			if test "$?" -eq 0
+-   			then
+-      				log_success_msg "success"
+-   			else
+-				log_failure_msg "failed"
+-   			fi
+-  			;;
+-  		
+-  		gentoo)
+-  			eend $?
+-  			;;
+-   
+-		nolsb)
+-			if test "$?" -eq 0
+-			then
+-				echo " ... success"
+-			fi
+-			if test "$?" -ne 0
+-			then
+-				echo " ... failed"
+-			fi
+-			;;
+-   	esac
++    if test "$?" -eq 0
++    then
++      	log_success_msg "success"
++    else
++	log_failure_msg "failed"
++    fi
+ }
+ 
+-start() {	
+-	case "${lsbtype}" in
+-		
+-		rh) 
+-			echo -n "Starting $prog: "
+-			daemon @prefix@/sbin/openhpid -c @CONFPATH@/@HPI_PKG@.conf
+-			RETVAL=$?
+-			;;
+-		suse)
+-			echo -n "Starting $prog: "
+-			startproc @prefix@/sbin/openhpid -c @CONFPATH@/@HPI_PKG@.conf
+-			RETVAL=$?
+-			;;
+-		lsb)
+-			echo -n "Starting $prog: "
+-			start_daemon @prefix@/sbin/openhpid -c @CONFPATH@/@HPI_PKG@.conf
+-			RETVAL=$?
+-			;;
+-		gentoo)
+-			ebegin "Starting $prog: "
+-			start-stop-daemon --start --quiet --exec @prefix@/sbin/openhpid -- -c @CONFPATH@/@HPI_PKG@.conf
+-			RETVAL=$?
+-			;;
+-		nolsb)
+-			echo -n "Starting $prog: "
+-			@prefix@/sbin/openhpid -c @CONFPATH@/@HPI_PKG@.conf
+-			RETVAL=$?
+-			;;
+-			
+-	esac
+-        
+-	print_outcome
+-
++start() {
++    echo -n "Starting $prog: "
++    start_daemon @prefix@/sbin/openhpid -c @CONFPATH@/@HPI_PKG@.conf
++    RETVAL=$?
++    print_outcome
+ }
+ 
+-stop() {	
+-	case "${lsbtype}" in
+-		
+-		rh | lsb | suse)
+-			echo -n "Stopping $prog: "
+-			killproc @prefix@/sbin/openhpid
+-			RETVAL=$?
+-			;;
+-		
+-		gentoo)
+-			ebegin "Stopping $prog: "
+-			start-stop-daemon --stop --quiet --exec @prefix@/sbin/openhpid
+-			RETVAL=$?
+-			;;
+-		
+-		nolsb)
+-			echo -n "Stopping $prog: "
+-			if test -f /var/run/openhpid.pid && test "`cat /var/run/openhpid.pid`" != ""
+-         		then
+-            			kill "`cat /var/run/openhpid.pid`"
+-				RETVAL=$?  
+-			else
+-				RETVAL=0
+-			fi	          
+-			;;
+-		
+-	esac
+-	
+-	print_outcome
+-	
+-	if test "$RETVAL" -eq 0 && test -f /var/run/openhpid.pid
+-	then
+-		rm -f /var/lock/openhpid
+-		rm -f /var/run/openhpid.pid
+-	fi	
+-
+-}	
++stop() {
++    echo -n "Stopping $prog: "
++    killproc @prefix@/sbin/openhpid
++    RETVAL=$?
++    print_outcome
++    if test "$RETVAL" -eq 0 && test -f /var/run/openhpid.pid
++    then
++	rm -f /var/lock/openhpid /var/run/openhpid.pid
++    fi
++}
+ 
+ dstatus() {
+-	echo "Checking for $prog daemon: "
+-	
+-	case "${lsbtype}" in
+-		
+-		rh) 
+-			status @prefix@/sbin/openhpid
+-			;;
+-		suse)
+-			checkproc @prefix@/sbin/openhpid
+-			rc_status -v
+-			;;
+-		lsb)
+-			pid="`pidofproc @prefix@/sbin/openhpid`"
+-         		if test "${pid}" != ""
+-			then
+-				log_success_msg "$prog is running"
+-			else
+-				log_success_msg "$prog is not running"	
+-			fi	
+-			;;
+-		gentoo | nolsb)
+-			if test -f /var/run/openhpid.pid && 
+-				test "`cat /var/run/openhpid.pid`" != "" && 
+-				kill -s 0 "`cat /var/run/openhpid.pid`"
+-			then
+-				echo "$prog is running"
+-			else
+-				echo "$prog is not running"
+-			fi		
+-			
+-			;;
+-			
+-	esac	
+-	
+-
+-
+-}	
++    echo "Checking for $prog daemon: "
++    printstatus @prefix@/sbin/openhpid
++ }	
+ 
+ restart() {
+   	stop
+ 	start
+ }	
+ 
+-force_reload() {
+-	# We don't currently support a reload, but can do a restart
+-	stop
+-	start
+-}	
+-
+ # See how we were called.
+ 
+ case "$1" in
+@@ -234,10 +87,7 @@
+   status)
+   	dstatus
+ 	;;
+-  force-reload)
+-  	force_reload
+-	;;
+   *)
+-	echo "Usage: $0 {start|stop|restart|status|force-reload}"
++	echo "Usage: $0 {start|stop|restart|status}"
+ 	exit 1
+ esac

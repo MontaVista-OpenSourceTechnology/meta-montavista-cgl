@@ -1,0 +1,12 @@
+diff -Narup evlog-1.6.1/user/cmd/evlactiond/evlactiond.c evlog-1.6.1_mod/user/cmd/evlactiond/evlactiond.c
+--- evlog-1.6.1/user/cmd/evlactiond/evlactiond.c	2009-12-03 11:17:18.000000000 -0700
++++ evlog-1.6.1_mod/user/cmd/evlactiond/evlactiond.c	2009-12-03 13:44:01.000000000 -0700
+@@ -237,7 +237,7 @@ main(int argc, char *argv[]) 
+ 		perror("sigaction");
+ 	}
+ 	if (sigaction(SIGINT, &SigTERMAction, NULL) < 0){
+-		error_log(LOG_ERR, "%s: sigaction failed for new SIGINT.\n");
++		error_log(LOG_ERR, "%s: sigaction failed for new SIGINT.\n", argv[0]);
+ 		perror("sigaction");
+ 	}
+     /* Ignore SIGCHLD */	

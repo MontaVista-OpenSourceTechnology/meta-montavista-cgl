@@ -1,0 +1,22 @@
+diff -Naur evlog-1.6.1-orig/user/cmd/evlogd/Makefile.am evlog-1.6.1/user/cmd/evlogd/Makefile.am
+--- evlog-1.6.1-orig/user/cmd/evlogd/Makefile.am	2004-02-20 21:05:25.000000000 -0700
++++ evlog-1.6.1/user/cmd/evlogd/Makefile.am	2006-03-29 12:01:33.000000000 -0700
+@@ -45,5 +45,5 @@
+ evlog_confdir := @EVLOG_CONF_DIR@
+ evlog_conf_DATA := $(conf_files)
+ 
+-SUBDIRS := . test
++SUBDIRS := . test tcp_rmtlog_be udp_rmtlog_be
+ 
+diff -Naur evlog-1.6.1-orig/user/cmd/evlogd/Makefile.in evlog-1.6.1/user/cmd/evlogd/Makefile.in
+--- evlog-1.6.1-orig/user/cmd/evlogd/Makefile.in	2004-12-28 15:27:41.000000000 -0700
++++ evlog-1.6.1/user/cmd/evlogd/Makefile.in	2006-03-29 12:01:46.000000000 -0700
+@@ -239,7 +239,7 @@
+ evlogrmtd_LDADD := ../../lib/.libs/libevl.a
+ evlog_confdir := @EVLOG_CONF_DIR@
+ evlog_conf_DATA := $(conf_files)
+-SUBDIRS := . test
++SUBDIRS := . test tcp_rmtlog_be udp_rmtlog_be
+ all: all-recursive
+ 
+ .SUFFIXES:

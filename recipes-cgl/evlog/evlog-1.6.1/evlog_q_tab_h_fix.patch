@@ -1,0 +1,11 @@
+--- evlog-1.6.1_org/user/lib/query/Makefile.am	2004-02-21 09:38:36.000000000 +0530
++++ evlog-1.6.1/user/lib/query/Makefile.am	2012-10-09 12:31:51.372653588 +0530
+@@ -19,7 +19,7 @@ lex.qq.c: lex
+ q.tab.h: query.y
+ 	yacc -dl -b q -p qq $(top_srcdir)/user/lib/query/query.y
+ 
+-q.tab.c: q.tab.h
++q.tab.c lex.qq.c normalize.c evaluate.c: q.tab.h
+ 
+ evlquery_sources := evl_parse.h q.tab.c lex.qq.c normalize.c evaluate.c qopt.c 
+ 

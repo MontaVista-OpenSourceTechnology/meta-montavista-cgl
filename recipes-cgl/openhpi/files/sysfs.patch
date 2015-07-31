@@ -1,0 +1,11 @@
+--- openhpi-2.14.1/plugins/sysfs/sysfs2hpi.c.orig	2010-03-10 15:31:36.263015955 +0300
++++ openhpi-2.14.1/plugins/sysfs/sysfs2hpi.c	2010-03-10 15:32:03.746016396 +0300
+@@ -18,7 +18,7 @@
+ 
+ #include <stdlib.h>
+ #include <string.h>
+-#include <libsysfs.h>
++#include <sysfs/libsysfs.h>
+ 
+ #include <SaHpi.h>
+ #include <oh_utils.h>

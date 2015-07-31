@@ -1,0 +1,67 @@
+Index: evlog-1.6.1/user/lib/test/evl_log_write.out
+===================================================================
+--- evlog-1.6.1.orig/user/lib/test/evl_log_write.out
++++ evlog-1.6.1/user/lib/test/evl_log_write.out
+@@ -48,7 +48,7 @@ size=88
+ 00000010 0E 00 00 00 0F 00 00 00  0A 00 00 00 00 00 00 00
+ 00000020 0B 00 00 00 00 00 00 00  00 C0 A4 31 5A 47 55 95
+ 00000030 00 40 00 00 00 48 5D 6B  EF 53 55 D5 00 40 00 00
+-00000040 00 20 9C F4 63 38 43 E2  FF 3F 00 00 00 C0 61 B2
++00000040 00 20 9C F4 63 38 43 E2  FF 3F 06 08 00 C0 61 B2
+ 00000050 23 9B 6C B2 01 40 00 00
+ size=32
+ 00000000 0D F0 ED FE 0D F0 CE FA  00 00 00 00 01 00 00 00
+Index: evlog-1.6.1/user/cmd/evlogmgr/test/logmgmt1.sh
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlogmgr/test/logmgmt1.sh
++++ evlog-1.6.1/user/cmd/evlogmgr/test/logmgmt1.sh
+@@ -1,32 +1,37 @@
+ #!/bin/bash
+ 
++EVL_DIR=/var/evlog
++
+ i=0
+ while [ $i -lt 10 ]
+ do
+-let i=$i+1;
+-evlsend -s DEBUG -f LOCAL0 -t 999 -m "$i debug message"
++	let i=$i+1;
++	evlsend -s DEBUG -f LOCAL0 -t 999 -m "$i debug message"
+ done
+ 
+-/sbin/evlogmgr -s "severity=DEBUG && facility=LOCAL0" > /tmp/val1.out
++mv ${EVL_DIR}/eventlog ${EVL_DIR}/eventlog.test
++/etc/init.d/evlog restart
++
++/sbin/evlogmgr -l ${EVL_DIR}/eventlog.test -s "severity=DEBUG && facility=LOCAL0" > /tmp/val1.out
+ 
+ val1=`cat /tmp/val1.out | grep "records matching"  | sed 's/\([A-Za-z]\)//g' | sed 's/ //g' | sed 's/\.//'`
+ 
+-if [ $val1 -ne 10 ]
++if [ "$val1" -ne "10" ]
+ then
+ 	echo "logmgmt1	step 1   :FAILED"
+ 	exit 1
+ fi
+-/sbin/evlogmgr -c "severity=DEBUG && facility=LOCAL0"
++/sbin/evlogmgr -l ${EVL_DIR}/eventlog.test -c "severity=DEBUG && facility=LOCAL0"
+ if [ $? -ne 0 ]
+ then
+ 	echo "logmgmt1 step 2    :FAILED "
+ 	exit 1
+ fi
+ 
+-/sbin/evlogmgr -s "severity=DEBUG && facility=LOCAL0" > /tmp/val2.out
++/sbin/evlogmgr -l ${EVL_DIR}/eventlog.test -s "severity=DEBUG && facility=LOCAL0" > /tmp/val2.out
+ val2=`cat /tmp/val2.out | grep "records matching" | sed  's/\([A-Za-z]\)//g' | sed 's/ //g' | sed 's/\.//'` 
+ 
+-if [ $val2 -ne 0 ]
++if [ "$val2" -ne "0" ]
+ then
+ 	echo "logmgmt1 step 3   :FAILED"
+ 	exit 1
+@@ -34,3 +39,4 @@ fi
+ 
+ echo "logmgmt1      :PASSED"
+ rm -f /tmp/val*.out
++rm ${EVL_DIR}/eventlog.test

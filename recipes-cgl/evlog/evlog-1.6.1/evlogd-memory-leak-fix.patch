@@ -1,0 +1,13 @@
+--- evlog-1.6.1/user/cmd/evlogd/evlogd.c	2009-02-11 14:05:56.994223000 -0800
++++ evlog-new/user/cmd/evlodg/evlogd.c	2009-02-11 14:09:37.349471000 -0800
+@@ -1885,6 +1885,10 @@
+ 			LOG_NOTICE, "Switched log files at (%lu, %lu)",
+ 			curr_time.tv_sec, curr_time.tv_usec);
+ 
++
++	(void) munmap(new_evl_log.map_hdr, sizeof(log_header_t));
++	(void) munmap(new_pvt_log.map_hdr, sizeof(log_header_t));
++
+ 	(void) close(new_evl_log.fd);
+ 	(void) close(new_pvt_log.fd);
+ 

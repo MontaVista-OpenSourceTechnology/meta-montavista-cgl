@@ -1,0 +1,80 @@
+diff -ur -X dontdiff evlog-1.6.1/user/cmd/evlactiond/evlactiond.c evlog-1.6.1/user/cmd/evlactiond/evlactiond.c
+--- evlog-1.6.1/user/cmd/evlactiond/evlactiond.c	2011-02-22 17:25:46.488982999 +0300
++++ evlog-1.6.1/user/cmd/evlactiond/evlactiond.c	2011-02-22 17:31:09.400982912 +0300
+@@ -25,9 +25,11 @@
+  */
+ 
+ 
++#define _GNU_SOURCE 1
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <unistd.h>
++#include <limits.h>
+ #include <sys/types.h>
+ #include <string.h>
+ #include <sys/file.h>
+diff -ur -X dontdiff evlog-1.6.1/user/cmd/evlnotify/evlnotify.c evlog-1.6.1/user/cmd/evlnotify/evlnotify.c
+--- evlog-1.6.1/user/cmd/evlnotify/evlnotify.c	2004-03-25 03:30:24.000000000 +0300
++++ evlog-1.6.1/user/cmd/evlnotify/evlnotify.c	2011-02-22 17:31:35.974982829 +0300
+@@ -35,6 +35,7 @@
+ #include <signal.h>           	
+ #include <errno.h>
+ #include <assert.h>
++#include <limits.h>
+ #include <pwd.h>
+ #include <grp.h>
+ 
+diff -ur -X dontdiff evlog-1.6.1/user/cmd/evlnotifyd/evlnotifyd.c evlog-1.6.1/user/cmd/evlnotifyd/evlnotifyd.c
+--- evlog-1.6.1/user/cmd/evlnotifyd/evlnotifyd.c	2011-02-22 17:25:46.368983009 +0300
++++ evlog-1.6.1/user/cmd/evlnotifyd/evlnotifyd.c	2011-02-22 17:20:13.074982996 +0300
+@@ -24,7 +24,7 @@
+  *
+  */
+ 
+-#define _LARGEFILE64_SOURCE
++#define _GNU_SOURCE
+ #include <stdio.h>            	
+ #include <string.h>           	
+ #include <fcntl.h>            	
+diff -ur -X dontdiff evlog-1.6.1/user/cmd/evlogd/evlogd.c evlog-1.6.1/user/cmd/evlogd/evlogd.c
+--- evlog-1.6.1/user/cmd/evlogd/evlogd.c	2011-02-22 17:25:46.483982998 +0300
++++ evlog-1.6.1/user/cmd/evlogd/evlogd.c	2011-02-22 17:32:03.132983202 +0300
+@@ -23,7 +23,7 @@
+  *  Project Website:  http://evlog.sourceforge.net/
+  *
+  */
+-#define _LARGEFILE64_SOURCE
++#define _GNU_SOURCE 1	/* Needed for 'struct ucred' on Linux */
+ #include <stdio.h>	/* Defines NULL */
+ #include <stdarg.h>	/* Defines va_args */
+ #include <fcntl.h>   	/* Defines FILE, fopen() */
+@@ -34,6 +34,7 @@
+ #include <unistd.h>     /* Defines fork() */
+ #include <malloc.h>     /* Defines malloc() */
+ #include <stdlib.h>     /* Defines atexit() and exit() */
++#include <limits.h>     /* Defines PATH_MAX */
+ #include <sys/stat.h>   /* Defines chmod() */
+ #include <sys/file.h>
+ #include <sys/mman.h>
+--- evlog-1.6.1/user/include/posix_evlog.h	2011-02-25 15:14:02.532982996 +0300
++++ evlog-1.6.1/user/include/posix_evlog.h	2011-02-25 15:14:16.425982996 +0300
+@@ -43,7 +43,7 @@
+ #ifdef _POSIX_THREADS
+ #include <pthread.h>
+ #endif
+-#include <sys/evl_log.h>
++#include <linux/evl_log.h>
+ 
+ /* Treat a log descriptor like a file descriptor for now. */
+ typedef struct _log_description *posix_logd_t;
+--- evlog-1.6.1/user/include/evlog.h.in	2011-02-25 15:07:24.000000000 +0300
++++ evlog-1.6.1/user/include/evlog.h.in	2011-02-25 15:15:46.387982999 +0300
+@@ -31,7 +31,7 @@
+ #include <stdarg.h>
+ #include <string.h>
+ 
+-#include <sys/evl_log.h>
++#include <linux/evl_log.h>
+ 
+ #ifdef __cplusplus
+ extern "C" {

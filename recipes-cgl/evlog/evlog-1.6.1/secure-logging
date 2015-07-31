@@ -1,0 +1,394 @@
+Index: evlog-1.6.1/user/cmd/evlogd/evlogd.c
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlogd/evlogd.c
++++ evlog-1.6.1/user/cmd/evlogd/evlogd.c
+@@ -171,10 +171,24 @@ struct timeval perf_time;
+ static clientinfo_t clients[MAX_CLIENTS];
+ static int maxci;
+ static pid_t kpid = 0;
+-static pid_t rmtdpid = 0;
++
++struct trusted_source
++{
++	pid_t	ts_pid;
++	char	*ts_name;
++};
++
++typedef struct trusted_source trusted_source_t;
++
++static trusted_source_t trusted_sources[] = {
++	{	0,	"evlogrmtd"	},
++	{	0,	"evlsyslog"	}
++};
++
++#define	TRUSTED_SOURCES	(sizeof(trusted_sources)/sizeof(trusted_source_t))
+ 
+ char *ProgName;
+-char * sharedData;
++char *sharedData;
+ int waitForKids = 1;
+ 
+ /* Function prototype */
+@@ -564,9 +578,12 @@ run_child()
+ 	signal(SIGHUP, SIG_IGN);
+ 	signal(SIGINT, SIG_IGN);
+ 	TRACE("pause \n");
++
+ 	/* wait for the parent to complete his setup */ 
+-	while(s[1] != 0x0f)
++	while (s[1] != 0x0f) {
+ 		sleep(1);
++	}
++
+ 	TRACE("unpause, s[1]=%d\n", s[1]);		
+ 
+ 	processKernelEvents();
+@@ -581,32 +598,85 @@ run_child()
+ 	_exit(0);		
+ }
+ 
++static trusted_source_t *
++trustedRemoteData(pid_t pid)
++{
++	unsigned int		i;
++	trusted_source_t	*p = trusted_sources;
++
++	for (i = 0; i < TRUSTED_SOURCES; i++) {
++		if (p->ts_pid == pid) {
++			return (p);
++		}
++
++		p++;
++	}
++
++	return ((trusted_source_t *) NULL);
++}
++
++static int
++isTrustedRemote(pid_t pid)
++{
++	return (trustedRemoteData(pid) == (trusted_source_t *) NULL ? 0 : 1);
++}
++
++static void
++revokeTrustedRemoteCred(pid_t pid)
++{
++	trusted_source_t	*p = trustedRemoteData(pid);
++
++	if (p != (trusted_source_t *) NULL) {
++		p->ts_pid = 0;
++	}
++
++	return;
++}
++
+ static void
+-evlogrmtCredCheck(pid_t pid)
++trustedRemoteCredCheck(pid_t pid)
+ {
+-	int	fd;
+-	char	proc_path[64];
++	unsigned int		i;
++	trusted_source_t	*p = trusted_sources;
+ 
+-	(void) sprintf(proc_path, "/proc/%u/cmdline", pid);
++	TRACE("trusted remote pid cred check.\n");
+ 
+-	fd = open(proc_path, O_RDONLY);
++	for (i = 0; i < TRUSTED_SOURCES; i++) {
++		if (p->ts_pid == 0) {
++			int	fd;
++			char	proc_path[64];
+ 
+-	if (fd != -1) {
+-		size_t	erc;
+-		char	cmdline[256 + 1];
++			(void) sprintf(proc_path, "/proc/%u/cmdline", pid);
+ 
+-		erc = read(fd, (void *) cmdline, (size_t) 256);
++			fd = open(proc_path, O_RDONLY);
+ 
+-		(void) close(fd);
++			if (fd != -1) {
++				size_t	erc;
++				char	cmdline[256 + 1];
+ 
+-		if (erc > 0) {
+-			cmdline[erc] = '\0';
++				erc = read(fd, (void *) cmdline, (size_t) 256);
++
++				(void) close(fd);
++
++				if (erc > 0) {
++					cmdline[erc] = '\0';
++
++					if (strstr(cmdline, p->ts_name)) {
++						p->ts_pid = pid;
++					}
++				}
++			}
++		}
+ 
+-			if (strstr(cmdline, "evlogrmtd"))
+-				rmtdpid = pid;
++		if (p->ts_pid == pid) {
++			break;
+ 		}
++
++		p++;
+ 	}
+ 
++	TRACE("back from trusted remote cred check.\n");
++
+ 	return;
+ }
+ 
+@@ -730,11 +800,9 @@ run_parent(uid_t max_sysuid, int max_use
+ 								ucred.pid);
+ 			} 
+ 
+-			/* Record the pid of evlogrmtd */
+-			if ((rmtdpid == 0) && (ucred.uid == 0)) {
+-				TRACE("evlogrmt pid cred check.\n");
+-				evlogrmtCredCheck(ucred.pid);
+-				TRACE("back from cred check.\n");
++			/* Record the pid of any trusted remote source */
++			if (ucred.uid == 0) {
++				trustedRemoteCredCheck(ucred.pid);
+ 			}
+ 
+ 			/* Look for a free client slot; while doing
+@@ -1037,9 +1105,10 @@ closeClientSocket(clientinfo_t *ci)
+ 	int new_maxsd = 0;
+ 	int tbclosedsd = ci->sd;
+ 
+-	if (ci->pid == rmtdpid) {
+-		rmtdpid = 0;
++	if (isTrustedRemote(ci->pid)) {
++		revokeTrustedRemoteCred(ci->pid);
+ 	}
++
+ 	FD_CLR(ci->sd, &all_sds);
+ 	(void) close(ci->sd);
+ 	ci->sd = CLIENT_SLOT_AVAILABLE;
+@@ -1632,7 +1701,7 @@ writeKernEvt(int sd, struct posix_log_en
+  done_exit:
+ 	/* The daemon should tell the client that he finishes reading */ 
+ 	read(sd, &c, sizeof(char));
+-	if(c != 0xac) {
++	if (c != 0xac) {
+ 		ret = EIO;
+ 	}
+  err_exit:
+@@ -1691,7 +1760,7 @@ createQuery(char *qexp)
+ 		}
+ 		dis_query.qu_tree = NULL;
+ 	}
+-	if(!strcmp(qexp, "nofilter")) {
++	if (!strcmp(qexp, "nofilter")) {
+ 		return 0;
+ 	}
+ 
+@@ -2649,6 +2718,7 @@ dropDupRecord(	log_info_t	*linfo,
+ 
+ 			if (dup_ptr_score != replace_ptr_score) {
+ 				equality_flag = 0;
++
+ 				if (dup_ptr_score < replace_ptr_score) {
+ 					replace_ptr = dup_ptr;
+ 					replace_ptr_score = dup_ptr_score;
+@@ -2696,8 +2766,9 @@ dropDupRecord(	log_info_t	*linfo,
+ 
+ 				*new = 1;
+ 			}
+-			else
++			else {
+ 				*new = 0;
++			}
+ 
+ 			*dup_entry = dup_ptr;
+ 
+@@ -2733,8 +2804,9 @@ dropDupRecord(	log_info_t	*linfo,
+ 	}
+ 		
+ 	/* Clear old index position and set the new one. */
+-	if (replace_ptr->rec != (char *) NULL)
++	if (replace_ptr->rec != (char *) NULL) {
+ 		Lookbacks[replace_ptr->dup_lbindex].in_use = 0;
++	}
+ 
+ 	Lookbacks[lb_index].in_use = 1;
+ 	replace_ptr->dup_lbindex = lb_index;
+@@ -3034,12 +3106,11 @@ Process_Event(clientinfo_t *ci)
+ 		return -1;
+ 
+ 	/* Don't set architecture if it is remote events */
+-	if (ci->pid == rmtdpid) {
++	if (isTrustedRemote(ci->pid)) {
+ 		/*
+-		 * Event came from from remote host or evlogrmtd itself.
+-		 * If it comes from the remote host it should have the
+-		 * log_magic and arch properly setup. If log_magic is not
+-		 * set yet then just set it with local arch.
++		 * Event came from a trusted remote source. It should have
++		 * the log_magic and arch properly setup. If log_magic was
++		 * not set then set it to the local arch.
+ 		 */
+ 		TRACE("Record from rmt host\n");
+ 		if ((rhdr->log_magic & 0xffff0000) ==
+@@ -3536,17 +3607,19 @@ rmSocket(int soc)
+ 	return 0;
+ }
+ 
+-int writeEx(int sd, void * buf, size_t len)
++int writeEx(int sd, void *buf, size_t len)
+ {
+-    int n = 0;
++	int n = 0;
++
+ #ifdef _NONBLOCKING_SOCKET_
+ 	int moreBytes = len;
+-	void * tmp;
++	void *tmp;
++
+ 	tmp = buf;
+ 	while (moreBytes > 0) {
+ 		n = write(sd, tmp, moreBytes);
+ 		if (n < 0) {
+-			if(errno != EWOULDBLOCK) {
++			if (errno != EWOULDBLOCK) {
+ 				(void) fprintf(stderr,
+ 					"%s: write error on sd %d\n",
+ 					ProgName, sd);
+Index: evlog-1.6.1/user/cmd/evlogd/evlhosts
+===================================================================
+--- evlog-1.6.1.orig/user/cmd/evlogd/evlhosts
++++ evlog-1.6.1/user/cmd/evlogd/evlhosts
+@@ -1,16 +1,26 @@
+ #
+-# this file contains the evlog host name, host id information. The host name
+-# will be resolved via dns or /etc/hosts. Host id could be in the form of
+-
+-# 0.0 - 255.255
+-# 0x0000 - 0xffff
+-# or  just decimal.
++# This file contains the evlog remote host validation table. The table is
++# composed of host name and evlog host ID pairs, one per line. Remote
++# logging will only be accepted if the remote logging system is listed in
++# this file.
++#
++# The host name will be resolved via DNS or /etc/hosts.
++# The evlog host ID may be expressed in the following forms:
++#
++# 0.1 - 255.255		(dotted decimal)
++# 0x0001 - 0xFFFF	(C style hexidecimal)
++# decimal		(C style decimal number)
++#
++# The host ID value of zero is reserved for indicating a "local" system; it
++# must not be used.
++#
++# Lines beginning with the '#' are treated as comments and are ignored.
+ #
+ # Fields are separated with tabs or spaces.
+ #
+ # For example:
+ #
+-# hostid 	hostname
++# host ID 	hostname
+ # --------	--------
+-# 1		mylinuxbox 
+-# 10.128	mylinuxbox2 	
++# 1		mylinuxbox
++# 10.128	mylinuxbox2
+Index: evlog-1.6.1/user/include/posix_evlsup.h
+===================================================================
+--- evlog-1.6.1.orig/user/include/posix_evlsup.h
++++ evlog-1.6.1/user/include/posix_evlsup.h
+@@ -145,6 +145,17 @@ extern int _establishNonBlkConnection(co
+ extern int _evlWriteEx(struct posix_log_entry *hdr, const char *buf);
+ extern int _evlEvaluateQuery(const posix_log_query_t *query,
+ 		const struct posix_log_entry *entry, const void *buf);
++
++extern int
++_EvlLogWrite(	posix_log_facility_t	facility,
++		int			event_type,
++		posix_log_severity_t	severity,
++		posix_log_procid_t	processor,
++		const void		*buf,
++		size_t			len,
++		int			format,
++		unsigned int		flags);
++
+ #ifdef __cplusplus
+ }
+ #endif	/* __cplusplus */
+Index: evlog-1.6.1/user/lib/posix1.c
+===================================================================
+--- evlog-1.6.1.orig/user/lib/posix1.c
++++ evlog-1.6.1/user/lib/posix1.c
+@@ -213,13 +213,14 @@ queryError(const char *errString, char *
+ 
+ /* Log an event */
+ int
+-posix_log_write(	posix_log_facility_t	facility,
+-			int			event_type,
+-			posix_log_severity_t	severity,
+-			const void		*buf,
+-			size_t			len,
+-			int			format,
+-			unsigned int		flags)
++_EvlLogWrite(	posix_log_facility_t	facility,
++		int			event_type,
++		posix_log_severity_t	severity,
++		posix_log_procid_t      processor,
++		const void		*buf,
++		size_t			len,
++		int			format,
++		unsigned int		flags)
+ {
+ 	struct posix_log_entry entry;
+ 	int gotTimeStamp = 0;
+@@ -260,12 +261,6 @@ posix_log_write(	posix_log_facility_t	fa
+ #endif
+ 
+ 	/*
+-	 * Also get the processor ID ASAP, before this process migrates
+-	 * to another processor.
+-	 */
+-	entry.log_processor = _evlGetProcId();
+-
+-	/*
+ 	 * If format is POSIX_LOG_STRING, verify that the caller really
+ 	 * passed us a string of the indicated length.  Do other format
+ 	 * fussing later.
+@@ -317,6 +312,7 @@ posix_log_write(	posix_log_facility_t	fa
+ 	entry.log_event_type = event_type;
+ 	entry.log_facility = facility;
+ 	entry.log_severity = severity;
++	entry.log_processor = processor;
+ 
+ 	entry.log_uid = geteuid();
+ 	entry.log_gid = getegid();
+@@ -338,6 +334,22 @@ posix_log_write(	posix_log_facility_t	fa
+ 	return 0;
+ }
+ 
++/********************** API functions ***************************/
++
++/* Log an event */
++int
++posix_log_write(	posix_log_facility_t	facility,
++			int			event_type,
++			posix_log_severity_t	severity,
++			const void		*buf,
++			size_t			len,
++			int			format,
++			unsigned int		flags)
++{
++	return  _EvlLogWrite(facility, event_type, severity,
++				 _evlGetProcId(), buf, len, format, flags);
++}
++
+ int
+ posix_log_vprintf(	posix_log_facility_t	facility,
+ 			int			event_type,
