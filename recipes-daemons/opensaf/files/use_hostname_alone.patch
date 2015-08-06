@@ -1,0 +1,13 @@
+--- opensaf-4.2.1_org/osaf/services/saf/clmsv/config/Makefile.am	2013-08-02 07:09:04.057687365 -0400
++++ opensaf-4.2.1/osaf/services/saf/clmsv/config/Makefile.am	2013-08-02 07:13:33.781687601 -0400
+@@ -40,7 +40,9 @@ endif
+ endif
+ 
+ install-data-hook:
+-	hostname -s > $(DESTDIR)$(pkgsysconfdir)/node_name
++# Sometimes we don't have FQDN mentioned in /etc/hosts, 
++# so replace "hostname -s" by "hostname"
++	hostname > $(DESTDIR)$(pkgsysconfdir)/node_name
+ 
+ uninstall-hook:
+ 	rm -f $(DESTDIR)$(pkgsysconfdir)/node_name
