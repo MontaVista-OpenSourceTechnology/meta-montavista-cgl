@@ -1,0 +1,8 @@
+--- ACE_wrappers.org/include/makeinclude/platform_macros.GNU	2012-09-06 16:10:09.955785098 +0530
++++ ACE_wrappers/include/makeinclude/platform_macros.GNU	2012-09-20 21:03:09.379025295 +0530
+@@ -0,0 +1,5 @@
++# Work-around #593225
++ARMEL_TARGET := $(shell echo '__ARMEL__' | $(CC) -E - | tail -n 1)
++ifeq ($(ARMEL_TARGET),1)
++  no_hidden_visibility = 1
++endif
