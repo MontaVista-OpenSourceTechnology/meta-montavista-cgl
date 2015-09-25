@@ -1,0 +1,24 @@
+diff -Naurp git_org/src/uio_helper.h git/src/uio_helper.h
+--- git_org/src/uio_helper.h	2015-09-25 21:13:46.467685221 +0530
++++ git/src/uio_helper.h	2015-09-25 21:20:02.821291266 +0530
+@@ -76,7 +76,7 @@ int uio_get_all_info(struct uio_info_t*
+ int uio_get_device_attributes(struct uio_info_t* info);
+ 
+ void* uio_single_mmap(struct uio_info_t* info, int map_num, int fd);
+-inline void uio_mmap(struct uio_info_t* info, int fd);
++extern inline void uio_mmap(struct uio_info_t* info, int fd);
+ 
+ inline void uio_single_munmap(struct uio_info_t* info, int map_num);
+ inline void uio_munmap(struct uio_info_t* info);
+diff -Naurp git_org/src/uio_mmap.c git/src/uio_mmap.c
+--- git_org/src/uio_mmap.c	2015-09-25 21:13:46.467685221 +0530
++++ git/src/uio_mmap.c	2015-09-25 21:19:33.585167800 +0530
+@@ -23,7 +23,7 @@
+ 
+ #include "uio_helper.h"
+ 
+-inline void uio_mmap(struct uio_info_t* info, int fd)
++extern inline void uio_mmap(struct uio_info_t* info, int fd)
+ {
+ 	int map_num;
+ 	if (!fd) return;
