@@ -1,7 +1,7 @@
-diff -Nuar smartmontools-5.43.org/INSTALL smartmontools-5.43/INSTALL
---- smartmontools-5.43.org/INSTALL	2012-09-12 18:56:58.035848119 +0530
-+++ smartmontools-5.43/INSTALL	2012-09-12 19:06:04.071856970 +0530
-@@ -293,7 +293,7 @@
+diff -Naurp smartmontools-6.4_org/INSTALL smartmontools-6.4/INSTALL
+--- smartmontools-6.4_org/INSTALL	2015-10-08 11:33:23.476520572 +0530
++++ smartmontools-6.4/INSTALL	2015-10-08 11:37:54.466836147 +0530
+@@ -233,7 +233,7 @@ Red Hat:
                --sysconfdir=/etc                                 \
                --mandir=/usr/share/man                           \
                --docdir=/usr/share/doc/smartmontools             \
@@ -10,7 +10,7 @@ diff -Nuar smartmontools-5.43.org/INSTALL smartmontools-5.43/INSTALL
  
  Slackware:
    If you don't want to overwrite any "distribution" package, use:
-@@ -304,7 +304,7 @@
+@@ -244,7 +244,7 @@ Slackware:
                --sysconfdir=/etc                                 \
                --mandir=/usr/share/man                           \
                --docdir=/usr/share/doc/smartmontools             \
@@ -19,7 +19,7 @@ diff -Nuar smartmontools-5.43.org/INSTALL smartmontools-5.43/INSTALL
  
    And
    removepkg smartmontools smartsuite (only root can do this)
-@@ -313,15 +313,15 @@
+@@ -253,15 +253,15 @@ Slackware:
    The init script works on Slackware. You just have to add an entry like
    the following in /etc/rc.d/rc.M or /etc/rc.d/rc.local:
  
@@ -39,16 +39,7 @@ diff -Nuar smartmontools-5.43.org/INSTALL smartmontools-5.43/INSTALL
  
  SuSE:
    ./configure --sbindir=/usr/sbin                                        \
-@@ -616,7 +616,7 @@
- /usr/local/sbin/smartd                                  [Executable daemon]
- /usr/local/sbin/update-smart-drivedb                    [Drive database update script]
- /usr/local/etc/smartd.conf                              [Configuration file for smartd daemon]
--/usr/local/etc/rc.d/init.d/smartd                       [Init/Startup script for smartd]
-+/usr/local/etc/init.d/smartd                            [Init/Startup script for smartd]
- /usr/local/share/man/man5/smartd.conf.5                 [Manual page]
- /usr/local/share/man/man8/smartctl.8                    [Manual page]
- /usr/local/share/man/man8/smartd.8                      [Manual page]
-@@ -790,13 +790,13 @@
+@@ -661,13 +661,13 @@ Case 1:
  --enable-sample provided
  ==> Files installed are:
          /usr/local/etc/smartd.conf.sample
@@ -64,12 +55,12 @@ diff -Nuar smartmontools-5.43.org/INSTALL smartmontools-5.43/INSTALL
  
  Additional information about using configure can be found here:
  http://www.gnu.org/software/autoconf/manual/autoconf.html#Running-configure-Scripts
-diff -Nuar smartmontools-5.43.org/smartd.8.in smartmontools-5.43/smartd.8.in
---- smartmontools-5.43.org/smartd.8.in	2012-09-12 18:56:58.035848119 +0530
-+++ smartmontools-5.43/smartd.8.in	2012-09-12 19:09:04.199859889 +0530
-@@ -493,15 +493,15 @@
+diff -Naurp smartmontools-6.4_org/smartd.8.in smartmontools-6.4/smartd.8.in
+--- smartmontools-6.4_org/smartd.8.in	2015-10-08 11:33:23.472520604 +0530
++++ smartmontools-6.4/smartd.8.in	2015-10-08 11:38:50.082605491 +0530
+@@ -463,15 +463,15 @@ were detected or some other problem was
  
- .fi 
+ .\" %IF ENABLE_INITSCRIPT
  Note that \fBsmartmontools\fP provides a start-up script in
 -\fB/usr/local/etc/rc.d/init.d/smartd\fP which is responsible for starting and
 +\fB/usr/local/etc/init.d/smartd\fP which is responsible for starting and
@@ -84,12 +75,12 @@ diff -Nuar smartmontools-5.43.org/smartd.8.in smartmontools-5.43/smartd.8.in
 -.B /usr/local/etc/rc.d/init.d/smartd stop
 +.B /usr/local/etc/init.d/smartd stop
  .fi
- .SH CONFIGURATION
- The syntax of the smartd.conf(5) file is discussed separately.
-diff -Nuar smartmontools-5.43.org/smartd.initd.in smartmontools-5.43/smartd.initd.in
---- smartmontools-5.43.org/smartd.initd.in	2012-09-12 18:56:58.035848119 +0530
-+++ smartmontools-5.43/smartd.initd.in	2012-09-12 19:09:32.247860344 +0530
-@@ -53,7 +53,7 @@
+ 
+ .\" %ENDIF ENABLE_INITSCRIPT
+diff -Naurp smartmontools-6.4_org/smartd.initd.in smartmontools-6.4/smartd.initd.in
+--- smartmontools-6.4_org/smartd.initd.in	2015-10-08 11:33:23.492520441 +0530
++++ smartmontools-6.4/smartd.initd.in	2015-10-08 11:39:13.426519069 +0530
+@@ -53,7 +53,7 @@ report_unsupported () {
  if [ -f /etc/redhat-release -o -f /etc/yellowdog-release -o -f /etc/mandrake-release -o -f /etc/whitebox-release -o -f /etc/trustix-release -o -f /etc/tinysofa-release ] ; then
  
      # Source function library
