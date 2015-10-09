@@ -1,4 +1,8 @@
-PR .= ".1"
+PR .= ".2"
+
+# Add below configure option, to allow linker 
+# (ld) from binutils-nativeto use sysroots
+EXTRA_OECONF_class-native += "--with-sysroot=${prefix}"
 
 do_install_class-native () {
 	autotools_do_install
