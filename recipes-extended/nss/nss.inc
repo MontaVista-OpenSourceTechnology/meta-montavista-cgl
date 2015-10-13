@@ -34,6 +34,8 @@ CXXFLAGS+="-I${STAGING_INCDIR}"
 TARGET_CC_ARCH += "${LDFLAGS}"
 TARGET_CC_ARCH += "${CXXFLAGS}"
 
+LDFLAGS_append_class-native = " -lrt "
+
 do_compile_prepend_class-native() {
     export NSPR_INCLUDE_DIR=${STAGING_INCDIR_NATIVE}
     export NSPR_LIB_DIR=${STAGING_LIBDIR_NATIVE}
