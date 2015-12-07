@@ -71,6 +71,14 @@ POWERPC_PACKAGES_HARDWARE_UTILS_powerpc = " \
 		numactl \
 		"
 
+EDACUTILS = ""
+EDACUTILS_x86-64 = "edac-utils" 
+EDACUTILS_i686 = "edac-utils" 
+
+IPXE = ""
+IPXE_x86-64 = "ipxe"
+IPXE_i686 = "ipxe"
+
 RDEPENDS_packagegroup-cge-utility-system-management = "\
 	adduser \
 	daemontools \
@@ -116,7 +124,7 @@ RDEPENDS_packagegroup-cge-utility-network-management = "\
 	"
 RDEPENDS_packagegroup-cge-security = "\
 	cyrus-sasl \
-	edac-utils \
+	${EDACUTILS} \
 	ipsec-tools \
 	liblockfile \
 	lockfile-progs \
@@ -149,7 +157,7 @@ RDEPENDS_packagegroup-cge-libs = "\
 
 RDEPENDS_packagegroup-cge-boot-utilities = "\
 	bootcycle \
-	ipxe \
+	${IPXE} \
 	"
 
 RDEPENDS_packagegroup-cge-boot-utilities += "${X86_PACKAGES_BOOT_UTILS}"
