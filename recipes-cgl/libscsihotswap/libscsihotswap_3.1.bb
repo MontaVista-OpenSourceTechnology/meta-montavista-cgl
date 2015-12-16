@@ -30,7 +30,7 @@ DESCRIPTION = "Software library for accessing the SCSI/FC hotswap interface"
 SECTION = "devel"
 LICENSE = "BSD"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=4c1344207587ecb746c1619a85ee32f0"
-PR = "r1"
+PR = "r2"
 
 SRC_URI = "${MVL_MIRROR}/scsihotswap-${PV}.tar.gz \
 	file://scsi_blkdev_remove_by_id-fix.patch;apply=yes;striplevel=2 \
@@ -39,7 +39,7 @@ S = "${WORKDIR}/scsihotswap-${PV}"
 
 EXTRA_OEMAKE = ""
 TARGET_CC_ARCH += "${LDFLAGS}"
-
+ASNEEDED=""
 do_compile () {
         cd ../scsihotswap-${PV}/
 	pushd libscsihotswap
