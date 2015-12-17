@@ -20,5 +20,6 @@ IMAGE_INSTALL += "packagegroup-core-buildessential"
 IMAGE_INSTALL += "packagegroup-self-hosted"
 IMAGE_INSTALL += "packagegroup-cge-utilities"
 IMAGE_INSTALL += "packagegroup-additional-oe-tools"
+IMAGE_INSTALL += "packagegroup-additional-oe-tools-cgl"
 IMAGE_INSTALL += "${EXTRA_X86}"
 
