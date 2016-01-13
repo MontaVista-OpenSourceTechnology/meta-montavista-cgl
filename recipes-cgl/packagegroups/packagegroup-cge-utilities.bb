@@ -21,6 +21,9 @@ PACKAGES = "\
     packagegroup-cge-virualization-utilities \
     packagegroup-cge-utility-system-management \
     packagegroup-cge-utility-debug \
+    packagegroup-cge-console-utilities \
+    packagegroup-cge-ftpserver-utilities \
+    packagegroup-cge-tools-profile-utilities \
     "
 RDEPENDS_packagegroup-cge-utilities = "\
     packagegroup-cge-utility-hardware \
@@ -32,8 +35,20 @@ RDEPENDS_packagegroup-cge-utilities = "\
     packagegroup-cge-virualization-utilities \
     packagegroup-cge-utility-system-management \
     packagegroup-cge-utility-debug \
+    packagegroup-cge-console-utilities \
+    packagegroup-cge-ftpserver-utilities \
+    packagegroup-cge-tools-profile-utilities \
     "
 
+RDEPENDS_packagegroup-cge-tools-profile-utilities = "${VALGRIND}"
+
+RDEPENDS_packagegroup-cge-ftpserver-utilities = "\
+	lftp \
+	"
+
+RDEPENDS_packagegroup-cge-console-utilities = "\
+	glibc-scripts \
+	"
 
 RDEPENDS_packagegroup-cge-utility-hardware = "\
 	acpitool \
@@ -46,6 +61,9 @@ RDEPENDS_packagegroup-cge-utility-hardware = "\
 	paxctl \
 	scsirastools \
 	smartmontools \
+	nbd-client \
+	nbd-server \
+	nbd-trdump \
 	"
 RDEPENDS_packagegroup-cge-utility-hardware += "\
 					${X86_PACKAGES_HARDWARE_UTILS} \
@@ -78,6 +96,10 @@ EDACUTILS_i686 = "edac-utils"
 IPXE = ""
 IPXE_x86-64 = "ipxe"
 IPXE_i686 = "ipxe"
+
+VALGRIND = ""
+VALGRIND_x86-64 = "valgrind"
+VALGRIND_i686 = "valgrind"
 
 RDEPENDS_packagegroup-cge-utility-system-management = "\
 	adduser \
@@ -121,6 +143,10 @@ RDEPENDS_packagegroup-cge-utility-network-management = "\
 	quagga \
 	strongswan \
 	tunctl \
+	stunnel \
+	iscsi-initiator-utils \
+	ptpd \
+	open-iscsi-user \
 	"
 RDEPENDS_packagegroup-cge-security = "\
 	cyrus-sasl \
@@ -133,6 +159,7 @@ RDEPENDS_packagegroup-cge-security = "\
 	samhain-server \
 	wireshark \
         adduser \
+	tripwire \
 	"
 
 RDEPENDS_packagegroup-cge-logs-management = "\
@@ -140,6 +167,7 @@ RDEPENDS_packagegroup-cge-logs-management = "\
 	evlog \
 	evlog-telco \
 	syslog-ng \
+	logcheck \
 	"
 RDEPENDS_packagegroup-cge-libs = "\
 	ace \
@@ -175,7 +203,6 @@ X86_PACKAGES_BOOT_UTILS_i686 = " \
 		"
 
 RDEPENDS_packagegroup-cge-virualization-utilities += "${X86_PACKAGES_VIRTUALIZATION_UTILS}"
-
 
 X86_PACKAGES_VIRTUALIZATION_UTILS = ""
 X86_PACKAGES_VIRTUALIZATION_UTILS_x86-64 = " \
