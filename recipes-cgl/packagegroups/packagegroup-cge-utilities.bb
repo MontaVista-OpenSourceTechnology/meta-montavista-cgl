@@ -100,6 +100,10 @@ IPXE_i686 = "ipxe"
 VALGRIND = ""
 VALGRIND_x86-64 = "valgrind"
 VALGRIND_i686 = "valgrind"
+VALGRIND_mips = "valgrind"
+VALGRIND_powerpc = "valgrind"
+VALGRIND_powerpc64 = "valgrind"
+VALGRIND_armv7a = "valgrind"
 
 RDEPENDS_packagegroup-cge-utility-system-management = "\
 	adduser \
