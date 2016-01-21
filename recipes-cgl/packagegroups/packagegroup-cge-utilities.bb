@@ -54,6 +54,7 @@ RDEPENDS_packagegroup-cge-utility-hardware = "\
 	acpitool \
 	cdrkit \
 	drbd-utils \
+	drbd \
 	ipmiutil \
 	libscsihotswap \
 	openhpi \
