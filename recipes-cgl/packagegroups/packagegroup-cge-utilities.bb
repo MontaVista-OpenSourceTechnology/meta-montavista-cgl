@@ -149,9 +149,7 @@ RDEPENDS_packagegroup-cge-utility-network-management = "\
 	strongswan \
 	tunctl \
 	stunnel \
-	iscsi-initiator-utils \
 	ptpd \
-	open-iscsi-user \
 	"
 RDEPENDS_packagegroup-cge-security = "\
 	cyrus-sasl \
