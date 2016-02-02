@@ -1,0 +1,73 @@
+Index: samhain-2.7.2c/configure.ac
+===================================================================
+--- samhain-2.7.2c.orig/configure.ac
++++ samhain-2.7.2c/configure.ac
+@@ -1218,7 +1218,7 @@ AC_ARG_WITH(database,
+           AC_DEFINE(WITH_DATABASE)
+ 	  #
+ 	  PGCONF="no"
+-	  MY_PATH="${PATH}:/usr/local/bin:/usr/local/pgsql/bin"
++	  MY_PATH="${PATH}:/usr/bin:/usr/pgsql/bin"
+ 	  OLD_IFS="$IFS"
+ 	  IFS=":"
+ 	  for ff in ${MY_PATH}
+@@ -1233,10 +1233,10 @@ AC_ARG_WITH(database,
+ 	  #
+ 	  if test "x${PGCONF}" = "xno"
+ 	  then
+-	    AC_MSG_CHECKING(for PostgreSQL in /usr/local/pgsql /usr/pgsql /usr/local /usr PGSQL_HOME)
+-	    pgsql_directory="/usr/local/pgsql /usr/pgsql /usr/local /usr ${PGSQL_HOME}"
++	    AC_MSG_CHECKING(for PostgreSQL in /usr/local/pgsql /usr/pgsql /usr/include /usr PGSQL_HOME)
++	    pgsql_directory="/usr/include/pgsql /usr/pgsql /usr/include /usr ${PGSQL_HOME}"
+   	    for i in $pgsql_directory; do 
+-    	      if test -r $i/include/pgsql/libpq-fe.h; then
++    	      if test -r $i/libpq-fe.h; then
+                 PGSQL_INC_DIR=$i/include
+ 		PGSQL_DIR=$i
+ 		# use AC_CHECK_HEADERS to check for pgsql/libpq-fe.h
+@@ -1244,7 +1244,7 @@ AC_ARG_WITH(database,
+             done 
+             if test -z "$PGSQL_DIR"; then
+   	      for i in $pgsql_directory; do 
+-    	        if test -r $i/include/postgresql/libpq-fe.h; then
++    	        if test -r $i/usr/include/libpq-fe.h; then
+                   PGSQL_INC_DIR=$i/include
+ 		  PGSQL_DIR=$i
+                 fi
+Index: samhain-2.7.2c/configure
+===================================================================
+--- samhain-2.7.2c.orig/configure
++++ samhain-2.7.2c/configure
+@@ -9972,11 +9972,11 @@ done
+ 	  #
+ 	  if test "x${PGCONF}" = "xno"
+ 	  then
+-	    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for PostgreSQL in /usr/local/pgsql /usr/pgsql /usr/local /usr PGSQL_HOME" >&5
++	    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for PostgreSQL in /usr/local/pgsql /usr/pgsql /usr/include /usr PGSQL_HOME" >&5
+ $as_echo_n "checking for PostgreSQL in /usr/local/pgsql /usr/pgsql /usr/local /usr PGSQL_HOME... " >&6; }
+-	    pgsql_directory="/usr/local/pgsql /usr/pgsql /usr/local /usr ${PGSQL_HOME}"
++	    pgsql_directory="/usr/local/pgsql /usr/pgsql /usr/include /usr ${PGSQL_HOME}"
+   	    for i in $pgsql_directory; do
+-    	      if test -r $i/include/pgsql/libpq-fe.h; then
++    	      if test -r $i/include/libpq-fe.h; then
+                 PGSQL_INC_DIR=$i/include
+ 		PGSQL_DIR=$i
+ 		# use AC_CHECK_HEADERS to check for pgsql/libpq-fe.h
+@@ -9984,7 +9984,7 @@ $as_echo_n "checking for PostgreSQL in /
+             done
+             if test -z "$PGSQL_DIR"; then
+   	      for i in $pgsql_directory; do
+-    	        if test -r $i/include/postgresql/libpq-fe.h; then
++    	        if test -r $i/usr/include/libpq-fe.h; then
+                   PGSQL_INC_DIR=$i/include
+ 		  PGSQL_DIR=$i
+                 fi
+@@ -9992,7 +9992,7 @@ $as_echo_n "checking for PostgreSQL in /
+ 	    fi
+             if test -z "$PGSQL_DIR"; then
+   	      for i in $pgsql_directory; do
+-    	        if test -r $i/include/libpq-fe.h; then
++    	        if test -r $i/libpq-fe.h; then
+                   PGSQL_INC_DIR=$i/include
+ 		  PGSQL_DIR=$i
+                 fi
