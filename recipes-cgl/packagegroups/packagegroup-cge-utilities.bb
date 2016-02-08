@@ -23,7 +23,6 @@ PACKAGES = "\
     packagegroup-cge-utility-debug \
     packagegroup-cge-console-utilities \
     packagegroup-cge-ftpserver-utilities \
-    packagegroup-cge-tools-profile-utilities \
     "
 RDEPENDS_packagegroup-cge-utilities = "\
     packagegroup-cge-utility-hardware \
@@ -37,10 +36,7 @@ RDEPENDS_packagegroup-cge-utilities = "\
     packagegroup-cge-utility-debug \
     packagegroup-cge-console-utilities \
     packagegroup-cge-ftpserver-utilities \
-    packagegroup-cge-tools-profile-utilities \
     "
-
-RDEPENDS_packagegroup-cge-tools-profile-utilities = "${VALGRIND}"
 
 RDEPENDS_packagegroup-cge-ftpserver-utilities = "\
 	lftp \
@@ -97,14 +93,6 @@ EDACUTILS_i686 = "edac-utils"
 IPXE = ""
 IPXE_x86-64 = "ipxe"
 IPXE_i686 = "ipxe"
-
-VALGRIND = ""
-VALGRIND_x86-64 = "valgrind"
-VALGRIND_i686 = "valgrind"
-VALGRIND_mips = "valgrind"
-VALGRIND_powerpc = "valgrind"
-VALGRIND_powerpc64 = "valgrind"
-VALGRIND_armv7a = "valgrind"
 
 RDEPENDS_packagegroup-cge-utility-system-management = "\
 	adduser \
