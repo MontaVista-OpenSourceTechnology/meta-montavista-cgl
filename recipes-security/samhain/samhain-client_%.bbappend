@@ -1,4 +1,4 @@
-PR .= ".2"
+PR .= ".3"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 
@@ -18,4 +18,6 @@ PACKAGECONFIG[ipv6]  = "--enable-ipv6,--disable-ipv6,,"
 
 do_configure_prepend () {
     export PGSQL_HOME="${STAGING_DIR_HOST}${exec_prefix}"
+    export PGSQL_LIB_DIR="${STAGING_LIBDIR}"
+    export PGSQL_INC_DIR="${STAGING_INCDIR}"
 }
