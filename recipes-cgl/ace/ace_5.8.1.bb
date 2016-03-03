@@ -9,6 +9,7 @@ DEPENDS += "openssl gperf-native"
 SRC_URI = "ftp://download.dre.vanderbilt.edu/previous_versions/ACE-${PV}.tar.bz2 \
            file://ARM_visibility_plus_librt_fix.patch \
            file://disable_gperf_tests.patch \
+           file://use_sslv23_method.patch \
           "
 
 S = "${WORKDIR}/ACE_wrappers"

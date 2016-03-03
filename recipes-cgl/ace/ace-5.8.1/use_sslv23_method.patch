@@ -1,0 +1,21 @@
+Index: ACE_wrappers/ace/SSL/SSL_Context.cpp
+===================================================================
+--- ACE_wrappers.orig/ace/SSL/SSL_Context.cpp
++++ ACE_wrappers/ace/SSL/SSL_Context.cpp
+@@ -245,13 +245,13 @@ ACE_SSL_Context::set_mode (int mode)
+   switch (mode)
+     {
+     case ACE_SSL_Context::SSLv2_client:
+-      method = ::SSLv2_client_method ();
++      method = ::SSLv23_client_method ();
+       break;
+     case ACE_SSL_Context::SSLv2_server:
+-      method = ::SSLv2_server_method ();
++      method = ::SSLv23_server_method ();
+       break;
+     case ACE_SSL_Context::SSLv2:
+-      method = ::SSLv2_method ();
++      method = ::SSLv23_method ();
+       break;
+     case ACE_SSL_Context::SSLv3_client:
+       method = ::SSLv3_client_method ();
