@@ -1,4 +1,4 @@
-PR .= ".1"
+PR .= ".2"
 
 inherit useradd
 
@@ -9,8 +9,21 @@ GROUPADD_PARAM_logcheck = "logcheck"
 # a perl script which uses the useradd binary.
 
 #useradd options are different from adduser options.
-USERADD_PARAM_${PN} = "-d /var/lib/logcheck -r -g logcheck -M logcheck \
+#Add 'adm' as supplementary group for logcheck user. It is required by logcheck 
+#user to read /var/log/auth.log file
+USERADD_PARAM_${PN} = "-d /var/lib/logcheck -r -g logcheck -G adm -M logcheck \
                       "
+
+do_install_append () {
+    # syslog-ng is configured to capture secure and authorization
+    # logs in /var/log/syslog and /var/log/auth.log respectively.
+    # So, allow logcheck to check them instead of messages and secure log
+    sed -i -e "s/messages/syslog/" -e "s/secure/auth\.log/" ${D}/etc/logcheck/logcheck.logfiles
+
+    # Replace "run-parts --list" with alternate find command
+    sed -i -e 's:run-parts --list "$dir":find "$dir" -maxdepth 1 -type f | sed "s|$dir/||"  | egrep "^[a-zA-Z0-9_-]+$" | sort:g' -e 's:^LOCKDIR=/run/lock/logcheck:LOCKDIR=/var/lock/logcheck:' ${D}${sbindir}/logcheck
+
+}
 pkg_postinst_${PN} () {
 #!/bin/sh
 
@@ -18,9 +31,11 @@ pkg_postinst_${PN} () {
 		exit 1
 	fi
 
-	chown logcheck:logcheck	/var/lib/logcheck
+	chown logcheck:logcheck /var/lib/logcheck
 	chgrp -R logcheck /etc/logcheck
 
 	/etc/init.d/populate-volatile.sh update
 }
 
+FILES_${PN} += "/var/lock/"
+RDEPENDS_${PN} += "lockfile-progs"
