@@ -9,8 +9,8 @@ DEPENDS = "virtual/kernel"
 
 SRC_URI = "http://oss.linbit.com/drbd/9.0/drbd-${PV}.tar.gz"
 
-SRC_URI[md5sum] = "62706c1b57bf399071272dad0d267421"
-SRC_URI[sha256sum] = "0dc6e37492dcc8a960311b3b0b7e2d17bd1afff146756cdd80d5477c17d7dffc"
+SRC_URI[md5sum] = "0d1d50e225ee0c8058af4fe1442d5242"
+SRC_URI[sha256sum] = "f0862fffa5d73c433598fe1957bab61a2ae7ae1c4c7c0cecbef760e67a65fe20"
 
 inherit module-base
 
