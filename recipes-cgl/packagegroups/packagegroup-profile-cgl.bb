@@ -22,7 +22,6 @@ RDEPENDS_packagegroup-profile-cgl = " \
          packagegroup-core-lsb-core \
          packagegroup-core-tools-profile \
          packagegroup-core-tools-testapps \
-         packagegroup-core-ssh-openssh \
          packagegroup-core-tools-debug \
          packagegroup-core-buildessential \
          packagegroup-self-hosted \
