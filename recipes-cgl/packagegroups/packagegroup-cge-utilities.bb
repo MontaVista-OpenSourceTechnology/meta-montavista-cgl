@@ -34,16 +34,11 @@ RDEPENDS_packagegroup-cge-utilities = "\
     packagegroup-cge-virualization-utilities \
     packagegroup-cge-utility-system-management \
     packagegroup-cge-utility-debug \
-    packagegroup-cge-console-utilities \
     packagegroup-cge-ftpserver-utilities \
     "
 
 RDEPENDS_packagegroup-cge-ftpserver-utilities = "\
 	lftp \
-	"
-
-RDEPENDS_packagegroup-cge-console-utilities = "\
-	glibc-scripts \
 	"
 
 RDEPENDS_packagegroup-cge-utility-hardware = "\
