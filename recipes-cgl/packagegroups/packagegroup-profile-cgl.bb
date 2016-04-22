@@ -20,7 +20,6 @@ RDEPENDS_packagegroup-profile-cgl = " \
          packagegroup-additional-oe-tools \
          packagegroup-core-full-cmdline \
          packagegroup-core-lsb-core \
-         packagegroup-core-tools-profile \
          packagegroup-core-tools-testapps \
          packagegroup-core-tools-debug \
          packagegroup-core-buildessential \
