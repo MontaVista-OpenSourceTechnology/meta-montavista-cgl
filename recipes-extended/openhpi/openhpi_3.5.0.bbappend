@@ -1,4 +1,6 @@
-PR .= ".1"
+PR .= ".2"
+
+DEPENDS += "libgcrypt"
 
 do_configure_prepend_class-target () {
     ${CC} -dM -E - < /dev/null > output
