@@ -141,11 +141,8 @@ RDEPENDS_packagegroup-cge-security = "\
 	liblockfile \
 	lockfile-progs \
 	pinentry \
-	samhain-client \
-	samhain-server \
 	wireshark \
         adduser \
-	tripwire \
 	"
 
 RDEPENDS_packagegroup-cge-logs-management = "\
