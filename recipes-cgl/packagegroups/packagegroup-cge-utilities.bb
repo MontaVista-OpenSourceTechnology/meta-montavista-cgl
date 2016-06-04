@@ -117,6 +117,7 @@ RDEPENDS_packagegroup-cge-utility-debug = "\
 	gdb-kdump-helpers \
 	libunwind \
 	pcoredump \
+	ltt-kdump \
 	"
 #provided by busybox
 #	start-stop-daemon
