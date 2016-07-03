@@ -1,0 +1,11 @@
+--- drbd-9.0.1-1/drbd/Makefile	2016-07-03 06:54:19.421538690 -0700
++++ drbd-9.0.1-1/drbd/Makefile_mod	2016-07-03 06:53:18.938801628 -0700
+@@ -158,7 +158,7 @@ else
+ 	fi
+ 	install -d $(DESTDIR)/lib/modules/$(KERNELRELEASE)/$(MODSUBDIR)
+ 	set -e ; for ko in $(MODOBJS); do \
+-		install -m 644 $$ko $(DESTDIR)/lib/modules/$(KERNELRELEASE)/$(MODSUBDIR); \
++		[ -e $$ko ] && install -m 644 $$ko $(DESTDIR)/lib/modules/$(KERNELRELEASE)/$(MODSUBDIR); \
+ 	done
+     ifeq ($(DESTDIR),/)
+       ifeq ($(shell uname -r),$(KERNELRELEASE))
