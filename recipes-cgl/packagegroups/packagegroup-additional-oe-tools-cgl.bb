@@ -15,11 +15,13 @@ PACKAGES = "\
 	packagegroup-oe-virtualization-cgl \
 	packagegroup-oe-webserver-cgl \
 	packagegroup-oe-console-utilities-cgl \
+	packagegroup-oe-filesystem-utilities-cgl \
 	"
 RDEPENDS_packagegroup-additional-oe-tools-cgl = "\
 	packagegroup-oe-virtualization-cgl \
 	packagegroup-oe-webserver-cgl \
 	packagegroup-oe-console-utilities-cgl \
+	packagegroup-oe-filesystem-utilities-cgl \
 	"
 
 
@@ -36,3 +38,6 @@ RDEPENDS_packagegroup-oe-webserver-cgl ="\
 	apache2 \
 	"
 
+RDEPENDS_packagegroup-oe-filesystem-utilities-cgl = " \
+	e2fsprogs-resize2fs \
+"	
