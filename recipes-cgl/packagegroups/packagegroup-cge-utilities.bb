@@ -148,11 +148,13 @@ RDEPENDS_packagegroup-cge-security = "\
 
 RDEPENDS_packagegroup-cge-logs-management = "\
 	eventlog \
-	evlog \
-	evlog-telco \
 	syslog-ng \
 	logcheck \
 	"
+# FIXME missing get_kernel_syms
+#	evlog 
+#	evlog-telco 
+
 RDEPENDS_packagegroup-cge-libs = "\
 	ace \
 	lemon \
@@ -164,8 +166,9 @@ RDEPENDS_packagegroup-cge-libs = "\
 	opensaf \
 	postgresql \
 	swig \
-	ustr \
 	"
+# FIXME: not sure why this is misssing
+#	ustr
 
 RDEPENDS_packagegroup-cge-boot-utilities = "\
 	bootcycle \

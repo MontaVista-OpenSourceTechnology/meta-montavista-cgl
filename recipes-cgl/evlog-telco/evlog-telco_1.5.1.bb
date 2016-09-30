@@ -22,7 +22,7 @@ SRC_URI[sha256sum] = "e21887215767fd529ccdd75b165200951cf9f8674ab7d51d6da3c4151f
 DEPENDS = "flex evlog flex-native"
 LDFLAGS += "-Wl,--as-needed"
 
-inherit autotools autotools_stage update-rc.d
+inherit autotools autotools update-rc.d
 
 B = "${S}"
 

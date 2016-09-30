@@ -76,7 +76,7 @@ do_compile() {
     fi
     
     make -C ./nss CCC="${CXX}" \
-        OS_TEST=${OS_TEST} \
+        OS_TEST=${OS_TEST} 
 }
 
 do_install() {

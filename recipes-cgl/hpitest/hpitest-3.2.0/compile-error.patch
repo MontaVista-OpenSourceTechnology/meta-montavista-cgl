@@ -1,0 +1,12 @@
+diff -ru hpitest-3.2.0/src/tests/hotswap/saHpiHotSwapPolicyCancel/NotPending.cc hpitest-3.2.0/src/tests/hotswap/saHpiHotSwapPolicyCancel/NotPending.cc
+--- hpitest-3.2.0/src/tests/hotswap/saHpiHotSwapPolicyCancel/NotPending.cc	2010-09-17 11:56:00.000000000 -0700
++++ hpitest-3.2.0/src/tests/hotswap/saHpiHotSwapPolicyCancel/NotPending.cc	2016-09-30 14:24:35.661698850 -0700
+@@ -26,7 +26,7 @@
+  * Constructor
+  *****************************************************************************/
+ 
+-NotPending::NotPending(char *line) : HotSwapTestCase(false, line) {
++NotPending::NotPending(char *line) : HotSwapTestCase(line, false) {
+ }
+ 
+ /*****************************************************************************
