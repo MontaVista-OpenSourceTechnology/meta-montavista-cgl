@@ -21,13 +21,13 @@ inherit update-rc.d
 
 CFLAGS_append = " -I${S} -DSYS_TIME_H=0"
 
-DEPENDS += "${@base_contains("DISTRO_FEATURES", "pam", "libpam", "", d)}"
-DEPENDS += "${@base_contains("DISTRO_FEATURES", "audit", "audit", "", d)}"
-DEPENDS += "${@base_contains("DISTRO_FEATURES", "selinux", "libselinux", "", d)}"
+DEPENDS += "${@bb.utils.contains("DISTRO_FEATURES", "pam", "libpam", "", d)}"
+DEPENDS += "${@bb.utils.contains("DISTRO_FEATURES", "audit", "audit", "", d)}"
+DEPENDS += "${@bb.utils.contains("DISTRO_FEATURES", "selinux", "libselinux", "", d)}"
 
-HAVE_PAM = "${@base_contains("DISTRO_FEATURES", "pam", "1", "0", d)}"
-HAVE_AUDIT = "${@base_contains("DISTRO_FEATURES", "audit", "1", "0", d)}"
-HAVE_SELINUX = "${@base_contains("DISTRO_FEATURES", "selinux", "1", "0", d)}"
+HAVE_PAM = "${@bb.utils.contains("DISTRO_FEATURES", "pam", "1", "0", d)}"
+HAVE_AUDIT = "${@bb.utils.contains("DISTRO_FEATURES", "audit", "1", "0", d)}"
+HAVE_SELINUX = "${@bb.utils.contains("DISTRO_FEATURES", "selinux", "1", "0", d)}"
 
 # The debian patch adds these and they need to be set.  Just set them to
 # what they were before.

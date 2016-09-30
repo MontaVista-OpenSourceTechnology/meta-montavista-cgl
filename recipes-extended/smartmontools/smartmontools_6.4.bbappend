@@ -10,8 +10,8 @@ SRC_URI += "file://patch-confdirfix;apply=yes \
 	    file://makefile_sort_local_fix.patch;apply=yes \
 	    file://fix_rpm_post_install.patch;apply=yes "
 
-#DEPENDS += "${@base_contains("DISTRO_FEATURES", "selinux", "libselinux", "", d)}"
-#EXTRA_OECONF += "${@base_contains("DISTRO_FEATURES", "selinux", "--with-selinux", "", d)}"
+#DEPENDS += "${@bb.utils.contains("DISTRO_FEATURES", "selinux", "libselinux", "", d)}"
+#EXTRA_OECONF += "${@bb.utils.contains("DISTRO_FEATURES", "selinux", "--with-selinux", "", d)}"
 #
 #inherit update-rc.d
 #
