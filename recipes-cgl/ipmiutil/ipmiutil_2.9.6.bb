@@ -10,7 +10,8 @@ SRC_URI = "${SOURCEFORGE_MIRROR}/ipmiutil/ipmiutil-${PV}.tar.gz \
 	  " 
 
 PR = "r0"
-
+#FIXME:
+ERROR_QA_remove = "dev-elf"
 def extra_cflags(d):
     import bb
     import re
