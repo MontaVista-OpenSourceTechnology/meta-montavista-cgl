@@ -7,12 +7,11 @@ LICENSE = "GPLv2"
 LIC_FILES_CHKSUM = "file://COPYING;md5=5574c6965ae5f583e55880e397fbb018"
 DEPENDS = "virtual/kernel"
 
-SRC_URI = "http://oss.linbit.com/drbd/9.0/drbd-${PV}.tar.gz \
+SRC_URI = "https://www.drbd.org/download/drbd/9.0/drbd-${PV}.tar.gz \
            file://check_existing_of_modules_before_installing.patch"
 
-SRC_URI[md5sum] = "0d1d50e225ee0c8058af4fe1442d5242"
-SRC_URI[sha256sum] = "f0862fffa5d73c433598fe1957bab61a2ae7ae1c4c7c0cecbef760e67a65fe20"
-
+SRC_URI[md5sum] = "a357faf4b64121f636203913d1e2adcf"
+SRC_URI[sha256sum] = "4926b17a7b8ed3916671024117f40570efac01fd9f27ea159838fa4d62e03d62"
 inherit module-base
 
 # Add make_scripts task to create kernel scripts
