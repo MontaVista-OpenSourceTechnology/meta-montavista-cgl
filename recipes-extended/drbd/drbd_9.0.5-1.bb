@@ -14,6 +14,9 @@ SRC_URI[md5sum] = "a357faf4b64121f636203913d1e2adcf"
 SRC_URI[sha256sum] = "4926b17a7b8ed3916671024117f40570efac01fd9f27ea159838fa4d62e03d62"
 inherit module-base
 
+PR = "r1"
+
+TARGET_CC_ARCH_remove_arm = "-mfloat-abi=hard"
 # Add make_scripts task to create kernel scripts
 addtask make_scripts after do_patch before do_compile
 
