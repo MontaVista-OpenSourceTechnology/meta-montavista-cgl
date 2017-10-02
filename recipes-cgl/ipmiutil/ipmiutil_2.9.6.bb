@@ -15,7 +15,7 @@ ERROR_QA_remove = "dev-elf"
 def extra_cflags(d):
     import bb
     import re
-    archm = bb.data.getVar('TARGET_ARCH', d, 1)
+    archm = d.getVar('TARGET_ARCH', True)
     if re.match('^ia64',archm): return "-D__IA64__"
     elif re.match('^ppc64',archm): return "-DSTUB_IO"
     elif re.match('^x86_64',archm): return ""
