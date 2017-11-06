@@ -32,16 +32,14 @@ LICENSE = "BSD"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=4c1344207587ecb746c1619a85ee32f0"
 PR = "r2"
 
-SRC_URI = "${MVL_MIRROR}/scsihotswap-${PV}.tar.gz \
-	file://scsi_blkdev_remove_by_id-fix.patch;apply=yes;striplevel=2 \
+SRC_URI = "git://github.com/MontaVista-OpenSourceTechnology/libscsihotswap.git;protocol=https \
 	"
-S = "${WORKDIR}/scsihotswap-${PV}"
-
+S = "${WORKDIR}/git"
+SRCREV = "v3.1"
 EXTRA_OEMAKE = ""
 TARGET_CC_ARCH += "${LDFLAGS}"
 ASNEEDED=""
 do_compile () {
-        cd ../scsihotswap-${PV}/
 	pushd libscsihotswap
         oe_runmake
 	popd
@@ -55,7 +53,7 @@ do_install () {
         install -m 755 -d ${D}${libdir}
 	install -m 755 -d ${D}${includedir}
 	install -m 755 -d ${D}${mandir}/man3
-	pushd ../scsihotswap-${PV}/libscsihotswap
+	pushd libscsihotswap
         install -m 0755 libscsihotswap.so.1.1 ${D}${libdir}
 	pushd ${D}${libdir}
 	ln -s libscsihotswap.so.1.1 libscsihotswap.so
@@ -69,7 +67,7 @@ do_install () {
 
 	# the utilities
 	install -m 755 -d ${D}${sbindir}
-	pushd ../scsihotswap-${PV}/scsi_hotswap_cmd
+	pushd scsi_hotswap_cmd
 	install -m 0755 scsi_hotswap_cmd ${D}${sbindir}
 	pushd ${D}${sbindir}
 	ln -s scsi_hotswap_cmd scsi_blkdev_remove_by_id
@@ -82,6 +80,4 @@ do_install () {
 	popd
 }
 
-SRC_URI[md5sum] = "e9b93e36ea530941ae5bbfc669f34c0f"
-SRC_URI[sha256sum] = "f689056983440c3b7fd27cbc2e761736b15142d1ee565d9163664373fab87e06"
 
