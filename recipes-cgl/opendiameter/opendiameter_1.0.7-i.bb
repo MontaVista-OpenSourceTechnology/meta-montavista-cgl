@@ -4,7 +4,7 @@
 
 DESCRIPTION = "Open source Diameter and Diameter related protocols"
 
-SRC_URI="http://sourceforge.net/projects/diameter/files/latest/download/opendiameter-${PV}.tar.gz \
+SRC_URI="https://downloads.sourceforge.net/project/diameter/c_server/1.0.7-i/opendiameter-1.0.7-i.tar.gz \
 	 file://fix_error.patch \
 	 file://opendiameter-install-fix.patch \
 	 file://opendiameter_build_fix_with_boost_1_51_0.patch \
