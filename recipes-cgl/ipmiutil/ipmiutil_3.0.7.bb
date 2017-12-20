@@ -2,12 +2,12 @@ DESCRIPTION = "ipmiutil is an easy-to-use set of IPMI server management utilitie
 	       It can get/set sensor thresholds, automate SEL management, do SOL console, etc."
 HOMEPAGE = "http://ipmiutil.sourceforge.net"
 LICENSE = "BSD"
-LIC_FILES_CHKSUM = "file://COPYING;md5=5f9372493401f309e6149dd2ce0a044b"
+LIC_FILES_CHKSUM = "file://COPYING;md5=626a5970304daa1fcb87f757fb42b795"
 DEPENDS="openssl-native openssl"
 PARALLEL_MAKE = ""
 SRC_URI = "${SOURCEFORGE_MIRROR}/ipmiutil/ipmiutil-${PV}.tar.gz \
-           file://use-cross-ar.patch \
 	  " 
+# file://use-cross-ar.patch 
 
 PR = "r0"
 #FIXME:
@@ -30,12 +30,8 @@ inherit autotools
 B = "${S}"
 
 CFLAGS += "${@extra_cflags(d)}"
-do_configure_append() {
-    sed -i "s/sysdto\ =\ \${DESTDIR}/sysdto\ =\ /" scripts/Makefile.am
-    sed -i "s/sysdto\ =\ \${DESTDIR}/sysdto\ =\ /" scripts/Makefile.in
-}
 
 FILES_${PN} += "${libdir}"
 
-SRC_URI[md5sum] = "462087995f05fa9e692ed7f55c840f71"
-SRC_URI[sha256sum] = "884c1f3d8bfb0b33c303973d286c3166f5a537976451a0312e3524af54771519"
+SRC_URI[md5sum] = "f055613809d14f9aa07fa23f90ed202a"
+SRC_URI[sha256sum] = "defc2fad88c184d953b5e37c42a95b0b14ed9772c097b00471e157be3e23542f"
