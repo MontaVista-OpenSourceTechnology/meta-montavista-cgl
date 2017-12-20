@@ -57,9 +57,11 @@ RDEPENDS_packagegroup-cgl-applications = " \
 
 LTTNG ?= "\
     lttng-tools \
-    lttng-modules \
     lttng-ust \
     "
+#FIXME Currently does not build against 4.14.
+#
+#    lttng-modules 
 LTTNG_armv6 ?= ""
 
 LTTNGUST = "lttng-ust"
