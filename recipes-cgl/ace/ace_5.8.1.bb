@@ -10,11 +10,12 @@ SRC_URI = "ftp://download.dre.vanderbilt.edu/previous_versions/ACE-${PV}.tar.bz2
            file://ARM_visibility_plus_librt_fix.patch \
            file://disable_gperf_tests.patch \
            file://use_sslv23_method.patch \
+           file://dont-redefine-cpuset.diff \
           "
 
 S = "${WORKDIR}/ACE_wrappers"
 
-PR = "r0"
+PR = "r1"
 
 EXTRA_OECONF += "--enable-ace-tests"
 LEAD_SONAME = "libACE-[0-9.]*.so"
