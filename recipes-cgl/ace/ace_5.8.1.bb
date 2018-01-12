@@ -45,6 +45,9 @@ FILES_lib${BPN}-dev = "${libdir}/lib*${SOLIBSDEV} \
                        ${libdir}/*.la ${includedir} \
                        ${libdir}/pkgconfig"
 
+inherit multilib-alternatives
+MULTILIB_HEADERS = "ace/config.h"
+
 SRC_URI[md5sum] = "0c9c30bc0ce46017f21518f0dc24cc58"
 SRC_URI[sha256sum] = "2ea07c62d9ac78ce828c182a7aa9e426bb6367765c9e06b5f7fe2043e8498768"
 
