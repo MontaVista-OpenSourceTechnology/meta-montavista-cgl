@@ -1,4 +1,4 @@
-PR .= ".3"
+PR .= ".4"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 
@@ -12,7 +12,9 @@ inherit multilib-alternatives
 MULTILIB_HEADERS = "heartbeat/glue_config.h"
 
 do_install_append () {
-     mv ${D}${sysconfdir}/init.d/logd ${D}${sysconfdir}/init.d/logd.${PN}
+    if ${@bb.utils.contains('DISTRO_FEATURES','systemd','false','true',d)}; then
+        mv ${D}${sysconfdir}/init.d/logd ${D}${sysconfdir}/init.d/logd.${PN}
+    fi
 }
 
 #FIXME add postinstalls
