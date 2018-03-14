@@ -88,14 +88,24 @@ other layers needed. Adapt the below list to proper format.
   BBLAYERS:
 
     meta
-    meta-meta-montavista-cgx
     meta-openembedded/meta-networking
     meta-openembedded/meta-filesystems
     meta-openembedded/meta-oe
     meta-openembedded/meta-python
     meta-openembedded/meta-webserver
-    meta-virtualization
-
+    mdeta-virtualization
+    meta-montavista-cgx
+    meta-openembedded/meta-perl
+    meta-openembedded/meta-gnome
+    meta-openembedded/meta-multimedia
+    meta-openembedded/xfce-layer
+    meta-selinux
+    meta-security
+    meta-cgl/meta-cgl-common
+    meta-cloud-services
+    meta-cloud-services/meta-openstack
+    meta-montavista-cgl
+     
 
 II. Misc
 ========
