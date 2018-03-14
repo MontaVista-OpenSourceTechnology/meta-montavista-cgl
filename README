@@ -68,21 +68,21 @@ git send-email -1 -M --to support@mvista.com  --subject-prefix=meta-montavista-c
 Table of Contents
 =================
 
-  I. Adding the meta-montavista-cgx layer to your build
+  I. Adding the meta-montavista-cgl layer to your build
  II. Misc
 III. Layer specific information
  IV. Specific terms and information
 
 
-I. Adding the meta-montavista-cgx layer to your build
+I. Adding the meta-montavista-cgl layer to your build
 =================================================
 
 In order to use this layer, you need to make the build system aware of
 it.
 
-Assuming the meta-montavista-cgx layer exists at the top-level of your
+Assuming the meta-montavista-cgl layer exists at the top-level of your
 yocto build tree, you can add it to the build system by adding the
-location of the meta-montavista-cgx layer to bblayers.conf, along with any
+location of the meta-montavista-cgl layer to bblayers.conf, along with any
 other layers needed. Adapt the below list to proper format.
 
   BBLAYERS:
