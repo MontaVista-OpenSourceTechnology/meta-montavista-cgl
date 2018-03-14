@@ -8,36 +8,36 @@ Dependencies
 This layer depends on:
 
   URI: git://git.yoctoproject.org/poky
-  branch: rocko
+  branch: master
  
   or
 
   URI: git://git.openembedded.org/openembedded-core
-  branch: rocko
+  branch: master
 
   URI: git://git.openembedded.org/bitbake
   branch: 1.36
 
   URI: https://github.com/MontaVista-OpenSourceTechnology/meta-montavista-cgx
-  branch: rocko
+  branch: master
 
   URI: git://git.openembedded.org/meta-openembedded
   layers: meta-perl, meta-gnome, meta-multimedia, xfce-layer 
-  branch: rocko
+  branch: master
 
   URI: git://git.yoctoproject.org/meta-selinux
   branch: master
 
   URI: git://git.yoctoproject.org/meta-security 
-  branch: rocko
+  branch: master
 
   URI: git://git.yoctoproject.org/meta-cgl
   layers: meta-cgl-common
-  branch: rocko
+  branch: master
   
   URI: git://git.yoctoproject.org/meta-cloud-services
   layers: cloud-services-layer meta-openstack
-  branch: rocko
+  branch: master
 
 Source code
 ===========
