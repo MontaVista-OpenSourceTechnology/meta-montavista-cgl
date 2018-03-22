@@ -94,7 +94,6 @@ RDEPENDS_packagegroup-cge-utility-system-management = "\
 	daemontools \
 	hpitest \
 	lksctp-tools \
-	ocfs2-tools \
 	tipcutils \
 	"
 
