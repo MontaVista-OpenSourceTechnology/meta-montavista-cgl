@@ -4,8 +4,10 @@
 
 SUMMARY = "CGE Functionality"
 DESCRIPTION = "Features required to implement carrier grade functionality"
-PR = "r1"
+PR = "r2"
 LICENSE = "MIT"
+
+PACKAGE_ARCH = "${MACHINE_ARCH}"
 
 inherit packagegroup
 
