@@ -46,4 +46,5 @@ RDEPENDS_packagegroup-oe-webserver-cgl ="\
 
 RDEPENDS_packagegroup-oe-filesystem-utilities-cgl = " \
 	e2fsprogs-resize2fs \
+	tgt \
 "	
