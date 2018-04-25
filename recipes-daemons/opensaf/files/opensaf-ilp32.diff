@@ -1,0 +1,16 @@
+diff --git a/src/base/os_defs.c b/src/base/os_defs.c
+index 6f9ec52..24baa08 100644
+--- a/src/base/os_defs.c
++++ b/src/base/os_defs.c
+@@ -900,7 +900,11 @@ uint32_t ncs_os_posix_shm(NCS_OS_POSIX_SHM_REQ_INFO *req)
+ 			    ((statsvfs.f_bfree - 1) * statsvfs.f_frsize)) {
+ 				syslog(
+ 				    LOG_ERR,
++#ifdef __ILP32__
++				    "Insufficient shared memory (%lld) to write the data of size: %" PRId64
++#else
+ 				    "Insufficient shared memory (%ld) to write the data of size: %" PRId64
++#endif
+ 				    "\n",
+ 				    (statsvfs.f_bfree * statsvfs.f_frsize),
+ 				    req->info.write.i_write_size);

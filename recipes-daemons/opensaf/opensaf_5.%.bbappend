@@ -3,6 +3,7 @@ PR .= ".2"
 FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 
 SRC_URI += "file://use_hostname_alone.patch"
+SRC_URI += "file://opensaf-ilp32.diff"
 
 # opensaf provides same functionality as openais
 PROVIDES += "openais"
