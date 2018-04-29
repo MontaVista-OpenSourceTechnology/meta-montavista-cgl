@@ -7,7 +7,7 @@
 -	hostname -s > $(DESTDIR)$(pkgsysconfdir)/node_name
 +# Sometimes we don't have FQDN mentioned in /etc/hosts, 
 +# so replace "hostname -s" by "hostname"
-+	hostname > $(DESTDIR)$(pkgsysconfdir)/node_name
++	echo "(none)" > $(DESTDIR)$(pkgsysconfdir)/node_name
  if !ENABLE_AIS_PLM
  	sed -i '/plmd/d'  $(DESTDIR)$(pkgsysconfdir)/nodeinit.conf.controller
  endif
