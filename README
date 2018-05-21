@@ -8,28 +8,28 @@ Dependencies
 This layer depends on:
 
   URI: git://git.yoctoproject.org/poky
-  branch: master
+  branch: sumo 
  
   or
 
   URI: git://git.openembedded.org/openembedded-core
-  branch: master
+  branch: sumo 
 
   URI: git://git.openembedded.org/bitbake
   branch: 1.36
 
   URI: https://github.com/MontaVista-OpenSourceTechnology/meta-montavista-cgx
-  branch: master
+  branch: sumo 
 
   URI: git://git.openembedded.org/meta-openembedded
   layers: meta-perl, meta-gnome, meta-multimedia, xfce-layer 
-  branch: master
+  branch: sumo 
 
   URI: git://git.yoctoproject.org/meta-selinux
   branch: master
 
   URI: git://git.yoctoproject.org/meta-security 
-  branch: master
+  branch: sumo 
 
   URI: git://git.yoctoproject.org/meta-cgl
   layers: meta-cgl-common

@@ -9,7 +9,7 @@ SRC_URI = "${SOURCEFORGE_MIRROR}/ipmiutil/ipmiutil-${PV}.tar.gz \
 	  " 
 # file://use-cross-ar.patch 
 
-PR = "r0"
+PR = "r1"
 #FIXME:
 ERROR_QA_remove = "dev-elf"
 def extra_cflags(d):
@@ -28,10 +28,16 @@ def extra_cflags(d):
 inherit autotools
 
 B = "${S}"
+EXTRA_OECONF_append += "--mandir=${datadir}/${PN}/man"
 
 CFLAGS += "${@extra_cflags(d)}"
 
+do_configure_prepend () {
+    sed -i "s:^mandir = .*:mandir = @mandir@:g" ${S}/doc/Makefile.in ${S}/doc/Makefile.am
+}
+
 FILES_${PN} += "${libdir}"
+FILES_${PN}-doc += "${datadir}/${PN}/man"
 
 SRC_URI[md5sum] = "f055613809d14f9aa07fa23f90ed202a"
 SRC_URI[sha256sum] = "defc2fad88c184d953b5e37c42a95b0b14ed9772c097b00471e157be3e23542f"

@@ -41,8 +41,10 @@ RDEPENDS_packagegroup-oe-console-utilities-cgl = "\
 
 RDEPENDS_packagegroup-oe-webserver-cgl ="\
 	apache2 \
+	mod-wsgi \
 	"
 
 RDEPENDS_packagegroup-oe-filesystem-utilities-cgl = " \
 	e2fsprogs-resize2fs \
+	tgt \
 "	

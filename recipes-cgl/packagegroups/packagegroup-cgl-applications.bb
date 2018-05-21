@@ -43,7 +43,6 @@ RDEPENDS_packagegroup-cgl-applications = " \
     smartmontools \
     monit \
     syslog-ng \
-    ocfs2-tools \
     logcheck \
     samhain-client \
     samhain-server \
