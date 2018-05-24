@@ -35,7 +35,8 @@ PR = "r3"
 SRC_URI = "git://github.com/MontaVista-OpenSourceTechnology/libscsihotswap.git;protocol=https \
 	"
 S = "${WORKDIR}/git"
-SRCREV = "v3.1"
+#Version 3.1
+SRCREV = "634b496d4eef0d020f67fd8f846878bc91b6cdae"
 EXTRA_OEMAKE = ""
 TARGET_CC_ARCH += "${LDFLAGS}"
 ASNEEDED=""
