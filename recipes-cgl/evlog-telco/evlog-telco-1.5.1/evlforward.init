@@ -5,7 +5,7 @@
 # chkconfig: 2345 85 45
 #
 
-. /etc/init.d/init-functions
+. /lib/lsb/init-functions
 
 [ -f /sbin/evlforward ] || exit 0
 

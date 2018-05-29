@@ -59,7 +59,7 @@ DEPENDS = "zlib bison-native flex-native binutils"
 RDEPENDS_${PN} = "bash"
 RDEPENDS_${PN}-test = "bash"
 
-inherit autotools autotools_stage update-rc.d
+inherit autotools update-rc.d
 
 B = "${S}"
 EXTRA_OECONF += "--with-plugindir=${libdir}/${PN}/plugins --sbindir=${sbindir}"

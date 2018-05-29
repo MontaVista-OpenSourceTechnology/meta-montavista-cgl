@@ -1,40 +1,116 @@
-meta-cge
-===============
-
-The purpose of this layer is to provide MontaVista CGE support.
+This README file contains information on the contents of the MontaVista CGL layer.
+Please see the corresponding sections below for details.
 
 
 Dependencies
 ============
-This layer depends on Poky and OpenEmbedded-Core metadata. 
 
-For information about OpenEmbedded, see the OpenEmbedded website:
-    	http://www.openembedded.org/
+This layer depends on:
 
-For more information on Poky, see the Yocto Project website:
-	http://www.yoctoproject.org
+  URI: git://git.yoctoproject.org/poky
+  branch: sumo 
+ 
+  or
 
+  URI: git://git.openembedded.org/openembedded-core
+  branch: sumo 
 
-The Yocto Project has extensive documentation about OE including a reference manual
-which can be found at:
-    http://yoctoproject.org/documentation
+  URI: git://git.openembedded.org/bitbake
+  branch: 1.36
 
-Building the meta-cge layer
-=================
-In order to add MontaVista CGE support to the poky build this layer should be added
-to the bblayers.conf file. 
+  URI: https://github.com/MontaVista-OpenSourceTechnology/meta-montavista-cgx
+  branch: sumo 
+
+  URI: git://git.openembedded.org/meta-openembedded
+  layers: meta-perl, meta-gnome, meta-multimedia, xfce-layer 
+  branch: sumo 
+
+  URI: git://git.yoctoproject.org/meta-selinux
+  branch: master
+
+  URI: git://git.yoctoproject.org/meta-security 
+  branch: sumo 
+
+  URI: git://git.yoctoproject.org/meta-cgl
+  layers: meta-cgl-common
+  branch: master
+  
+  URI: git://git.yoctoproject.org/meta-cloud-services
+  layers: cloud-services-layer meta-openstack
+  branch: master
+
+Source code
+===========
+
+https://github.com/MontaVista-OpenSourceTechnology/meta-montavista-cgl
+
 
 Maintenance
------------
-Please send patches to support@mvista.com
-For Maintenance please contact support@mvista.com
+===========
 
-License
--------
+Maintainers:
+    support@mvista.com
 
-All metadata is MIT licensed unless otherwise stated. Source code included
-in tree for individual recipes is under the LICENSE stated in each recipe
-(.bb file) unless otherwise stated.
 
-This README document is Copyright (C) 2014 MontaVista, LLC.
+Contributing
+============
 
+Contributions and patches can be sent to the MontaVista  mailing
+list: support@mvista.com"
+
+When sending patches please take a look at the contribution guide available
+here: https://wiki.yoctoproject.org/wiki/Contribution_Guidelines
+
+example:
+git send-email -1 -M --to support@mvista.com  --subject-prefix=meta-montavista-cgx][PATCH
+
+
+Table of Contents
+=================
+
+  I. Adding the meta-montavista-cgl layer to your build
+ II. Misc
+III. Layer specific information
+ IV. Specific terms and information
+
+
+I. Adding the meta-montavista-cgl layer to your build
+=================================================
+
+In order to use this layer, you need to make the build system aware of
+it.
+
+Assuming the meta-montavista-cgl layer exists at the top-level of your
+yocto build tree, you can add it to the build system by adding the
+location of the meta-montavista-cgl layer to bblayers.conf, along with any
+other layers needed. Adapt the below list to proper format.
+
+  BBLAYERS:
+
+    meta
+    meta-openembedded/meta-networking
+    meta-openembedded/meta-filesystems
+    meta-openembedded/meta-oe
+    meta-openembedded/meta-python
+    meta-openembedded/meta-webserver
+    mdeta-virtualization
+    meta-montavista-cgx
+    meta-openembedded/meta-perl
+    meta-openembedded/meta-gnome
+    meta-openembedded/meta-multimedia
+    meta-openembedded/xfce-layer
+    meta-selinux
+    meta-security
+    meta-cgl/meta-cgl-common
+    meta-cloud-services
+    meta-cloud-services/meta-openstack
+    meta-montavista-cgl
+     
+
+II. Misc
+========
+
+The layer contains a core package group (packagegroup-meta-montavista-cgx.bb) that
+should aggregate all the other available package groups.
+
+The core image name is: default-image

@@ -8,12 +8,14 @@ PR = "r1"
 SRC_URI = "http://download.sourceforge.net/project/hpib-test/3.x.x/hpitest-${PV}-rc1.tar.gz \
            file://headers.patch;apply=yes \
            file://readonlyfield.patch;apply=yes \
-	   file://hpitest_sleep_fix.patch;apply=yes"
+	   file://hpitest_sleep_fix.patch;apply=yes \
+           file://compile-error.patch \
+"
 
 
 DEPENDS += "openhpi"
 
-inherit autotools autotools_stage
+inherit autotools autotools
 
 B = "${S}"
 

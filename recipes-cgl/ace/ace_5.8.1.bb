@@ -9,11 +9,13 @@ DEPENDS += "openssl gperf-native"
 SRC_URI = "ftp://download.dre.vanderbilt.edu/previous_versions/ACE-${PV}.tar.bz2 \
            file://ARM_visibility_plus_librt_fix.patch \
            file://disable_gperf_tests.patch \
+           file://use_sslv23_method.patch \
+           file://dont-redefine-cpuset.diff \
           "
 
 S = "${WORKDIR}/ACE_wrappers"
 
-PR = "r0"
+PR = "r1"
 
 EXTRA_OECONF += "--enable-ace-tests"
 LEAD_SONAME = "libACE-[0-9.]*.so"
@@ -42,6 +44,9 @@ FILES_lib${BPN} += "${libdir}/lib*${PV}*so"
 FILES_lib${BPN}-dev = "${libdir}/lib*${SOLIBSDEV} \
                        ${libdir}/*.la ${includedir} \
                        ${libdir}/pkgconfig"
+
+inherit multilib-alternatives
+MULTILIB_HEADERS = "ace/config.h"
 
 SRC_URI[md5sum] = "0c9c30bc0ce46017f21518f0dc24cc58"
 SRC_URI[sha256sum] = "2ea07c62d9ac78ce828c182a7aa9e426bb6367765c9e06b5f7fe2043e8498768"

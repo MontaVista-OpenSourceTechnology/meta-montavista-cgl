@@ -2,7 +2,7 @@ DESCRIPTION = "Enterprise Event Logging Telco Extensions"
 HOMEPAGE = "http://evlog-telco.sourceforge.net"
 LICENSE = "GPLv2"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=d41d4e2e1e108554e0388ea4aecd8d27"
-PR = "r0"
+PR = "r1"
 
 SRC_URI = "${SOURCEFORGE_MIRROR}/evlog-telco/evlog-telco-${PV}.tar.gz \
            file://evlsyslog.init \
@@ -22,7 +22,7 @@ SRC_URI[sha256sum] = "e21887215767fd529ccdd75b165200951cf9f8674ab7d51d6da3c4151f
 DEPENDS = "flex evlog flex-native"
 LDFLAGS += "-Wl,--as-needed"
 
-inherit autotools autotools_stage update-rc.d
+inherit autotools autotools update-rc.d
 
 B = "${S}"
 
@@ -35,8 +35,6 @@ do_install_append() {
     mv ${D}${sbindir}/evl* ${D}/sbin
     install -m 0755 ${WORKDIR}/evlsyslog.init ${D}${sysconfdir}/init.d/evlsyslog
     install -m 0755 ${WORKDIR}/evlforward.init ${D}${sysconfdir}/init.d/evlforward
-    sed -i "s|/etc/init.d/init-functions|${base_libdir}/lsb/init-functions|g" \
-    ${D}${sysconfdir}/init.d/evlsyslog ${D}${sysconfdir}/init.d/evlforward 
 }
 
 pkg_postinst_${PN}() {
