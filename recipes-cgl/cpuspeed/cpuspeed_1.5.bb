@@ -10,8 +10,10 @@ LIC_FILES_CHKSUM = "file://../license.txt;md5=f9d401383222fa8796221565eaa567d2"
 PR = "r2"
 COMPATIBLE_HOST = "(i.86|x86_64|powerpc).*-linux"
 
-SRC_URI = "http://www.carlthompson.net/downloads/cpuspeed/cpuspeed-${PV}.tar.bz2;name=src \
-           http://www.carlthompson.net/downloads/cpuspeed/license.txt;name=license \
+#LOCATION="http://www.carlthompson.net/downloads/cpuspeed/"
+LOCATION="https://github.com/MontaVista-OpenSourceTechnology/source-mirror/raw/master/"
+SRC_URI = "${LOCATION}/cpuspeed-${PV}.tar.bz2;name=src \
+           ${LOCATION}/license.txt;name=license \
 	   file://cpuspeed-1.5-Makefile.patch;patch=1 \
 	   file://cpuspeed-1.5-no-affected_cpus-fallback.patch;patch=1 \
 	   file://cpuspeed.init \
