@@ -1,6 +1,5 @@
-PR .= ".2"
+PR .= ".3"
 
 DEPENDS += "libaio"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
-+FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
