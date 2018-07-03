@@ -143,9 +143,10 @@ RDEPENDS_packagegroup-cge-security = "\
 	liblockfile \
 	lockfile-progs \
 	pinentry \
-	wireshark \
         adduser \
 	"
+# FIXME Not building with lastest update
+#	wireshark
 
 RDEPENDS_packagegroup-cge-logs-management = "\
 	eventlog \
