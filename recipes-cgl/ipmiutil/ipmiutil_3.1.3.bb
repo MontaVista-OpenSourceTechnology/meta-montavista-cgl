@@ -39,5 +39,5 @@ do_configure_prepend () {
 FILES_${PN} += "${libdir}"
 FILES_${PN}-doc += "${datadir}/${PN}/man"
 
-SRC_URI[md5sum] = "f055613809d14f9aa07fa23f90ed202a"
-SRC_URI[sha256sum] = "defc2fad88c184d953b5e37c42a95b0b14ed9772c097b00471e157be3e23542f"
+SRC_URI[md5sum] = "0d448d14726e2fda0eb9451fb2866a5c"
+SRC_URI[sha256sum] = "b80303b6f05cbe48e728dd925fef201e9604a90cd3fc9c8af113367e8d6dbe57"
