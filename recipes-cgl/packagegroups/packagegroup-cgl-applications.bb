@@ -52,6 +52,7 @@ RDEPENDS_packagegroup-cgl-applications = " \
     libpam \
     rsyslog \
     makedumpfile \
+    cryptsetup \
     "
 
 LTTNG ?= "\
