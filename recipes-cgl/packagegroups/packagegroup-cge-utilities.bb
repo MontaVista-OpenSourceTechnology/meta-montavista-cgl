@@ -113,10 +113,10 @@ X86_PACKAGES_SYSTEMMGMT_UTILS_i686 = " \
 		"
 LTRACE="ltrace"
 LTRACE_aarch64 = ""
-
+PREFERRED_PROVIDER_libunwind ?= "libunwind"
 RDEPENDS_packagegroup-cge-utility-debug = "\
 	gdb-kdump-helpers \
-	libunwind \
+	${PREFERRED_PROVIDER_libunwind} \
 	pcoredump \
 	ltt-kdump \
 	"
