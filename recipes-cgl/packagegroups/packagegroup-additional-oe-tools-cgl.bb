@@ -37,6 +37,7 @@ RDEPENDS_packagegroup-oe-virtualization-cgl = "\
 
 RDEPENDS_packagegroup-oe-console-utilities-cgl = "\
 	lxc \
+	cryptsetup \
 	"
 
 RDEPENDS_packagegroup-oe-webserver-cgl ="\
