@@ -47,7 +47,6 @@ RDEPENDS_packagegroup-cge-utility-hardware = "\
 	acpitool \
 	cdrkit \
 	drbd-utils \
-	drbd \
 	ipmiutil \
 	libscsihotswap \
 	openhpi \
@@ -59,6 +58,8 @@ RDEPENDS_packagegroup-cge-utility-hardware = "\
 	nbd-server \
 	nbd-trdump \
 	"
+
+#	drbd
 RDEPENDS_packagegroup-cge-utility-hardware += "\
 					${X86_PACKAGES_HARDWARE_UTILS} \
 					${POWERPC_PACKAGES_HARDWARE_UTILS} \
@@ -113,10 +114,10 @@ X86_PACKAGES_SYSTEMMGMT_UTILS_i686 = " \
 		"
 LTRACE="ltrace"
 LTRACE_aarch64 = ""
-
+PREFERRED_PROVIDER_libunwind ?= "libunwind"
 RDEPENDS_packagegroup-cge-utility-debug = "\
 	gdb-kdump-helpers \
-	libunwind \
+	${PREFERRED_PROVIDER_libunwind} \
 	pcoredump \
 	ltt-kdump \
 	"
