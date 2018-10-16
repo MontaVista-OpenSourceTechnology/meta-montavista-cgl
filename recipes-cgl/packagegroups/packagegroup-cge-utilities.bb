@@ -150,13 +150,14 @@ RDEPENDS_packagegroup-cge-security = "\
 #	wireshark
 
 RDEPENDS_packagegroup-cge-logs-management = "\
-	eventlog \
 	syslog-ng \
 	logcheck \
 	"
 # FIXME missing get_kernel_syms
 #	evlog 
 #	evlog-telco 
+#Missing from latest content
+#eventlog 
 
 RDEPENDS_packagegroup-cge-libs = "\
 	ace \
