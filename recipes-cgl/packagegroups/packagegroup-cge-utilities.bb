@@ -160,19 +160,20 @@ RDEPENDS_packagegroup-cge-logs-management = "\
 #eventlog 
 
 RDEPENDS_packagegroup-cge-libs = "\
-	ace \
 	lemon \
 	libc-client \
 	libol \
 	libyaml \
 	mysql5 \
-	opendiameter \
 	opensaf \
 	postgresql \
 	swig \
 	"
 # FIXME: not sure why this is misssing
 #	ustr
+# FIXME ace not building
+#	ace 
+#	opendiameter
 
 RDEPENDS_packagegroup-cge-boot-utilities = "\
 	bootcycle \
