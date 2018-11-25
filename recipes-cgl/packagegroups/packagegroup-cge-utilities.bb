@@ -159,6 +159,9 @@ RDEPENDS_packagegroup-cge-logs-management = "\
 #Missing from latest content
 #eventlog 
 
+# FIXME ace and opendiameter
+#	ace 
+#	opendiameter
 RDEPENDS_packagegroup-cge-libs = "\
 	lemon \
 	libc-client \

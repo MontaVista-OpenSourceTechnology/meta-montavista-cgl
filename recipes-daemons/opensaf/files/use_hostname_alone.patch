@@ -1,8 +1,8 @@
 --- opensaf-5.17.07/Makefile.am.orig	2017-12-18 17:39:07.952844020 -0500
 +++ opensaf-5.17.07/Makefile.am	2017-12-18 17:41:27.497836961 -0500
-@@ -325,7 +325,9 @@
- 		sed --follow-symlinks -i 's|xxLIBDIRxx|$(pkglibdir)|g' "$$i"; \
+@@ -340,7 +340,9 @@ install-data-hook: set-default-node-conf
  		sed --follow-symlinks -i 's|xxCLCCLIDIRxx|$(pkgclcclidir)|g' "$$i"; \
+ 		sed --follow-symlinks -i 's|xxCLMSCRIPTDIRxx|$(pkgclmscriptsdir)|g' "$$i"; \
  	done
 -	hostname -s > $(DESTDIR)$(pkgsysconfdir)/node_name
 +# Sometimes we don't have FQDN mentioned in /etc/hosts, 
