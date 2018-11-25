@@ -1,7 +1,6 @@
-inherit multilib-alternatives
+inherit multilib_script
 
-MULTILIB_ALTERNATIVES_${PN} += "${datadir}/resource-agents/ocft/caselib \
-                                ${sbindir}/ocf-tester \
-                                ${sysconfdir}/ha.d/shellfuncs \
+MULTILIB_SCRIPTS = "${PN}:${datadir}/resource-agents/ocft/caselib \
+                    ${PN}:${sbindir}/ocf-tester \
+                    ${PN}:${sysconfdir}/ha.d/shellfuncs \
 "
-
