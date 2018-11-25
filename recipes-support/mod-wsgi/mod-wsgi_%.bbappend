@@ -1,5 +1,5 @@
 PR .= ".1"
 
-inherit multilib-alternatives
+inherit multilib_script
 
-MULTILIB_ALTERNATIVES_${PN} = "/etc/apache2/modules.d/wsgi.load"
+MULTILIB_SCRIPTS = "${PN}:/etc/apache2/modules.d/wsgi.load"
