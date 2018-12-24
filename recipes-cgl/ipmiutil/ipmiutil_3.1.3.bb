@@ -5,7 +5,7 @@ LICENSE = "BSD"
 LIC_FILES_CHKSUM = "file://COPYING;md5=626a5970304daa1fcb87f757fb42b795"
 DEPENDS="openssl-native openssl"
 PARALLEL_MAKE = ""
-SRC_URI = "${SOURCEFORGE_MIRROR}/ipmiutil/ipmiutil-${PV}.tar.gz \
+SRC_URI = "https://sourceforge.net/projects/ipmiutil/files/${BPN}-${PV}.tar.gz \
 	  " 
 # file://use-cross-ar.patch 
 
