@@ -1,6 +1,6 @@
-diff -ur .orig-hpitest-3.1.1/src/framework/LocationMgr.cc hpitest-3.1.1/src/framework/LocationMgr.cc
---- .orig-hpitest-3.1.1/src/framework/LocationMgr.cc	2010-04-27 12:05:23.000000000 +0400
-+++ hpitest-3.1.1/src/framework/LocationMgr.cc	2011-03-20 12:05:10.406767998 +0300
+diff -Naurp hpitest-3.2.0_org/src/framework/LocationMgr.cc hpitest-3.2.0/src/framework/LocationMgr.cc
+--- hpitest-3.2.0_org/src/framework/LocationMgr.cc	2010-09-18 00:25:48.000000000 +0530
++++ hpitest-3.2.0/src/framework/LocationMgr.cc	2019-01-04 18:04:57.143804008 +0530
 @@ -17,6 +17,8 @@
   * Author(s):
   *     Donald A. Barre <dbarre@unh.edu>
@@ -10,9 +10,9 @@ diff -ur .orig-hpitest-3.1.1/src/framework/LocationMgr.cc hpitest-3.1.1/src/fram
  #include <cstring>
  #include <string.h>
  
-diff -ur .orig-hpitest-3.1.1/src/framework/UserPrompter.cc hpitest-3.1.1/src/framework/UserPrompter.cc
---- .orig-hpitest-3.1.1/src/framework/UserPrompter.cc	2010-04-27 12:05:23.000000000 +0400
-+++ hpitest-3.1.1/src/framework/UserPrompter.cc	2011-03-20 12:05:32.887768003 +0300
+diff -Naurp hpitest-3.2.0_org/src/framework/UserPrompter.cc hpitest-3.2.0/src/framework/UserPrompter.cc
+--- hpitest-3.2.0_org/src/framework/UserPrompter.cc	2010-09-18 00:25:48.000000000 +0530
++++ hpitest-3.2.0/src/framework/UserPrompter.cc	2019-01-04 18:04:57.143804008 +0530
 @@ -20,6 +20,7 @@
  
  #include <stdlib.h>
@@ -21,9 +21,9 @@ diff -ur .orig-hpitest-3.1.1/src/framework/UserPrompter.cc hpitest-3.1.1/src/fra
  #include <cstring>
  #include <iostream>
  #include <limits>
-diff -ur .orig-hpitest-3.1.1/src/hpi/HpiString.cc hpitest-3.1.1/src/hpi/HpiString.cc
---- .orig-hpitest-3.1.1/src/hpi/HpiString.cc	2010-04-27 12:05:23.000000000 +0400
-+++ hpitest-3.1.1/src/hpi/HpiString.cc	2011-03-20 11:59:31.801768003 +0300
+diff -Naurp hpitest-3.2.0_org/src/hpi/HpiString.cc hpitest-3.2.0/src/hpi/HpiString.cc
+--- hpitest-3.2.0_org/src/hpi/HpiString.cc	2010-09-18 00:25:48.000000000 +0530
++++ hpitest-3.2.0/src/hpi/HpiString.cc	2019-01-04 18:04:57.143804008 +0530
 @@ -24,6 +24,7 @@
   * 	            enhancements to be HPI-B.03.01 compliant
   */
@@ -32,9 +32,9 @@ diff -ur .orig-hpitest-3.1.1/src/hpi/HpiString.cc hpitest-3.1.1/src/hpi/HpiStrin
  #include <cstring>
  
  #include "HpiString.h"
-diff -ur .orig-hpitest-3.1.1/src/tests/version/saHpiInitialize/InvalidData.cc hpitest-3.1.1/src/tests/version/saHpiInitialize/InvalidData.cc
---- .orig-hpitest-3.1.1/src/tests/version/saHpiInitialize/InvalidData.cc	2010-04-27 12:05:22.000000000 +0400
-+++ hpitest-3.1.1/src/tests/version/saHpiInitialize/InvalidData.cc	2011-03-20 12:00:40.123768000 +0300
+diff -Naurp hpitest-3.2.0_org/src/tests/version/saHpiInitialize/InvalidData.cc hpitest-3.2.0/src/tests/version/saHpiInitialize/InvalidData.cc
+--- hpitest-3.2.0_org/src/tests/version/saHpiInitialize/InvalidData.cc	2010-09-18 00:26:00.000000000 +0530
++++ hpitest-3.2.0/src/tests/version/saHpiInitialize/InvalidData.cc	2019-01-04 18:04:57.143804008 +0530
 @@ -18,6 +18,8 @@
   *     Lars Wetzel <larswetzel@users.sourceforge.net>
   */
@@ -42,5 +42,5 @@ diff -ur .orig-hpitest-3.1.1/src/tests/version/saHpiInitialize/InvalidData.cc hp
 +#include <cstdlib>
 +
  #include "InvalidData.h"
+ #include <stdlib.h>
  
- using namespace ns_saHpiInitialize;
