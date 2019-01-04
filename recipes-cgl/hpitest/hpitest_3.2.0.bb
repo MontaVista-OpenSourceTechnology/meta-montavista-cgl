@@ -3,7 +3,7 @@ SAFORUM for its SAF Hardware Platform Interface (HPI) specifications"
 HOMEPAGE = "http://sourceforge.net/projects/hpib-test"
 LICENSE = "GPLv2"
 LIC_FILES_CHKSUM = "file://COPYING;md5=663350cf8df2e1c1ee9139e69040eeab"
-PR = "r1"
+PR = "r2"
 
 SRC_URI = "http://download.sourceforge.net/project/hpib-test/3.x.x/hpitest-${PV}-rc1.tar.gz \
            file://headers.patch;apply=yes \
