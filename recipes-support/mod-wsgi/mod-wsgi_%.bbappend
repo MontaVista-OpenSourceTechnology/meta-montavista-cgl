@@ -1,5 +1,1 @@
-PR .= ".1"
-
-inherit multilib_script
-
-MULTILIB_SCRIPTS = "${PN}:/etc/apache2/modules.d/wsgi.load"
+require ${@bb.utils.contains('DISTRO_FEATURES', 'mvista-cgl', '${BPN}_mvista.inc', '', d)}
