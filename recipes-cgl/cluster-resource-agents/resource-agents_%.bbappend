@@ -1,6 +1,1 @@
-inherit multilib_script
-
-MULTILIB_SCRIPTS = "${PN}:${datadir}/resource-agents/ocft/caselib \
-                    ${PN}:${sbindir}/ocf-tester \
-                    ${PN}:${sysconfdir}/ha.d/shellfuncs \
-"
+require ${@bb.utils.contains('DISTRO_FEATURES', 'mvista-cgl', '${BPN}_mvista.inc', '', d)}
