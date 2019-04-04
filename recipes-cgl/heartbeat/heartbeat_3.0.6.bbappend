@@ -1,4 +1,1 @@
-PR .= ".1"
-
-FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
-SRC_URI += "file://3.0.5-docs.patch"
+require ${@bb.utils.contains('DISTRO_FEATURES', 'mvista-cgl', '${BPN}_mvista.inc', '', d)}
