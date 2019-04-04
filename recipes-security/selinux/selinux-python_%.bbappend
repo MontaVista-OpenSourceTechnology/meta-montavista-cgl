@@ -1,7 +1,1 @@
-do_install() {
-        oe_runmake DESTDIR=${D} \
-                PYTHONLIBDIR='${libdir}/python${PYTHON_BASEVERSION}/site-packages' \
-                LIBDIR='${D}${libdir}' \
-                install
-}
-
+require ${@bb.utils.contains('DISTRO_FEATURES', 'mvista-cgl', '${BPN}_mvista.inc', '', d)}
