@@ -1,3 +1,1 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/${BPN}-${PV}:"
-SRC_URI += "file://acpitool-fix-warnings.patch \
-	   "
+require ${@bb.utils.contains('DISTRO_FEATURES', 'mvista-cgl', '${BPN}_mvista.inc', '', d)}
