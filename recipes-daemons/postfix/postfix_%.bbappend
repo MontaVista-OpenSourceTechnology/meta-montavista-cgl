@@ -1,3 +1,1 @@
-PR .= ".1"
-CCARGS_append_virtclass-native = " -DNO_NIS "
-AUXLIBS_append_virtclass-native = " -lresolv"
+require ${@bb.utils.contains('DISTRO_FEATURES', 'mvista-cgl', '${BPN}_mvista.inc', '', d)}
