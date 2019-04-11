@@ -1,3 +1,3 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/${BPN}-${PV}:"
+FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 SRC_URI += "file://acpitool-fix-warnings.patch \
 	   "
