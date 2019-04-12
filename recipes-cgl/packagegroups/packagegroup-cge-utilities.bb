@@ -39,120 +39,63 @@ RDEPENDS_packagegroup-cge-utilities = "\
     packagegroup-cge-ftpserver-utilities \
     "
 
-RDEPENDS_packagegroup-cge-ftpserver-utilities = "\
-	lftp \
-	"
+RDEPENDS_packagegroup-cge-ftpserver-utilities = " \
+"
 
 RDEPENDS_packagegroup-cge-utility-hardware = "\
-	acpitool \
-	cdrkit \
-	drbd-utils \
 	ipmiutil \
 	libscsihotswap \
-	openhpi \
-	openipmi \
-	paxctl \
-	scsirastools \
-	smartmontools \
-	nbd-client \
-	nbd-server \
-	nbd-trdump \
-	"
+"
 
-#	drbd
 RDEPENDS_packagegroup-cge-utility-hardware += "\
 					${X86_PACKAGES_HARDWARE_UTILS} \
 					${POWERPC_PACKAGES_HARDWARE_UTILS} \
 					"
-X86_PACKAGES_HARDWARE_UTILS = ""
-POWERPC_PACKAGES_HARDWARE_UTILS = ""
+X86_PACKAGES_HARDWARE_UTILS ?= ""
+POWERPC_PACKAGES_HARDWARE_UTILS ?= ""
 
 X86_PACKAGES_HARDWARE_UTILS_x86-64 = " \
-		pmtools \
-		cpuspeed \
-		numactl \
-		"
+	cpuspeed \
+"
 
 X86_PACKAGES_HARDWARE_UTILS_i686 = " \
-		pmtools \
-		cpuspeed \
-		numactl \
-		"
+	cpuspeed \
+"
 
 POWERPC_PACKAGES_HARDWARE_UTILS_powerpc = " \
-		cpuspeed \
-		numactl \
-		"
-
-EDACUTILS = ""
-EDACUTILS_x86-64 = "edac-utils" 
-EDACUTILS_i686 = "edac-utils" 
-
-IPXE = ""
-IPXE_x86-64 = "ipxe"
-IPXE_i686 = "ipxe"
+	cpuspeed \
+"
 
 RDEPENDS_packagegroup-cge-utility-system-management = "\
-	adduser \
-	daemontools \
-	hpitest \
-	lksctp-tools \
-	tipcutils \
-	"
-
-
+"
 
 RDEPENDS_packagegroup-cge-utility-system-management += "\
-					${X86_PACKAGES_SYSTEMMGMT_UTILS} \
-					"
-X86_PACKAGES_SYSTEMMGMT_UTILS = ""
+	${X86_PACKAGES_SYSTEMMGMT_UTILS} \
+"
+
+X86_PACKAGES_SYSTEMMGMT_UTILS ?= ""
 X86_PACKAGES_SYSTEMMGMT_UTILS_x86-64 = " \
-		dmidecode \
-		"
+	dmidecode \
+"
 X86_PACKAGES_SYSTEMMGMT_UTILS_i686 = " \
-		dmidecode \
-		"
-LTRACE="ltrace"
-LTRACE_aarch64 = ""
+	dmidecode \
+"
+
 PREFERRED_PROVIDER_libunwind ?= "libunwind"
-RDEPENDS_packagegroup-cge-utility-debug = "\
-	gdb-kdump-helpers \
+RDEPENDS_packagegroup-cge-utility-debug = " \
 	${PREFERRED_PROVIDER_libunwind} \
 	pcoredump \
 	ltt-kdump \
-	"
-#provided by busybox
-#	start-stop-daemon
-
+"
 
 RDEPENDS_packagegroup-cge-utility-network-management = "\
-	ifenslave \
-	libcap-ng \
-	netkit-telnet \
-	openl2tp \
-	openldap \
-	quagga \
-	strongswan \
-	tunctl \
-	stunnel \
-	ptpd \
-	"
-RDEPENDS_packagegroup-cge-security = "\
-	cyrus-sasl \
-	${EDACUTILS} \
-	ipsec-tools \
-	liblockfile \
-	lockfile-progs \
-	pinentry \
-        adduser \
-	"
-# FIXME Not building with lastest update
-#	wireshark
+"
 
-RDEPENDS_packagegroup-cge-logs-management = "\
-	syslog-ng \
-	logcheck \
-	"
+RDEPENDS_packagegroup-cge-security = "\
+"
+
+RDEPENDS_packagegroup-cge-logs-management = " \
+"
 # FIXME missing get_kernel_syms
 #	evlog 
 #	evlog-telco 
@@ -163,15 +106,9 @@ RDEPENDS_packagegroup-cge-logs-management = "\
 #	ace 
 #	opendiameter
 RDEPENDS_packagegroup-cge-libs = "\
-	lemon \
-	libc-client \
-	libol \
 	libyaml \
-	mysql5 \
-	opensaf \
-	postgresql \
 	swig \
-	"
+"
 # FIXME: not sure why this is misssing
 #	ustr
 # FIXME ace not building
@@ -180,30 +117,17 @@ RDEPENDS_packagegroup-cge-libs = "\
 
 RDEPENDS_packagegroup-cge-boot-utilities = "\
 	bootcycle \
-	${IPXE} \
-	"
+"
 
-RDEPENDS_packagegroup-cge-boot-utilities += "${X86_PACKAGES_BOOT_UTILS}"
-
-X86_PACKAGES_BOOT_UTILS = ""
-
-X86_PACKAGES_BOOT_UTILS_x86-64 = " \
-		efibootmgr \
-		gnu-efi \
-		"
-
-X86_PACKAGES_BOOT_UTILS_i686 = " \
-		efibootmgr \
-		gnu-efi \
-		"
+RDEPENDS_packagegroup-cge-boot-utilities += " \
+"
 
 RDEPENDS_packagegroup-cge-virualization-utilities += "${X86_PACKAGES_VIRTUALIZATION_UTILS}"
 
 X86_PACKAGES_VIRTUALIZATION_UTILS = ""
 X86_PACKAGES_VIRTUALIZATION_UTILS_x86-64 = " \
-		qemu \
-		"
+	qemu \
+"
 X86_PACKAGES_VIRTUALIZATION_UTILS_i686 = " \
-		qemu \
-		"
-
+	qemu \
+"
