@@ -19,7 +19,7 @@ EXTRA_X86_i686 = "${MKRAMDISK}"
 RDEPENDS_packagegroup-profile-cgl = " \
          packagegroup-additional-oe-tools \
          packagegroup-core-full-cmdline \
-         packagegroup-core-lsb-core \
+         ${@bb.utils.contains('DISTRO_FEATURES', 'pam opengl x11', 'packagegroup-core-lsb-core', '', d)} \
          packagegroup-core-tools-testapps \
          packagegroup-core-tools-debug \
          packagegroup-core-buildessential \

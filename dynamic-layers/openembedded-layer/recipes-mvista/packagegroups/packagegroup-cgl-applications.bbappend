@@ -16,7 +16,7 @@ RDEPENDS_packagegroup-cgl-applications_append = " \
 	${LM_SENSORS} \
 	smartmontools \
 	crash \
-	pam-passwdqc \
+	${@bb.utils.contains('DISTRO_FEATURES', 'pam', 'pam-passwdqc', '', d)} \
 	rsyslog \
 	makedumpfile \
 "
