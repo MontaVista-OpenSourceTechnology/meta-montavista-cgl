@@ -24,7 +24,7 @@ RDEPENDS_packagegroup-cgl-applications = " \
     libevent \
     mdadm \
     quota \
-    libpam \
+    ${@bb.utils.contains('DISTRO_FEATURES', 'pam', 'libpam', '', d)} \
 "
 
 LTTNG ?= "\
