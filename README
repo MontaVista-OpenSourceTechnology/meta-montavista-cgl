@@ -114,3 +114,18 @@ The layer contains a core package group (packagegroup-meta-montavista-cgx.bb) th
 should aggregate all the other available package groups.
 
 The core image name is: default-image
+
+meta-montavista-cgl
+===================
+
+This layer provides the support for MontaVista CGL support.
+
+The bbappend files for the recipes provided, are only enabled when the
+value 'mvista-cgl' is added to DISTRO_FEATURES.
+
+  DISTRO_FEATURES_append = " mvista-cgl "
+
+There is a sanity check warning if that value is missing. That can be disabled
+by setting:
+
+  SKIP_META_MONTAVISTA_CGL_SANITY_CHECK = 1
