@@ -19,4 +19,3 @@ BBMASK += "meta-openstack/recipes-support/libbsd/libbsd_0.7.0.bbappend"
 BBMASK += "meta-openstack/recipes-graphics/xorg-app/xterm_320.bbappend"
 BBMASK += "meta-cgl-common/images/core-image-cgl-initramfs.bb"
 
-PREFERRED_VERSION_ipmiutil ??= "3.0.5"
