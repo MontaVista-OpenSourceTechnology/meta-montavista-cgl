@@ -1,6 +1,7 @@
 PACKAGECONFIG_pn-qemu ?= " fdt virtfs libcap-ng "
 DISTRO_FEATURES_append += "openstack"
 PREFERRED_VERSION_ipmiutil ?= "3.1.3"
+PREFERRED_VERSION_drbd ?= "9.0.16-1"
 
 PREFERRED_VERSION_lksctp-tools ?= "1.0.18%"
 PREFERRED_VERSION_multipath-tools ?= "0.7.7%"
