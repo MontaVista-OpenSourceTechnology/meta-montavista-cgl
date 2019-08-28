@@ -12,13 +12,15 @@ inherit pkgconfig
 
 PACKAGES = "packagegroup-cgl-applications"
 
+GDBSERVER = "gdbserver"
+GDBSERVER_riscv64 = ""
 RDEPENDS_packagegroup-cgl-applications = " \
     bc \
     gettext \
     gettext-runtime \
     babeltrace \
     gdb \
-    gdbserver \
+    ${GDBSERVER} \
     rsync \
     strace \
     libevent \
