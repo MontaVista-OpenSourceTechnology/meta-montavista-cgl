@@ -1,3 +1,4 @@
+
 LM_SENSORS = " \
     lmsensors-fancontrol \
     lmsensors-libsensors \
@@ -11,12 +12,15 @@ LM_SENSORS = " \
     lmsensors-config-sensord \
     lmsensors-config-fancontrol \
 "
-
+MAKEDUMPFILE = "makedumpfile"
+MAKEDUMPFILE_riscv64 = ""
+CRASH = "crash"
+CRASH_riscv64 = "" 
 RDEPENDS_packagegroup-cgl-applications_append = " \
 	${LM_SENSORS} \
 	smartmontools \
-	crash \
+	${CRASH} \
 	${@bb.utils.contains('DISTRO_FEATURES', 'pam', 'pam-passwdqc', '', d)} \
 	rsyslog \
-	makedumpfile \
+    ${MAKEDUMPFILE} \
 "
