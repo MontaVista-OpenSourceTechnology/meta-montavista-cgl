@@ -40,7 +40,6 @@ SRCREV = "634b496d4eef0d020f67fd8f846878bc91b6cdae"
 EXTRA_OEMAKE = ""
 TARGET_CC_ARCH += "${LDFLAGS}"
 ASNEEDED=""
-export mandir="${datadir}/${PN}/man"
 
 do_compile () {
 	pushd libscsihotswap
@@ -64,8 +63,8 @@ do_install () {
 	popd
 	install -m 0644 libscsihotswap.a ${D}${libdir}
 	install -m 0644 libscsihotswap.h ${D}${includedir}
-	gzip -c scsi_hotswap_by_id.3 > ${D}${mandir}/man3/scsi_hotswap_by_id.3.gz
-	gzip -c scsi_hotswap_by_ieee_wildcard.3 > ${D}${mandir}/man3/scsi_hotswap_by_ieee_wildcard.3.gz
+	gzip -nc scsi_hotswap_by_id.3 > ${D}${mandir}/man3/scsi_hotswap_by_id.3.gz
+	gzip -nc scsi_hotswap_by_ieee_wildcard.3 > ${D}${mandir}/man3/scsi_hotswap_by_ieee_wildcard.3.gz
 	popd
 
 	# the utilities
@@ -84,4 +83,3 @@ do_install () {
 }
 
 
-FILES_${PN}-doc += "${datadir}/${PN}/man"
