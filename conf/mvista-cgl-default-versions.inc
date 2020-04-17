@@ -6,8 +6,8 @@ SRCREV_refpolicy-contrib_mvista-cgx ?= "7ee8f539039605c7881343962f07d086e6d01206
 BBMASK += "meta-openstack/recipes-support/openldap/openldap_2.4.39.bbappend"
 BBMASK += "meta-cgl-common/recipes-cgl/openais/openais_1.1.4.bb"
 # Get rid of older bbappend files
-BBMASK += "meta-cgl-common/packagegroups/packagegroup-cgl-applications.bb"
-BBMASK += "meta-cgl-common/images/core-image-cgl.bb"
+BBMASK += "meta-cgl-common/recipes-core/packagegroups/packagegroup-cgl-applications.bb"
+BBMASK += "meta-cgl-common/recipes-core/images/core-image-cgl.bb"
 BBMASK += "meta-openstack/recipes-extended/iptables/iptables_1.4.21.bbappend"
 BBMASK += "meta-openstack/recipes-devtools/qemu/qemu_2.%.bbappend"
 BBMASK += "meta-openstack/recipes-kernel/linux/linux-yocto_4.12.bbappend"
