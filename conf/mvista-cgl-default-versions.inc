@@ -1,8 +1,6 @@
 PACKAGECONFIG_pn-qemu ?= " fdt virtfs libcap-ng "
 DISTRO_FEATURES_append += "openstack"
 
-SRCREV_refpolicy_mvista-cgx ?= "6b0abaf880893e27921627f4a4269c0db928c13f"
-SRCREV_refpolicy-contrib_mvista-cgx ?= "7ee8f539039605c7881343962f07d086e6d01206"
 BBMASK += "meta-openstack/recipes-support/openldap/openldap_2.4.39.bbappend"
 BBMASK += "meta-cgl-common/recipes-cgl/openais/openais_1.1.4.bb"
 # Get rid of older bbappend files
