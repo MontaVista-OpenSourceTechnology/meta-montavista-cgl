@@ -41,10 +41,12 @@ RDEPENDS_packagegroup-cge-utilities = "\
 
 RDEPENDS_packagegroup-cge-ftpserver-utilities = " \
 "
-
+IPMIUTIL = ""
+IPMIUTIL_x86 = "ipmiutil"
+IPMIUTIL_x86-64 = "ipmiutil"
 RDEPENDS_packagegroup-cge-utility-hardware = "\
-	ipmiutil \
 	libscsihotswap \
+    ${IPMIUTIL} \
 "
 
 RDEPENDS_packagegroup-cge-utility-hardware += "\
