@@ -1,3 +1,3 @@
-RDEPENDS_packagegroup-cge-utility-hardware_append = " \
+RDEPENDS:packagegroup-cge-utility-hardware:append = " \
 	paxctl \
 "

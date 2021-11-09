@@ -1,40 +1,40 @@
-RDEPENDS_packagegroup-cge-utility-hardware_append = " \
+RDEPENDS:packagegroup-cge-utility-hardware:append = " \
 	acpitool \
 	scsirastools \
 "
 
-X86_PACKAGES_HARDWARE_UTILS_append_x86-64 = " \
+X86_PACKAGES_HARDWARE_UTILS:append:x86-64 = " \
 	pmtools \
 	numactl \
 "
 
-X86_PACKAGES_HARDWARE_UTILS_append_i686 = " \
+X86_PACKAGES_HARDWARE_UTILS:append_i686 = " \
 	pmtools \
 	numactl \
 "
 
-POWERPC_PACKAGES_HARDWARE_UTILS_append_powerpc = " \
+POWERPC_PACKAGES_HARDWARE_UTILS:append:powerpc = " \
 	numactl \
 "
 
 EDACUTILS = ""
-EDACUTILS_x86-64 = "edac-utils"
+EDACUTILS:x86-64 = "edac-utils"
 EDACUTILS_i686 = "edac-utils"
 
-RDEPENDS_packagegroup-cge-utility-system-management_append = " \
+RDEPENDS:packagegroup-cge-utility-system-management:append = " \
 	daemontools \
 	hpitest \
 	tipcutils \
 "
 
 LTRACE = "ltrace"
-LTRACE_aarch64 = ""
+LTRACE:aarch64 = ""
 
-RDEPENDS_packagegroup-cge-security_append = " \
+RDEPENDS:packagegroup-cge-security:append = " \
 	${EDACUTILS} \
 "
 
-RDEPENDS_packagegroup-cge-libs_append = " \
+RDEPENDS:packagegroup-cge-libs:append = " \
 	lemon \
 	mariadb \
 "

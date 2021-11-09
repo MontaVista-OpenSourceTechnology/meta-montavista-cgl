@@ -14,7 +14,7 @@ SRC_URI = "http://ftp.gnome.org/pub/GNOME/sources/gnet/2.0/gnet-${PV}.tar.bz2 \
 
 EXTRA_OECONF +=	"--disable-pthreads"
 
-FILES_${PN}-dev += "${libdir}/gnet-2.0"
+FILES:${PN}-dev += "${libdir}/gnet-2.0"
 
 inherit autotools pkgconfig
 

@@ -45,12 +45,12 @@ do_install() {
 	install -m 0644 ${WORKDIR}/cpuspeed.8 ${D}${mandir}/man8/cpuspeed.8
 }
 
-CONFFILES_${PN} += "${sysconfdir}/sysconfig/cpuspeed"
+CONFFILES:${PN} += "${sysconfdir}/sysconfig/cpuspeed"
 
-pkg_postinst_${PN}() {
+pkg_postinst:${PN}() {
 }
 
-pkg_postrm_${PN}() {
+pkg_postrm:${PN}() {
 }
 
 SRC_URI[src.md5sum] = "4ff58ec10678db80a08bd5ad3589e838"

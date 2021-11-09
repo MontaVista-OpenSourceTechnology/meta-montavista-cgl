@@ -2,8 +2,8 @@ SAMHAIN = " \
     samhain-client \
     samhain-server \
 "
-SAMHAIN_riscv64 = ""
+SAMHAIN:riscv64 = ""
 
-RDEPENDS_packagegroup-cgl-applications_append = " \
+RDEPENDS:packagegroup-cgl-applications:append = " \
     ${SAMHAIN} \
 "

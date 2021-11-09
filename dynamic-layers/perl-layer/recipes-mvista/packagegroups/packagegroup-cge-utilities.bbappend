@@ -1,7 +1,7 @@
-RDEPENDS_packagegroup-cge-utility-system-management_append = " \
+RDEPENDS:packagegroup-cge-utility-system-management:append = " \
 	adduser \
 "
 
-RDEPENDS_packagegroup-cge-logs-management_append = " \
+RDEPENDS:packagegroup-cge-logs-management:append = " \
 	logcheck \
 "

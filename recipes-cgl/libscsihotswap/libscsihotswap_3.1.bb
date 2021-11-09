@@ -72,8 +72,8 @@ do_install () {
 	pushd scsi_hotswap_cmd
 	install -m 0755 scsi_hotswap_cmd ${D}${sbindir}
 	pushd ${D}${sbindir}
-	ln -s scsi_hotswap_cmd scsi_blkdev_remove_by_id
-	ln -s scsi_hotswap_cmd scsi_blkdev_remove_by_wwn_wildcard
+	ln -s scsi_hotswap_cmd scsi_blkdev:remove_by_id
+	ln -s scsi_hotswap_cmd scsi_blkdev:remove_by_wwn_wildcard
 	ln -s scsi_hotswap_cmd scsi_hotinsert_by_id
 	ln -s scsi_hotswap_cmd scsi_hotinsert_by_wwn_wildcard
 	ln -s scsi_hotswap_cmd scsi_hotremove_by_id

@@ -13,10 +13,10 @@ LM_SENSORS = " \
     lmsensors-config-fancontrol \
 "
 MAKEDUMPFILE = "makedumpfile"
-MAKEDUMPFILE_riscv64 = ""
+MAKEDUMPFILE:riscv64 = ""
 CRASH = "crash"
-CRASH_riscv64 = "" 
-RDEPENDS_packagegroup-cgl-applications_append = " \
+CRASH:riscv64 = "" 
+RDEPENDS:packagegroup-cgl-applications:append = " \
 	${LM_SENSORS} \
 	smartmontools \
 	${CRASH} \

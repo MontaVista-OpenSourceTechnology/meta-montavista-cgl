@@ -1,7 +1,7 @@
 IPXE = ""
-IPXE_x86-64 = "ipxe"
+IPXE:x86-64 = "ipxe"
 IPXE_i686 = "ipxe"
 
-RDEPENDS_packagegroup-cge-boot-utilities_append = " \
+RDEPENDS:packagegroup-cge-boot-utilities:append = " \
 	${IPXE} \
 "

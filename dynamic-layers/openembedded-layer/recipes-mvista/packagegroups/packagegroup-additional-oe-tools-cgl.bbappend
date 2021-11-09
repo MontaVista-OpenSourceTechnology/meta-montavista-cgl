@@ -1,3 +1,3 @@
-RDEPENDS_packagegroup-oe-console-utilities-cgl_append = " \
+RDEPENDS:packagegroup-oe-console-utilities-cgl:append = " \
 	cryptsetup \
 "

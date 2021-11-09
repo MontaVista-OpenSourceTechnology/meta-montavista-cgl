@@ -54,6 +54,6 @@ do_install () {
 	install ${S}/${UEFI_TARGET_FILE} ${D}/boot/${UEFI_IMAGE}
 }
 
-FILES_${PN} = "/boot/${UEFI_IMAGE}"
+FILES:${PN} = "/boot/${UEFI_IMAGE}"
 
 addtask deploy before do_build after do_compile

@@ -1,5 +1,5 @@
-PACKAGECONFIG_pn-qemu ?= " fdt virtfs libcap-ng "
-DISTRO_FEATURES_append += "openstack"
+PACKAGECONFIG:pn-qemu ?= " fdt virtfs libcap-ng "
+DISTRO_FEATURES:append += "openstack"
 
 BBMASK += "meta-openstack/recipes-support/openldap/openldap_2.4.39.bbappend"
 BBMASK += "meta-cgl-common/recipes-cgl/openais/openais_1.1.4.bb"

@@ -1,7 +1,7 @@
-RDEPENDS_packagegroup-oe-webserver-cgl_append = " \
+RDEPENDS:packagegroup-oe-webserver-cgl:append = " \
 	mod-wsgi \
 "
 
-RDEPENDS_packagegroup-oe-filesystem-utilities-cgl_append = " \
+RDEPENDS:packagegroup-oe-filesystem-utilities-cgl:append = " \
 	tgt \
 "

@@ -26,18 +26,18 @@ inherit autotools autotools update-rc.d
 
 B = "${S}"
 
-do_configure_prepend () {
+do_configure:prepend () {
     touch NEWS AUTHORS ChangeLog
 }
 
-do_install_append() {
+do_install:append() {
     mkdir -p ${D}/sbin
     mv ${D}${sbindir}/evl* ${D}/sbin
     install -m 0755 ${WORKDIR}/evlsyslog.init ${D}${sysconfdir}/init.d/evlsyslog
     install -m 0755 ${WORKDIR}/evlforward.init ${D}${sysconfdir}/init.d/evlforward
 }
 
-pkg_postinst_${PN}() {
+pkg_postinst:${PN}() {
     if test "x$D" != "x"; then
         exit 1
     else
@@ -45,7 +45,7 @@ pkg_postinst_${PN}() {
     fi
 }
 
-pkg_prerm_${PN}() {
+pkg_prerm:${PN}() {
     if test "x$D" != "x"; then
         exit 1
     else
@@ -57,20 +57,20 @@ INITSCRIPT_NAME = "evlforward"
 INITSCRIPT_PARAMS = "defaults 85 45"
 PACKAGES = "${PN}-examples ${PN}-doc ${PN} ${PN}-dbg"
 
-FILES_${PN}-examples = "${datadir}/${BPN}/examples \
+FILES:${PN}-examples = "${datadir}/${BPN}/examples \
                         ${sbindir}/pxlogger \
                         ${sbindir}/pxtestapp \
                         ${sbindir}/pxruntests"
 
-FILES_${PN}-doc = "${mandir}/man1/*"
+FILES:${PN}-doc = "${mandir}/man1/*"
 
-FILES_${PN} = "/sbin/evlsyslog \
+FILES:${PN} = "/sbin/evlsyslog \
                /sbin/evlforward \
                ${sysconfdir}/init.d/evlsyslog \
                ${sysconfdir}/init.d/evlforward"
 
-FILES_${PN}-dbg += "/sbin/.debug/* \
+FILES:${PN}-dbg += "/sbin/.debug/* \
                     ${sbindir}/.debug/* \
 		    ${debugsrcdir}/* \
 		    "
-RDEPENDS_${PN} = "lsb lsbinitscripts"
+RDEPENDS:${PN} = "lsb lsbinitscripts"

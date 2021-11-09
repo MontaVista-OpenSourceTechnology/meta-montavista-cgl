@@ -1,4 +1,4 @@
-#Copied from meta-cgl to fix problems with the RDEPENDS_${PN} warning messages.
+#Copied from meta-cgl to fix problems with the RDEPENDS:${PN} warning messages.
 
 SUMMARY = "Application packages required to satisfy the Carrier Grade Linux (CGL) specification"
 DESCRIPTION = "This package group includes the application with which the user interacts \
@@ -13,8 +13,8 @@ inherit pkgconfig
 PACKAGES = "packagegroup-cgl-applications"
 
 GDBSERVER = "gdbserver"
-GDBSERVER_riscv64 = ""
-RDEPENDS_packagegroup-cgl-applications = " \
+GDBSERVER:riscv64 = ""
+RDEPENDS:packagegroup-cgl-applications = " \
     bc \
     gettext \
     gettext-runtime \
@@ -36,15 +36,15 @@ LTTNG ?= "\
 #FIXME Currently does not build against 4.14.
 #
 #    lttng-modules 
-LTTNG_armv6 ?= ""
+LTTNG:armv6 ?= ""
 
 LTTNGUST = "lttng-ust"
 LTTNGUST_libc-uclibc = ""
 
-RDEPENDS_packagegroup-cgl-applications_append_qemux86 = " valgrind lttng-ust"
-RDEPENDS_packagegroup-cgl-applications_append_qemux86-64 = " ${LTTNGUST}"
-RDEPENDS_packagegroup-cgl-applications_append_qemuppc = " ${LTTNGUST}"
-RDEPENDS_packagegroup-cgl-applications_append_qemuarm = " ${LTTNGUST}"
-RDEPENDS_packagegroup-cgl-applications_append_powerpc = " ${LTTNGUST}"
+RDEPENDS:packagegroup-cgl-applications:append:qemux86 = " valgrind lttng-ust"
+RDEPENDS:packagegroup-cgl-applications:append:qemux86-64 = " ${LTTNGUST}"
+RDEPENDS:packagegroup-cgl-applications:append:qemuppc = " ${LTTNGUST}"
+RDEPENDS:packagegroup-cgl-applications:append:qemuarm = " ${LTTNGUST}"
+RDEPENDS:packagegroup-cgl-applications:append:powerpc = " ${LTTNGUST}"
 
-RRECOMMENDS_packagegroup-cgl-applications = ""
+RRECOMMENDS:packagegroup-cgl-applications = ""

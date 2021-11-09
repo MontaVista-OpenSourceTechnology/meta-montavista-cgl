@@ -1,3 +1,3 @@
-RDEPENDS_packagegroup-cgl-applications_append = " \
+RDEPENDS:packagegroup-cgl-applications:append = " \
 	audit \
 "

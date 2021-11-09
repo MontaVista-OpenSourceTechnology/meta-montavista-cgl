@@ -21,6 +21,6 @@ B = "${S}"
 
 EXTRA_OEMAKE += "-e" 
 
-do_install_prepend () {
+do_install:prepend () {
     install -d ${D}${bindir}
 }

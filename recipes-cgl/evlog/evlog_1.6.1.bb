@@ -56,8 +56,8 @@ SRC_URI[sha256sum] = "739984b2770a2c4356431881f4f1b618191cd6979c7b35d88460a49b50
 # libbfd and libiberty packages are given by binutils
 DEPENDS = "zlib bison-native flex-native binutils"
 
-RDEPENDS_${PN} = "bash"
-RDEPENDS_${PN}-test = "bash"
+RDEPENDS:${PN} = "bash"
+RDEPENDS:${PN}-test = "bash"
 
 inherit autotools update-rc.d
 
@@ -67,27 +67,27 @@ INITSCRIPT_NAME = "evlog"
 INITSCRIPT_PARAMS = "defaults 9 90"
 
 PACKAGES =+ "${PN}-tests-dbg ${PN}-tests"
-FILES_${PN}-tests += "${localstatedir}/${PN}/test"
-FILES_${PN}-tests-dbg += "${localstatedir}/${BPN}/test/.debug"
-FILES_${PN}-staticdev += "${libdir}/${PN}/plugins/*.a"
-FILES_${PN}     += "${libdir}/${PN}/plugins/*.so \
+FILES:${PN}-tests += "${localstatedir}/${PN}/test"
+FILES:${PN}-tests-dbg += "${localstatedir}/${BPN}/test/.debug"
+FILES:${PN}-staticdev += "${libdir}/${PN}/plugins/*.a"
+FILES:${PN}     += "${libdir}/${PN}/plugins/*.so \
                     ${libdir}/${PN}/plugins/*.la"
-FILES_${PN}-dbg += "${libdir}/${PN}/plugins/.debug \
+FILES:${PN}-dbg += "${libdir}/${PN}/plugins/.debug \
                     ${datadir}/${BPN}/.debug"
-FILES_${PN}-doc += "${datadir}/${PN}"
+FILES:${PN}-doc += "${datadir}/${PN}"
 
-do_configure_prepend () {
+do_configure:prepend () {
     touch NEWS AUTHORS ChangeLog
 }
 
-do_install_append() {
+do_install:append() {
     # pack template files into one package
     mv ${D}${datadir}/doc/packages/evlog/templates ${D}${datadir}/${PN}
 }
 
 
 PARALLEL_MAKE = ""
-pkg_postinst_${PN}() {
+pkg_postinst:${PN}() {
     if test "x$D" != "x"; then
         exit 1
     else
@@ -97,7 +97,7 @@ pkg_postinst_${PN}() {
     fi
 }
 
-pkg_prerm_${PN}() {
+pkg_prerm:${PN}() {
     if test "x$D" != "x"; then
         exit 1
     else

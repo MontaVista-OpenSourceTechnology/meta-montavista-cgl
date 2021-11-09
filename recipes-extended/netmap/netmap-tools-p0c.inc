@@ -19,4 +19,4 @@ do_install() {
 	install -m 755 ${S}/examples/pkt-gen ${D}/${bindir}
 }
 
-FILES_${PN} += "${bindir}/*"
+FILES:${PN} += "${bindir}/*"

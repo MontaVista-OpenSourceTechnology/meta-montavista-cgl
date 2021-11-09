@@ -1,4 +1,4 @@
-RDEPENDS_packagegroup-cge-utility-hardware_append = " \
+RDEPENDS:packagegroup-cge-utility-hardware:append = " \
 	drbd-utils \
 	openhpi \
 	openipmi \
@@ -7,14 +7,14 @@ RDEPENDS_packagegroup-cge-utility-hardware_append = " \
 	nbd-trdump \
 "
 
-RDEPENDS_packagegroup-cge-utility-system-management_append = " \
+RDEPENDS:packagegroup-cge-utility-system-management:append = " \
 	lksctp-tools \
 "
 
-RDEPENDS_packagegroup-cge-utility-network-management_append = " \
+RDEPENDS:packagegroup-cge-utility-network-management:append = " \
 	stunnel \
 "
 
-RDEPENDS_packagegroup-cge-libs_append = " \
+RDEPENDS:packagegroup-cge-libs:append = " \
 	opensaf \
 "

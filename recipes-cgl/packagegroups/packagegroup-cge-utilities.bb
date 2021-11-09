@@ -26,7 +26,7 @@ PACKAGES = "\
     packagegroup-cge-console-utilities \
     packagegroup-cge-ftpserver-utilities \
     "
-RDEPENDS_packagegroup-cge-utilities = "\
+RDEPENDS:packagegroup-cge-utilities = "\
     packagegroup-cge-utility-hardware \
     packagegroup-cge-utility-network-management \
     packagegroup-cge-security \
@@ -39,24 +39,24 @@ RDEPENDS_packagegroup-cge-utilities = "\
     packagegroup-cge-ftpserver-utilities \
     "
 
-RDEPENDS_packagegroup-cge-ftpserver-utilities = " \
+RDEPENDS:packagegroup-cge-ftpserver-utilities = " \
 "
 IPMIUTIL = ""
-IPMIUTIL_x86 = "ipmiutil"
-IPMIUTIL_x86-64 = "ipmiutil"
-RDEPENDS_packagegroup-cge-utility-hardware = "\
+IPMIUTIL:x86 = "ipmiutil"
+IPMIUTIL:x86-64 = "ipmiutil"
+RDEPENDS:packagegroup-cge-utility-hardware = "\
 	libscsihotswap \
     ${IPMIUTIL} \
 "
 
-RDEPENDS_packagegroup-cge-utility-hardware += "\
+RDEPENDS:packagegroup-cge-utility-hardware += "\
 					${X86_PACKAGES_HARDWARE_UTILS} \
 					${POWERPC_PACKAGES_HARDWARE_UTILS} \
 					"
 X86_PACKAGES_HARDWARE_UTILS ?= ""
 POWERPC_PACKAGES_HARDWARE_UTILS ?= ""
 
-X86_PACKAGES_HARDWARE_UTILS_x86-64 = " \
+X86_PACKAGES_HARDWARE_UTILS:x86-64 = " \
 	cpuspeed \
 "
 
@@ -64,19 +64,19 @@ X86_PACKAGES_HARDWARE_UTILS_i686 = " \
 	cpuspeed \
 "
 
-POWERPC_PACKAGES_HARDWARE_UTILS_powerpc = " \
+POWERPC_PACKAGES_HARDWARE_UTILS:powerpc = " \
 	cpuspeed \
 "
 
-RDEPENDS_packagegroup-cge-utility-system-management = "\
+RDEPENDS:packagegroup-cge-utility-system-management = "\
 "
 
-RDEPENDS_packagegroup-cge-utility-system-management += "\
+RDEPENDS:packagegroup-cge-utility-system-management += "\
 	${X86_PACKAGES_SYSTEMMGMT_UTILS} \
 "
 
 X86_PACKAGES_SYSTEMMGMT_UTILS ?= ""
-X86_PACKAGES_SYSTEMMGMT_UTILS_x86-64 = " \
+X86_PACKAGES_SYSTEMMGMT_UTILS:x86-64 = " \
 	dmidecode \
 "
 X86_PACKAGES_SYSTEMMGMT_UTILS_i686 = " \
@@ -84,19 +84,19 @@ X86_PACKAGES_SYSTEMMGMT_UTILS_i686 = " \
 "
 
 PREFERRED_PROVIDER_libunwind ?= "libunwind"
-RDEPENDS_packagegroup-cge-utility-debug = " \
+RDEPENDS:packagegroup-cge-utility-debug = " \
 	${PREFERRED_PROVIDER_libunwind} \
 	pcoredump \
 	ltt-kdump \
 "
 
-RDEPENDS_packagegroup-cge-utility-network-management = "\
+RDEPENDS:packagegroup-cge-utility-network-management = "\
 "
 
-RDEPENDS_packagegroup-cge-security = "\
+RDEPENDS:packagegroup-cge-security = "\
 "
 
-RDEPENDS_packagegroup-cge-logs-management = " \
+RDEPENDS:packagegroup-cge-logs-management = " \
 "
 # FIXME missing get_kernel_syms
 #	evlog 
@@ -107,7 +107,7 @@ RDEPENDS_packagegroup-cge-logs-management = " \
 # FIXME ace and opendiameter
 #	ace 
 #	opendiameter
-RDEPENDS_packagegroup-cge-libs = "\
+RDEPENDS:packagegroup-cge-libs = "\
 	libyaml \
 	swig \
 "
@@ -117,17 +117,17 @@ RDEPENDS_packagegroup-cge-libs = "\
 #	ace 
 #	opendiameter
 
-RDEPENDS_packagegroup-cge-boot-utilities = "\
+RDEPENDS:packagegroup-cge-boot-utilities = "\
 	bootcycle \
 "
 
-RDEPENDS_packagegroup-cge-boot-utilities += " \
+RDEPENDS:packagegroup-cge-boot-utilities += " \
 "
 
-RDEPENDS_packagegroup-cge-virualization-utilities += "${X86_PACKAGES_VIRTUALIZATION_UTILS}"
+RDEPENDS:packagegroup-cge-virualization-utilities += "${X86_PACKAGES_VIRTUALIZATION_UTILS}"
 
 X86_PACKAGES_VIRTUALIZATION_UTILS = ""
-X86_PACKAGES_VIRTUALIZATION_UTILS_x86-64 = " \
+X86_PACKAGES_VIRTUALIZATION_UTILS:x86-64 = " \
 	qemu \
 "
 X86_PACKAGES_VIRTUALIZATION_UTILS_i686 = " \
