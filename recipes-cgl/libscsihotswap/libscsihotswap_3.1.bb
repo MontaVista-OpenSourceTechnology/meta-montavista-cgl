@@ -28,11 +28,11 @@
 
 DESCRIPTION = "Software library for accessing the SCSI/FC hotswap interface"
 SECTION = "devel"
-LICENSE = "BSD"
+LICENSE = "BSD-3-Clause"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=4c1344207587ecb746c1619a85ee32f0"
 PR = "r3"
 
-SRC_URI = "git://github.com/MontaVista-OpenSourceTechnology/libscsihotswap.git;protocol=https \
+SRC_URI = "git://github.com/MontaVista-OpenSourceTechnology/libscsihotswap.git;protocol=https;branch=master \
 	"
 S = "${WORKDIR}/git"
 #Version 3.1
