@@ -5,7 +5,7 @@ require recipes-core/images/core-image-base.bb
 export IMAGE_BASENAME = "cge-complete-image"
 
 EXTRA_IMAGE_FEATURES += "dbg-pkgs dev-pkgs staticdev-pkgs"
-MKRAMDISK='${@bb.utils.contains("IMAGE_FEATURES", "busyboxless", "", "mvmkramdisk", d)}'
+MKRAMDISK = '${@bb.utils.contains("IMAGE_FEATURES", "busyboxless", "", "mvmkramdisk", d)}'
 EXTRA_X86 = ""
 EXTRA_X86:x86-64 = "${MKRAMDISK}"
 EXTRA_X86_i686 = "${MKRAMDISK}"

@@ -39,7 +39,7 @@ S = "${WORKDIR}/git"
 SRCREV = "634b496d4eef0d020f67fd8f846878bc91b6cdae"
 EXTRA_OEMAKE = ""
 TARGET_CC_ARCH += "${LDFLAGS}"
-ASNEEDED=""
+ASNEEDED = ""
 
 do_compile () {
 	pushd libscsihotswap

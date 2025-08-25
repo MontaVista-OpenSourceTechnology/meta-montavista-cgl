@@ -1,4 +1,4 @@
-DEPENDS=" \
+DEPENDS = " \
 packagegroup-additional-oe-tools \
 packagegroup-additional-oe-tools-cgl \
 packagegroup-cge-utilities"

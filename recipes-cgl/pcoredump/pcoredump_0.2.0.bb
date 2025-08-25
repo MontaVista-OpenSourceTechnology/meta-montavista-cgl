@@ -8,4 +8,4 @@ SRC_URI = "git://github.com/MontaVista-OpenSourceTechnology/linux-live-app-cored
 SRCREV = "d8c8d9266314e66d2b000e9e1cdcd37219125273"
 
 inherit autotools autotools
-S="${WORKDIR}/git"
+S = "${UNPACKDIR}/git"

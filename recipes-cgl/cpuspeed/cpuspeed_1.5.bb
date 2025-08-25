@@ -11,7 +11,7 @@ PR = "r2"
 COMPATIBLE_HOST = "(i.86|x86_64|powerpc).*-linux"
 
 #LOCATION="http://www.carlthompson.net/downloads/cpuspeed/"
-LOCATION="https://github.com/MontaVista-OpenSourceTechnology/source-mirror/raw/master/"
+LOCATION = "https://github.com/MontaVista-OpenSourceTechnology/source-mirror/raw/master/"
 SRC_URI = "${LOCATION}/cpuspeed-${PV}.tar.bz2;name=src \
            ${LOCATION}/license.txt;name=license \
 	   file://cpuspeed-1.5-Makefile.patch;patch=1 \

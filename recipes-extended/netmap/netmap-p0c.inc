@@ -8,7 +8,7 @@ DEPENDS = "virtual/kernel"
 
 inherit module
 
-export INSTALL_MOD_DIR="kernel/netmap-modules"
+export INSTALL_MOD_DIR = "kernel/netmap-modules"
 
 S = "${WORKDIR}/netmap-release"
 B = "${S}/LINUX"

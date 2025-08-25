@@ -1,9 +1,9 @@
-PN="uefi"
+PN = "uefi"
 
-PACKAGE_ARCH="${MACHINE_ARCH}"
+PACKAGE_ARCH = "${MACHINE_ARCH}"
 
-DESCRIPTION="UEFI - Unified Extensible Firmware Interface"
-HOMEPAGE="https://wiki.linaro.org/ARM/UEFI"
+DESCRIPTION = "UEFI - Unified Extensible Firmware Interface"
+HOMEPAGE = "https://wiki.linaro.org/ARM/UEFI"
 
 SRC_URI = "git://git.linaro.org/arm/uefi/uefi.git;protocol=git \
            file://uefi-build.sh \
@@ -13,7 +13,7 @@ PR .= ".2"
 
 inherit deploy
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/git"
 
 LICENSE = "LGPLv2"
 

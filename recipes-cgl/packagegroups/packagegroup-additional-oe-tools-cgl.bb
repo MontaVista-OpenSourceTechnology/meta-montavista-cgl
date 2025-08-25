@@ -30,7 +30,7 @@ RDEPENDS:packagegroup-oe-virtualization-cgl = "\
 RDEPENDS:packagegroup-oe-console-utilities-cgl = "\
 "
 
-RDEPENDS:packagegroup-oe-webserver-cgl =" \
+RDEPENDS:packagegroup-oe-webserver-cgl = " \
 "
 
 RDEPENDS:packagegroup-oe-filesystem-utilities-cgl = " \

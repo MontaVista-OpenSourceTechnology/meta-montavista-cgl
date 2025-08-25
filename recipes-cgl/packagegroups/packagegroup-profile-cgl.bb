@@ -10,7 +10,7 @@ PACKAGES = "\
          packagegroup-profile-cgl \
 "
 
-MKRAMDISK='${@bb.utils.contains("IMAGE_FEATURES", "busyboxless", "", "mvmkramdisk", d)}'
+MKRAMDISK = '${@bb.utils.contains("IMAGE_FEATURES", "busyboxless", "", "mvmkramdisk", d)}'
 EXTRA_X86 = ""
 EXTRA_X86:x86-64 = "${MKRAMDISK}"
 EXTRA_X86_i686 = "${MKRAMDISK}"
